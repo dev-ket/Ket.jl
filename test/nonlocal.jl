@@ -64,8 +64,8 @@ end
     ]
     @test tsirelson_bound(tilted_chsh_fc, 3)[1] ≈ 3.80128907501837942169727948014219026
     bc_cg = tensor_collinsgisin(braunsteincaves())
-    @test tsirelson_bound(bc_cg,(2,2,3,3),1)[1] ≈ cos(π/12)^2 rtol = 1e-7
-    @test tsirelson_bound(bc_cg,(2,2,3,3),"1 + A B")[1] ≈ cos(π/12)^2 rtol = 1e-7
+    @test tsirelson_bound(bc_cg, (2, 2, 3, 3), 1)[1] ≈ cos(π / 12)^2 rtol = 1e-7
+    @test tsirelson_bound(bc_cg, (2, 2, 3, 3), "1 + A B")[1] ≈ cos(π / 12)^2 rtol = 1e-7
     scenario = (2, 3, 3, 2)
     rand_cg = tensor_collinsgisin(randn(scenario))
     q, behaviour = tsirelson_bound(rand_cg, scenario, "1 + A B")
@@ -122,6 +122,24 @@ end
         m = p
         @test dot(tensor_collinsgisin(m, false), pcg) ≈ dot(m, tensor_probability(pcg, scenario, true))
         @test tensor_collinsgisin(tensor_probability(pcg, scenario, true), true) ≈ pcg
+    end
+end
+
+@testset "CG and FC notations   " begin
+    for T ∈ [Float64, Double64, Float128, BigFloat]
+        scenario = (2, 2, 2, 2, 3, 4)
+        pfc = randn(T, scenario[4:6] .* (scenario[1:3] .- 1) .+ 1)
+        pcg = tensor_collinsgisin(tensor_probability(pfc, true), true)
+        @test tensor_collinsgisin(pfc, true; correlation = true) ≈ pcg
+        @test tensor_correlation(pcg, true; collinsgisin = true) ≈ pfc
+        @test tensor_correlation(pcg, true; collinsgisin = true, marg = false) ≈
+              tensor_correlation(tensor_probability(pcg, scenario, true), true; marg = false)
+        mfc = pfc
+        mcg = tensor_collinsgisin(tensor_probability(mfc))
+        @test tensor_collinsgisin(mfc; correlation = true) ≈ mcg
+        @test tensor_correlation(mcg; collinsgisin = true) ≈ mfc
+        @test tensor_correlation(mcg; collinsgisin = true, marg = false) ≈
+              tensor_correlation(tensor_probability(mcg, scenario); marg = false)
     end
 end
 

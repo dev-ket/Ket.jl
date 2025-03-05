@@ -264,14 +264,32 @@ function _update_odometer!(ind::AbstractVector{<:Integer}, base::Integer)
 end
 
 """
-    tensor_collinsgisin(p::Array, behaviour::Bool = false)
+    tensor_collinsgisin(p::Array, behaviour::Bool = false; correlation::Bool = false)
 
-Takes a multipartite Bell functional `p` in probability notation and transforms it to Collins-Gisin notation.
+Converts a multipartite Bell functional `p` into Collins-Gisin notation.
+If `correlation` is `true`, `p` is assumed to be written in correlation notation. Otherwise, `p` is assumed to be written in probability notation.
 If `behaviour` is `true` do instead the transformation for behaviours. Doesn't assume normalization.
 
 Also accepts the arguments of `tensor_probability` (state and measurements) for convenience.
 """
-function tensor_collinsgisin(p::AbstractArray{T,N2}, behaviour::Bool = false) where {T,N2}
+function tensor_collinsgisin(p::AbstractArray, behaviour::Bool = false; correlation::Bool = false)
+    if correlation
+        return _tensor_collinsgisin_correlation(p, behaviour)
+    else
+        return _tensor_collinsgisin_probability(p, behaviour)
+    end
+end
+# accepts directly the arguments of tensor_probability
+function tensor_collinsgisin(rho::Hermitian, all_Aax::Vector{<:Measurement}...)
+    return tensor_collinsgisin(tensor_probability(rho, all_Aax...), true)
+end
+# shorthand syntax for identical measurements on all parties
+function tensor_collinsgisin(rho::Hermitian, Aax::Vector{<:Measurement}, N::Integer)
+    return tensor_collinsgisin(rho, fill(Aax, N)...)
+end
+export tensor_collinsgisin
+
+function _tensor_collinsgisin_probability(p::AbstractArray{T,N2}, behaviour::Bool = false) where {T,N2}
     @assert iseven(N2)
     N = N2 ÷ 2
     scenario = size(p)
@@ -302,16 +320,27 @@ function tensor_collinsgisin(p::AbstractArray{T,N2}, behaviour::Bool = false) wh
     end
     return CG
 end
-# accepts directly the arguments of tensor_probability
-function tensor_collinsgisin(rho::Hermitian, all_Aax::Vector{<:Measurement}...)
-    return tensor_collinsgisin(tensor_probability(rho, all_Aax...), true)
+function _tensor_collinsgisin_correlation(FC::AbstractArray{T}, behaviour::Bool = false) where {T}
+    dims = size(FC)
+    CG = zeros(_solver_type(T), dims)
+    if !behaviour
+        for x ∈ CartesianIndices(dims)
+            n = sum(x.I .!= 1)
+            for x2 ∈ Iterators.product(union.(x.I, 1)...)
+                s = sum(x2 .!= 1)
+                CG[x2...] += (-1)^isodd(n - s) * 2^s * FC[x]
+            end
+        end
+    else
+        for x ∈ CartesianIndices(dims)
+            n = sum(x.I .!= 1)
+            for x2 ∈ Iterators.product(union.(x.I, 1)...)
+                CG[x] += FC[x2...] / 2^n
+            end
+        end
+    end
+    return CG
 end
-# shorthand syntax for identical measurements on all parties
-function tensor_collinsgisin(rho::Hermitian, Aax::Vector{<:Measurement}, N::Integer)
-    return tensor_collinsgisin(rho, fill(Aax, N)...)
-end
-export tensor_collinsgisin
-
 function _normalization_tensor(outs::NTuple{N,Int}, ins::NTuple{N,Int}, var::NTuple{N,Int}) where {N}
     normalization = 1
     @inbounds for i ∈ 1:N
@@ -421,44 +450,21 @@ end
 export tensor_probability
 
 """
-    tensor_correlation(p::AbstractArray{T, N2}, behaviour::Bool = false; marg::Bool = true)
+    tensor_correlation(p::AbstractArray, behaviour::Bool = false; collinsgisin::Bool = false, marg::Bool = true)
 
-Converts a 2 × … × 2 × m × … × m probability array into
-- an m × … × m correlation array (no marginals)
-- an (m+1) × … × (m+1) correlation array (marginals).
+Converts a multipartite Bell functional `p` into correlation notation.
+If `collinsgisin` is `true`, `p` is assumed to be written in Collins-Gisin notation. Otherwise, `p` is assumed to be written in probability notation.
+If `marg` is `false`, the output contains only full correlators, with no marginals.
 If `behaviour` is `true` do the transformation for behaviours. Doesn't assume normalization.
 
 Also accepts the arguments of `tensor_probability` (state and measurements) for convenience.
 """
-function tensor_correlation(p::AbstractArray{T,N2}, behaviour::Bool = false; marg::Bool = true) where {T,N2}
-    @assert iseven(N2)
-    N = N2 ÷ 2
-    o = size(p)[1:N] # numbers of outputs per party
-    @assert all(o .== 2)
-    m = size(p)[N+1:end] # numbers of inputs per party
-    size_FC = marg ? m .+ 1 : m
-    FC = zeros(_solver_type(T), size_FC)
-    cia = CartesianIndices(o)
-    cix = CartesianIndices(size_FC)
-    for x ∈ cix
-        # separating here prevent the need of the iterate function on unique elements of type T
-        if all(x.I .> marg)
-            FC[x] = sum((-1)^sum(a[n] - 1 for n ∈ 1:N if x[n] > marg; init = 0) * p[a, (x.I .- marg)...] for a ∈ cia)
-        else
-            x_colon = Union{Colon,Int}[x[n] > marg ? x[n] - marg : Colon() for n ∈ 1:N]
-            FC[x] = sum((-1)^sum(a[n] - 1 for n ∈ 1:N if x[n] > marg; init = 0) * sum(p[a, x_colon...]) for a ∈ cia)
-        end
+function tensor_correlation(p::AbstractArray, behaviour::Bool = false; collinsgisin::Bool = false, marg::Bool = true)
+    if collinsgisin
+        return _tensor_correlation_collinsgisin(p, behaviour; marg = marg)
+    else
+        return _tensor_correlation_probability(p, behaviour; marg = marg)
     end
-    if !behaviour
-        FC ./= 2^N
-    elseif marg
-        for n ∈ 1:N
-            x_colon = Union{Colon,Int}[i == n ? 1 : Colon() for i ∈ 1:N]
-            FC[x_colon...] ./= m[n]
-        end
-    end
-    cleanup!(FC)
-    return FC
 end
 # accepts directly the arguments of tensor_probability
 # avoids creating the full probability tensor for performance
@@ -490,6 +496,73 @@ function tensor_correlation(rho::Hermitian, Aax::Vector{<:Measurement}, N::Integ
     return tensor_correlation(rho, fill(Aax, N)...; marg)
 end
 export tensor_correlation
+
+function _tensor_correlation_probability(
+    p::AbstractArray{T,N2},
+    behaviour::Bool = false;
+    marg::Bool = true
+) where {T,N2}
+    @assert iseven(N2)
+    N = N2 ÷ 2
+    o = size(p)[1:N] # numbers of outputs per party
+    @assert all(o .== 2)
+    m = size(p)[N+1:end] # numbers of inputs per party
+    size_FC = marg ? m .+ 1 : m
+    FC = zeros(_solver_type(T), size_FC)
+    cia = CartesianIndices(o)
+    cix = CartesianIndices(size_FC)
+    for x ∈ cix
+        # separating here prevent the need of the iterate function on unique elements of type T
+        if all(x.I .> marg)
+            FC[x] = sum((-1)^sum(a[n] - 1 for n ∈ 1:N if x[n] > marg; init = 0) * p[a, (x.I .- marg)...] for a ∈ cia)
+        else
+            x_colon = Union{Colon,Int}[x[n] > marg ? x[n] - marg : Colon() for n ∈ 1:N]
+            FC[x] = sum((-1)^sum(a[n] - 1 for n ∈ 1:N if x[n] > marg; init = 0) * sum(p[a, x_colon...]) for a ∈ cia)
+        end
+    end
+    if !behaviour
+        FC ./= 2^N
+    elseif marg
+        for n ∈ 1:N
+            x_colon = Union{Colon,Int}[i == n ? 1 : Colon() for i ∈ 1:N]
+            FC[x_colon...] ./= m[n]
+        end
+    end
+    cleanup!(FC)
+    return FC
+end
+function _tensor_correlation_collinsgisin(
+    CG::AbstractArray{T,N},
+    behaviour::Bool = false;
+    marg::Bool = true
+) where {T,N}
+    m = size(CG) .- 1
+    size_FC = marg ? m .+ 1 : m
+    FC = zeros(_solver_type(T), size_FC)
+    if !behaviour
+        if !marg
+            for x ∈ CartesianIndices(size_FC)
+                FC[x] = CG[(x.I .+ 1)...] / 2^N
+            end
+        else
+            for x ∈ CartesianIndices(size_FC)
+                n = sum(x.I .!= 1)
+                for x2 ∈ Iterators.product(union.(x.I, 1)...)
+                    FC[x2...] += CG[x] / 2^n
+                end
+            end
+        end
+    else
+        for x ∈ CartesianIndices(size_FC)
+            n = marg ? sum(x.I .!= 1) : N
+            for x2 ∈ Iterators.product(union.(x.I .+ !marg, 1)...)
+                s = sum(x2 .!= 1)
+                FC[x] += (-1)^isodd(n - s) * 2^s * CG[x2...]
+            end
+        end
+    end
+    return FC
+end
 
 """
     nonlocality_robustness(FP::Array; noise::String = "white", verbose::Bool = false, solver = Hypatia.Optimizer{_solver_type(T)})
