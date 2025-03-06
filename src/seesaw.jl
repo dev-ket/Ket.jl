@@ -27,39 +27,26 @@ function seesaw(
     verbose = false,
     solver = Hypatia.Optimizer{_solver_type(T)}
 ) where {T<:Real}
-    v0, ψ0, A0, B0 = _seesaw(CG, scenario, d; verbose, solver)
-    for _ ∈ 2:n_trials
-        v, ψ, A, B = _seesaw(CG, scenario, d; verbose, solver) # could be made faster with a seesaw! implementation
-        if v > v0
-            v0 = v
-            ψ0 .= ψ
-            A0 .= A
-            B0 .= B
-        end
-    end
-    return v0, ψ0, A0, B0
-end
-export seesaw
-
-function _seesaw(
-    CG::Matrix{T},
-    scenario::AbstractVecOrTuple{<:Integer},
-    d::Integer;
-    verbose = false,
-    solver = Hypatia.Optimizer{_solver_type(T)}
-) where {T<:Real}
     R = _solver_type(T)
     CG = R.(CG)
     minimumincrease = _rtol(R)
     maxiter = 100
+    ω0 = typemin(R)
+    local ψ0, A0, B0
 
-    if all(scenario[1:2] .== 2)
-        ω, ψ, A, B = _seesaw_eigenvalue(CG, d, minimumincrease, maxiter)
-    else
-        ω, ψ, A, B = _seesaw_sdp(CG, scenario, d, minimumincrease, maxiter; verbose, solver)
+    for _ ∈ 1:n_trials
+        if all(scenario[1:2] .== 2)
+            ω, ψ, A, B = _seesaw_eigenvalue(CG, d, minimumincrease, maxiter)
+        else
+            ω, ψ, A, B = _seesaw_sdp(CG, scenario, d, minimumincrease, maxiter; verbose, solver)
+        end
+        if ω > ω0
+            ω0, ψ0, A0, B0 = ω, ψ, A, B
+        end
     end
-    return ω, ψ, A, B
+    return ω0, ψ0, A0, B0
 end
+export seesaw
 
 function _seesaw_eigenvalue(CG::Matrix{R}, d, minimumincrease, maxiter) where {R<:AbstractFloat}
     ia, ib = size(CG) .- 1
@@ -67,48 +54,48 @@ function _seesaw_eigenvalue(CG::Matrix{R}, d, minimumincrease, maxiter) where {R
     λ = T2.(sqrt.(random_probability(R, d)))
     B = [random_povm(T2, d, 2)[1] for _ ∈ 1:ib]::Measurement{T2}
     A = [Hermitian(zeros(T2, d, d)) for _ ∈ 1:ia]::Measurement{T2}
-    local ψ, Aout, Bout
-    ω = -R(Inf)
-    i = 1
+    local ψ0, A0, B0
+    ω0 = typemin(R)
+    i = 0
     while true
+        i += 1
         _optimize_alice_projectors!(CG, λ, A, B)
         _optimize_bob_projectors!(CG, λ, A, B)
-        new_ω = _optimize_state!(CG, λ, A, B)
-        if new_ω - ω ≤ minimumincrease || i > maxiter
-            ω = new_ω
-            ψ = state_phiplus_ket(T2, d; coeff = λ)
-            Aout = [[A[x]] for x ∈ 1:ia] #rather inconvenient format
-            Bout = [[B[y]] for y ∈ 1:ib] #but consistent with the general case
+        ω = _optimize_state!(CG, λ, A, B)
+        if ω - ω0 ≤ minimumincrease || i > maxiter
+            ω0 = ω
+            ψ0 = state_phiplus_ket(T2, d; coeff = λ)
+            A0 = [[A[x]] for x ∈ 1:ia] #rather inconvenient format
+            B0 = [[B[y]] for y ∈ 1:ib] #but consistent with the general case
             break
         end
-        ω = new_ω
-        i += 1
+        ω0 = ω
     end
-    return ω, ψ, Aout, Bout
+    return ω0, ψ0, A0, B0
 end
 
 function _seesaw_sdp(CG::Matrix{R}, scenario, d, minimumincrease, maxiter; verbose, solver) where {R<:AbstractFloat}
     oa, ob, ia, ib = scenario
     T2 = Complex{R}
-    B = Vector{Measurement{T2}}(undef, ib)
+    B0 = Vector{Measurement{T2}}(undef, ib)
     for y ∈ 1:ib
-        B[y] = random_povm(T2, d, ob)[1:ob-1]
+        B0[y] = random_povm(T2, d, ob)[1:ob-1]
     end
-    local ψ, A
-    ω = -R(Inf)
-    i = 1
+    local ψ0, A0
+    ω0 = typemin(R)
+    i = 0
     while true
-        new_ω, ρxa, ρ_B = _optimize_alice_assemblage(CG, scenario, B; verbose, solver)
-        new_ω, B = _optimize_bob_povm(CG, scenario, ρxa, ρ_B; verbose, solver)
-        if new_ω - ω ≤ minimumincrease || i > maxiter
-            ω = new_ω
-            ψ, A = _decompose_assemblage(scenario, ρxa, ρ_B)
+        i += 1
+        ω, ρxa, ρ_B = _optimize_alice_assemblage(CG, scenario, B0; verbose, solver)
+        ω, B0 = _optimize_bob_povm(CG, scenario, ρxa, ρ_B; verbose, solver)
+        if ω - ω0 ≤ minimumincrease || i > maxiter
+            ω0 = ω
+            ψ0, A0 = _decompose_assemblage(scenario, ρxa, ρ_B)
             break
         end
-        ω = new_ω
-        i += 1
+        ω0 = ω
     end
-    return ω, ψ, A, B
+    return ω0, ψ0, A0, B0
 end
 
 function _optimize_alice_assemblage(
