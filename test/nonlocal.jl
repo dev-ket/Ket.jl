@@ -128,7 +128,15 @@ end
 @testset "CG and FC notations   " begin
     for T ∈ [Float64, Double64, Float128, BigFloat]
         scenario = (2, 2, 2, 2, 3, 4)
-        pfc = randn(T, scenario[4:6] .* (scenario[1:3] .- 1) .+ 1)
+        matrix_size = scenario[4:6] .* (scenario[1:3] .- 1) .+ 1
+        mfc = randn(T, matrix_size)
+        pcg = randn(T, matrix_size)
+        @test dot(mfc, tensor_correlation(pcg, true; collinsgisin = true)) ≈
+              dot(tensor_collinsgisin(mfc; correlation = true), pcg)
+        pfc = mfc
+        mcg = pcg
+        @test dot(tensor_correlation(mcg; collinsgisin = true), pfc) ≈
+              dot(mcg, tensor_collinsgisin(pfc, true; correlation = true))
         pcg = tensor_collinsgisin(tensor_probability(pfc, true), true)
         @test tensor_collinsgisin(pfc, true; correlation = true) ≈ pcg
         @test tensor_correlation(pcg, true; collinsgisin = true) ≈ pfc

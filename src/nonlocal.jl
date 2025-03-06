@@ -320,6 +320,7 @@ function _tensor_collinsgisin_probability(p::AbstractArray{T,N2}, behaviour::Boo
     end
     return CG
 end
+
 function _tensor_collinsgisin_correlation(FC::AbstractArray{T}, behaviour::Bool = false) where {T}
     dims = size(FC)
     CG = zeros(_solver_type(T), dims)
@@ -341,6 +342,7 @@ function _tensor_collinsgisin_correlation(FC::AbstractArray{T}, behaviour::Bool 
     end
     return CG
 end
+
 function _normalization_tensor(outs::NTuple{N,Int}, ins::NTuple{N,Int}, var::NTuple{N,Int}) where {N}
     normalization = 1
     @inbounds for i ∈ 1:N
@@ -461,9 +463,9 @@ Also accepts the arguments of `tensor_probability` (state and measurements) for 
 """
 function tensor_correlation(p::AbstractArray, behaviour::Bool = false; collinsgisin::Bool = false, marg::Bool = true)
     if collinsgisin
-        return _tensor_correlation_collinsgisin(p, behaviour; marg = marg)
+        return _tensor_correlation_collinsgisin(p, behaviour; marg)
     else
-        return _tensor_correlation_probability(p, behaviour; marg = marg)
+        return _tensor_correlation_probability(p, behaviour; marg)
     end
 end
 # accepts directly the arguments of tensor_probability
@@ -531,6 +533,7 @@ function _tensor_correlation_probability(
     cleanup!(FC)
     return FC
 end
+
 function _tensor_correlation_collinsgisin(
     CG::AbstractArray{T,N},
     behaviour::Bool = false;
