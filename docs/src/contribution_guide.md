@@ -23,14 +23,14 @@ There are only three steps to add a new function to Ket:
 - Think of some tests to guarantee that your function is working as intended and add them to the [test files](https://github.com/dev-ket/Ket.jl/tree/master/test).
 - Include your function's name in the [list of functions](https://github.com/dev-ket/Ket.jl/blob/master/docs/src/api.md) so that it appears in the documentation.
 
-After your changes are pushed to the repository, the documentation will be updated, and all the automated tests will run. It is a good idea to run the tests locally before committing to the repository.
+You should then do a pull request to the repository, and all the automated tests will run. It is a good idea to run the tests locally before committing to the repository.
 
 !!! tip
     This procedure can sound complicated if you do not have experience with Git and Julia development. Checking [the JuMP guide](https://jump.dev/JuMP.jl/dev/developers/contributing/#Contribute-code-to-JuMP) or [Modern Julia Workflows](https://modernjuliaworkflows.org/) may help, otherwise reach out for someone to walk you through the process.
 
 If you have an idea for a contribution but are unsure if it is useful, consider proposing it beforehand.
 Otherwise, if you want to contribute but have no ideas, there is a [TODO](https://github.com/dev-ket/Ket.jl/blob/master/TODO) list.
-You can also reach out to us if you need help optimizing your code or using abstract types.
+You can also reach out to us if you need help optimizing your code or using generic types.
 
 ## Documentation
 
