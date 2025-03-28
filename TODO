@@ -1,6 +1,4 @@
-SD - NL robustness
 SD - steering robustness
-SD - entanglement robustnesses (separable...)
 SD - KetSparse (future)
 MT - Random Channels, Random Random (?)
 MT - Section for Channels/Superoperators (add Choi map, etc etc)
@@ -15,3 +13,4 @@ MA - state purification
 MA - optimal cloning
 MA - distinguishability of quantum states (general, LOCC, etc.)
 CG - apply_to_subsystem(op, rho, ssys) in a faster way than permutations
+CG - put docs for release version in the pipeline? (currently only dev is being displayed)

@@ -25,6 +25,11 @@ Ket is a registered Julia package, so it can be installed by typing the followin
 ```
 This will install the latest released version. For the development version with the latest updates, use `]add Ket#master` instead.
 
+## Contributing
+
+We welcome suggestions, bug reports, documentation and code contributions.
+See the [contributions guide](https://dev-ket.github.io/Ket.jl/dev/contribution_guide) for more information.
+
 ## Related libraries
 
 Julia:

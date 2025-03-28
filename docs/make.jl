@@ -53,8 +53,9 @@ makedocs(;
     pages = [
         "Home" => "index.md",
         "Getting started" => "getting_started.md",
-        "Examples" => generated_examples,
         "List of functions" => "api.md",
+        "Examples" => generated_examples,
+        "Contributing" => "contribution_guide.md",
     ],
     checkdocs = :exports
 )
