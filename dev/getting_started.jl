@@ -73,7 +73,7 @@ print(@doc random_state) #hide
 #=
 Here, the first argument `[T=ComplexF64,]` specifies that the return type of the function can be controlled by the user, and the default is `ComplexF64`.
 This can be used to control the precision of the computations, but it is not necessary to know about it to use the function: You can just ignore it, and a sensible default type will be used.
-Any argument followed by a `=` is optional, and the default value is specified after the `=` symbol (for example, `d::Integer = 2` above).
+Any argument followed by a "`=`" is optional, and the default value is specified after the "`=`" symbol (for example, `d::Integer = 2` above).
 
 Finally, some functions also have *keyword* arguments.
 They are specified after a `;` in the function definition:
@@ -102,11 +102,12 @@ W #hide
 #=
 # Further resources
 
-To see a showcase of what can be done with Ket, you can check the examples provided in the documentation.
+Knowing how to use the documentation should enable you to start adding the functions provided by Ket to your code right away.
+If you are still unsure of what to do, or not yet convinced that Ket is useful for you, you may check some of the examples on the sidebar.
 
 Other than learning the basics of Julia, we also recommend you to check the [JuMP tutorial](https://jump.dev/JuMP.jl/stable/tutorials/getting_started/getting_started_with_JuMP/) to learn how to use Julia for optimization problems.
 This is one of the most popular uses of Julia, and it is very easy to use it with Ket to solve quantum information problems.
 Ket integrates well with JuMP, offering for example functions that add common constraints to user-defined optimization problems, such as [`Ket._dps_constraints!`](@ref) and [`Ket._inner_dps_constraints!`](@ref).
 
-Finally, if you have any questions or suggestions, you can reach out to us or open an issue in the [Ket repository](https://github.com/dev-ket/Ket.jl).
+Finally, if you have any questions, suggestions, bug reports, or wish to contribute with code or examples, you can reach out to us or open an issue in the [Ket repository](https://github.com/dev-ket/Ket.jl).
 =#
