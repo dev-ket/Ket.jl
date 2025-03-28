@@ -5,12 +5,9 @@ This guide explains some ways to contribute.
 
 !!! tip
     Questions, suggestions, bugs and so forth can be added [as an issue on the repository](https://github.com/dev-ket/Ket.jl/issues).
-    If you are interested in contributing with code but need help or are unsure if it is a good fit for Ket, you can also find us on [Slack](https://ketjl.slack.com/).
+    If you are interested in contributing with code but need help or are unsure if it is a good fit for Ket, you can do the same or find us on [Slack](https://ketjl.slack.com/).
 
 ## Contributing code
-
-!!! tip
-    This procedure can sound complicated if you do not have experience with Git and Julia development. Checking [the JuMP guide](https://jump.dev/JuMP.jl/dev/developers/contributing/#Contribute-code-to-JuMP) or [Modern Julia Workflows](https://modernjuliaworkflows.org/) may help, otherwise reach out for someone to walk you through the process.
 
 The basic guidelines for contributing code are:
 
@@ -30,27 +27,29 @@ There are only three steps to add a new function to Ket:
 After your changes are pushed to the repository, the documentation will be updated, and all the automated tests will run. It is a good idea to run the tests locally before committing to the repository.
 
 !!! tip
-    You can also reach out to us if you need help optimizing your code or using abstract types.
+    This procedure can sound complicated if you do not have experience with Git and Julia development. Checking [the JuMP guide](https://jump.dev/JuMP.jl/dev/developers/contributing/#Contribute-code-to-JuMP) or [Modern Julia Workflows](https://modernjuliaworkflows.org/) may help, otherwise reach out for someone to walk you through the process.
 
 If you have an idea for a contribution but are unsure if it is useful, consider proposing it beforehand.
 Otherwise, if you want to contribute but have no ideas, there is a [To-Do list](https://github.com/dev-ket/Ket.jl/blob/master/TODO) in need of contributors.
+You can also reach out to us if you need help optimizing your code or using abstract types.
 
 ## Documentation
 
-Another helpful way of contributing to Ket is to improve the documentation.
+Another helpful way of contributing to Ket is to improve the documentation with new examples or improved docstrings.
 
 ### Contributing examples
 
 We encourage submissions of examples that build on Ket.
-Doing this is very simple: You just have to write a `.jl` file that may contain markdown (text, equations etc.) and Julia code.
-The file must then be added to [Ket.jl/docs/src/examples](https://github.com/dev-ket/Ket.jl/tree/master/docs/src/examples).
-When this is committed to the repository, the example files will be automatically processed and displayed in the documentation.
+Doing this is very simple: You just have to write a `.jl` file that may contain markdown (text, equations etc.) and Julia code, then add it to the [Ket.jl/docs/src/examples](https://github.com/dev-ket/Ket.jl/tree/master/docs/src/examples) directory. 
+
+When this is committed to the repository, the example files will be automatically processed and displayed in the documentation. 
 You can follow the syntax from the existing examples, or check our the documentation for [Literate.jl](https://fredrikekre.github.io/Literate.jl/v2/).
 
 ### Docstrings
 
 The [list of functions](https://dev-ket.github.io/Ket.jl/dev/api/) is the most important part of the documentation, and its purpose is to explain how each function works, including the input arguments and the expected results.
-This list is generated automatically from the ["docstrings"](https://docs.julialang.org/en/v1/manual/documentation/) that precede each function in the source code.
+This list is generated automatically from the ["docstrings"](https://docs.julialang.org/en/v1/manual/documentation/) that precede each function in the source code. 
+
 If you find something that can be clarified or extended, you can suggest or submit modifications to the docstrings.
 
 ## Bug reports

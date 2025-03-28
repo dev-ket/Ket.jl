@@ -27,7 +27,7 @@ This will install the latest released version. For the development version with 
 
 ## Contributing
 
-We welcome suggestions, bug reports, documentation and code contributions.
+We welcome suggestions, bug reports, documentation and code contributions. 
 See the [contributions guide](https://dev-ket.github.io/Ket.jl/dev/contribution_guide) for more information.
 
 ## Related libraries
