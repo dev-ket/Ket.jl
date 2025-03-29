@@ -27,9 +27,9 @@ export ketbra
 Produces a projector onto the basis state `i` in dimension `d`.
 """
 function proj(::Type{T}, i::Integer, d::Integer = 2) where {T<:Number}
-    p = Hermitian(zeros(T, d, d))
-    p[i, i] = 1
-    return p
+    pvec = zeros(T, d)
+    pvec[i] = 1
+    return Diagonal(pvec)
 end
 proj(i::Integer, d::Integer = 2) = proj(Bool, i, d)
 export proj
