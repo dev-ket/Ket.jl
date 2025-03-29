@@ -1,13 +1,13 @@
 @testset "Basic                 " begin
     @testset "Kets" begin
         @test isa(ket(1, 3), Vector{Bool})
-        @test isa(proj(1, 3), Hermitian{Bool})
+        @test isa(proj(1, 3), Diagonal{Bool})
         for R ∈ (Int, Float64, Double64, Float128, BigFloat), T ∈ (R, Complex{R})
             ψ = ket(T, 2, 3)
             P = proj(T, 2, 3)
             @test ψ == [0, 1, 0]
             @test isa(ψ, Vector{T})
-            @test isa(P, Hermitian{T})
+            @test isa(P, Diagonal{T})
             @test P == ketbra(ψ)
         end
     end
