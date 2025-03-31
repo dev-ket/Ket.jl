@@ -4,7 +4,7 @@ We welcome and encourage contributions to Ket.
 This guide explains some ways to contribute.
 
 !!! tip
-    Questions, suggestions, bugs and so forth can be added [as an issue on the repository](https://github.com/dev-ket/Ket.jl/issues). You can also find us on [Slack](https://ketjl.slack.com/).
+    Questions, suggestions, bugs and so forth can be added [as an issue on the repository](https://github.com/dev-ket/Ket.jl/issues). You can also find us on [Slack](https://join.slack.com/t/ketjl/shared_invite/zt-32tuwt7qb-fQ4sqfpVID9E_dzMQRrnmA).
 
 ## Contributing code
 
