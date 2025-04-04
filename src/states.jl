@@ -1,28 +1,28 @@
 """
-    white_noise(rho::AbstractMatrix, v::Real)
+    white_noise(ρ::AbstractMatrix, v::Real)
 
-Returns `v * rho + (1 - v) * id`, where `id` is the maximally mixed state.
+Returns `v * ρ + (1 - v) * id`, where `id` is the maximally mixed state.
 """
-function white_noise(rho::AbstractMatrix, v::Real)
-    return white_noise!(copy(rho), v)
+function white_noise(ρ::AbstractMatrix, v::Real)
+    return white_noise!(copy(ρ), v)
 end
 export white_noise
 
 """
-    white_noise!(rho::AbstractMatrix, v::Real)
+    white_noise!(ρ::AbstractMatrix, v::Real)
 
-Modifies `rho` in place to tranform it into `v * rho + (1 - v) * id`
+Modifies `ρ` in place to tranform it into `v * rho + (1 - v) * id`
 where `id` is the maximally mixed state.
 """
-function white_noise!(rho::AbstractMatrix, v::Real)
-    v == 1 && return rho
-    parent(rho) .*= v
-    tmp = (1 - v) / size(rho, 1)
+function white_noise!(ρ::AbstractMatrix, v::Real)
+    v == 1 && return ρ
+    parent(ρ) .*= v
+    tmp = (1 - v) / size(ρ, 1)
     # https://discourse.julialang.org/t/change-the-diagonal-of-an-abstractmatrix-in-place/67294/2
-    for i ∈ axes(rho, 1)
-        @inbounds rho[i, i] += tmp
+    for i ∈ axes(ρ, 1)
+        @inbounds ρ[i, i] += tmp
     end
-    return rho
+    return ρ
 end
 export white_noise!
 

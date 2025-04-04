@@ -76,18 +76,19 @@ end
 export channel_bit_phase_flip
 
 """
-    channel_depolarizing(p::Real, d::Integer = 2)
+    channel_depolarizing(v::Real, d::Integer = 2)
 
-Return the Kraus operator representation of the depolarizing channel of dimension `d`. It replaces a single qubit by the completely mixed state with probability 'p'.
+Return the Kraus operator representation of the depolarizing channel of dimension `d`. It replaces a single qudit by the completely mixed state with probability '1-v'.
 """
-function channel_depolarizing(p::Real, d::Integer = 2)
-    K = [zeros(typeof(p), d, d) for _ ∈ 1:d^2+1]
-    K[1][1,1] = sqrt(1 - p)
-    K[1][2,2] = sqrt(1 - p)
-    for i ∈ 1:d
-        for j ∈ 1:d
-            K[i+(j-1)*d+1][i,j] = sqrt(p/d)
-        end
+function channel_depolarizing(v::Real, d::Integer = 2)
+    K = [zeros(typeof(v), d, d) for _ ∈ 1:d^2+1]
+    rootv = sqrt(v)
+    for i = 1:d
+        K[1][i, i] = rootv
+    end
+    rootvd = sqrt((1-v)/d)
+    for j ∈ 1:d, i ∈ 1:d
+        K[i+(j-1)*d+1][i, j] = rootvd
     end
     return K
 end
