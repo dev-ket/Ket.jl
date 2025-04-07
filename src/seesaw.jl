@@ -223,11 +223,13 @@ function _optimize_bob_projectors!(CG::Matrix, λ::Vector, A, B)
 end
 
 function _positive_projection!(M::AbstractMatrix{T}) where {T}
-    λ, U = eigen!(M)
-    fill!(M, 0)
+    λ, U = eigen(M)
+    fill!(M.data, 0)
+    temp = similar(M.data)
     for i ∈ 1:length(λ)
         if λ[i] > _rtol(T)
-            @views M.data .+= ketbra(U[:, i]) #TODO: use syrk!
+            @views mul!(temp, U[:, i], U[:, i]') #5-argument mul! doesn't call herk for Julia ≤ 1.11
+            M.data .+= temp
         end
     end
     return M
