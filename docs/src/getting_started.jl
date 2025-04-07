@@ -24,11 +24,13 @@ Ket can be installed by running the following command in the Julia REPL:
 ] add Ket
 ```
 
-The `]` key opens Julia's built-in package manager, and the `add` command installs the package. Any officially registered package can be installed in the same way.
+The `]` key opens Julia's built-in package manager, and the `add` command installs the package.
+Any officially registered package can be installed in the same way.
+
 =#
 
 # !!! tip
-#     Since Ket is in fast development, you might want to install the latest version by running `] add Ket#master` instead.
+#     If you like living dangerously, you can instead install the development version by running `] add Ket#master`. There is usually no benefit in doing so, as we try to make a new release whenever the codebase is in a sensible state.
 
 #=
 After the installation is complete, you can check that Ket is working by running the following command in the REPL:
