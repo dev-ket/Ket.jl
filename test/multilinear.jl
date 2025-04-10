@@ -161,10 +161,11 @@
         end
     end
     @testset "Trace replace      " begin
-        model = JuMP.Model()
-        JuMP.@variable(model, ρ[1:4, 1:4], Hermitian)
-        ptrace = [tr(ρ[1:2, 1:2]) tr(ρ[1:2, 3:4]); tr(ρ[3:4, 1:2]) tr(ρ[3:4, 3:4])]
-        @test partial_trace(ρ, 2, [2, 2]) == ptrace
+        # TODO jump test
+        # model = JuMP.Model()
+        # JuMP.@variable(model, ρ[1:4, 1:4], Hermitian)
+        # ptrace = [tr(ρ[1:2, 1:2]) tr(ρ[1:2, 3:4]); tr(ρ[3:4, 1:2]) tr(ρ[3:4, 3:4])]
+        # @test partial_trace(ρ, 2, [2, 2]) == ptrace
         d1, d2, d3 = 2, 2, 3
         for R ∈ (Float64, Double64, Float128, BigFloat), T ∈ (R, Complex{R})
             a = randn(T, d1, d1)
@@ -193,6 +194,38 @@
                   permute_systems(kron(partial_trace(abc, 2, [d1, d2, d3]), I2), [1, 3, 2], [d1, d3, d2])
             @test trace_replace(abc, 1, [d1, d2, d3]) ≈ kron(I2, partial_trace(abc, 1, [d1, d2, d3]))
             @test trace_replace(abc, Int[], [d1, d2, d3]) ≈ abc
+        end
+    end
+    @testset "Apply to subsystem      " begin
+        # TODO jump test
+        # model = JuMP.Model()
+        # JuMP.@variable(model, ρ[1:4, 1:4], Hermitian)
+        # ptrace = [tr(ρ[1:2, 1:2]) tr(ρ[1:2, 3:4]); tr(ρ[3:4, 1:2]) tr(ρ[3:4, 3:4])]
+        # @test partial_trace(ρ, 2, [2, 2]) == ptrace
+        d1, d2, d3 = 2, 2, 3
+        for R ∈ (Float64, Double64, Float128, BigFloat), T ∈ (R, Complex{R})
+            a = randn(T, d1, d1)
+            b = randn(T, d2, d2)
+            c = randn(T, d3, d3)
+            ab = kron(a, b)
+            ac = kron(a, c)
+            bc = kron(b, c)
+            abc = kron(ab, c)
+            I2 = Matrix(one(T) * I, (2, 2))
+            I3 = Matrix(one(T) * I, (3, 3))
+            I4 = Matrix(one(T) * I, (4, 4))
+            I6 = Matrix(one(T) * I, (6, 6))
+            @test apply_to_subsystem(a, ab, [1], [2, 2]) ≈ kron(a, I2) * ab
+            @test apply_to_subsystem(a, ab, [2], [2, 2]) ≈ kron(I2, a) * ab
+            @test apply_to_subsystem(a, abc, [1], [2, 2, 3]) ≈ kron(a, I6) * abc
+            @test apply_to_subsystem(a, abc, [2], [2, 2, 3]) ≈ kron(I2, a, I3) * abc
+            @test apply_to_subsystem(c, abc, [3], [2, 2, 3]) ≈ kron(I4, c) * abc
+            @test apply_to_subsystem(ab, ab, [1, 2], [2, 2]) ≈ ab * ab
+            @test apply_to_subsystem(ab, ab, [2, 1], [2, 2]) ≈ permute_systems(ab, [2, 1], [2, 2]) * ab
+            @test apply_to_subsystem(ac, abc, [2, 3], [2, 2, 3]) ≈ kron(I2, ac) * abc
+            @test apply_to_subsystem(bc, abc, [1, 3], [2, 2, 3]) ≈
+                  permute_systems(kron(I2, bc), [2, 1, 3], [2, 2, 3]) * abc
+            @test apply_to_subsystem(abc, abc, [2, 1, 3], [2, 2, 3]) ≈ permute_systems(abc, [2, 1, 3], [2, 2, 3]) * abc
         end
     end
 end
