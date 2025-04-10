@@ -38,11 +38,11 @@ function _idx(tidx::Vector{<:Integer}, dims::Vector{<:Integer})
 end
 
 """
-    _inv_ssys(ssys::Vector, nsys::Integer)
+    _inv_ssys(ssys::AbstractVector, nsys::Integer)
 
 Return the complement of the set of subsystems given ; {x ∈ [1,nsys] : x ∉ ssys}
 """
-function _inv_ssys(ssys::Vector{<:Integer}, nsys::Integer)
+function _inv_ssys(ssys::AbstractVector{<:Integer}, nsys::Integer)
     inv_ssys = Vector{Integer}(undef, nsys - length(ssys))
     _inv_ssys!(inv_ssys, ssys, nsys)
     return inv_ssys
@@ -65,7 +65,7 @@ function _inv_ssys!(inv_ssys::AbstractVector{<:Integer}, ssys::AbstractVector{<:
 end
 
 """
-    _step_sizes_ssys(dims::Vector)
+    _step_sizes_ssys(dims::AbstractVector)
 
 Return the array step_sizes s.t. 
 step_sizes[j] is the step in standard index to go from tensor index 
@@ -147,9 +147,7 @@ end
 Takes the partial trace of matrix `X` with subsystem dimensions `dims` over the subsystems in `remove`.
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """ partial_trace(X::AbstractMatrix, remove::AbstractVector, dims::AbstractVector = _equal_sizes(X))
-
-for (T, limit, wrapper) ∈
-    [(:AbstractMatrix, :dY, :identity), (:(Hermitian), :j, :(Hermitian)), (:(Symmetric), :j, :(Symmetric))]
+for (T, wrapper) ∈ [(:(Hermitian), :(Hermitian)), (:(Symmetric), :(Symmetric))]
     @eval begin
         function partial_trace(
             X::$T,
@@ -185,7 +183,7 @@ for (T, limit, wrapper) ∈
             @inbounds for j ∈ 1:dY
                 # Find current column tensor index for Y
                 _tidx!(tXjkeep, j, dimsY)
-                for i ∈ 1:$limit
+                for i ∈ 1:j
                     # Find current row tensor index for Y
                     _tidx!(tXikeep, i, dimsY)
 
@@ -213,6 +211,41 @@ for (T, limit, wrapper) ∈
     end
 end
 export partial_trace
+
+# TODO test if more efficient for hermitian and symmetric matrices
+function partial_trace(
+    X::AbstractMatrix,
+    remove::AbstractVector{<:Integer},
+    dims::AbstractVector{<:Integer} = _equal_sizes(X)
+)
+    isempty(remove) && return X
+    length(remove) == length(dims) && return [tr(X)]
+
+    nsys = length(dims)
+
+    keep = _inv_ssys(remove, nsys)
+    ssys_step = _step_sizes_ssys(dims)
+
+    dims_keep = dims[keep] # The tensor dimensions of Y
+    dims_rm = dims[remove] # The tensor dimensions of the traced out systems
+
+    dY = prod(dims_keep)    # Dimension of Y
+    Y = zeros(eltype(X), (dY, dY))  # Final output Y
+
+    ssys_step_keep = ssys_step[keep]
+    ssys_step_rm = ssys_step[remove]
+
+    step_iterator_keep = _step_iterator(dims_keep, ssys_step_keep)
+    step_iterator_rm = _step_iterator(dims_rm, ssys_step_rm)
+    step_iterator_rm .-= 1
+
+    for k ∈ step_iterator_rm
+        view_k_idx = k .+ step_iterator_keep
+        X_ssys = @view X[view_k_idx, view_k_idx]
+        Y += X_ssys
+    end
+    return Y
+end
 
 """
     partial_trace(X::AbstractMatrix, remove::Integer, dims::AbstractVector = _equal_sizes(X)))
