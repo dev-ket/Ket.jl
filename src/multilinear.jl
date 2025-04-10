@@ -37,6 +37,110 @@ function _idx(tidx::Vector{<:Integer}, dims::Vector{<:Integer})
     return i
 end
 
+"""
+    _inv_ssys(ssys::Vector, nsys::Integer)
+
+Return the complement of the set of subsystems given ; {x ∈ [1,nsys] : x ∉ ssys}
+"""
+function _inv_ssys(ssys::Vector{<:Integer}, nsys::Integer)
+    inv_ssys = Vector{Integer}(undef, nsys - length(ssys))
+    _inv_ssys!(inv_ssys, ssys, nsys)
+    return inv_ssys
+end
+
+function _inv_ssys!(inv_ssys::AbstractVector{<:Integer}, ssys::AbstractVector{<:Integer}, nsys::Integer)
+    isempty(ssys) && return 1:nsys
+    nsys_og = length(ssys)
+    sorted_ssys = sort(ssys)
+    i, j = 1, 1
+    for k ∈ 1:nsys
+        if j <= nsys_og && k == sorted_ssys[j]
+            j += 1
+            continue
+        end
+        inv_ssys[i] = k
+        i += 1
+    end
+    return inv_ssys
+end
+
+"""
+    _step_sizes_ssys(dims::Vector)
+
+Return the array step_sizes s.t. 
+step_sizes[j] is the step in standard index to go from tensor index 
+[i₁, i₂, ..., iⱼ, ...] to tensor index [i₁, i₂, ..., iⱼ + 1, ...]
+"""
+function _step_sizes_ssys(dims::AbstractVector{<:Integer})
+    step_sizes = similar(dims)
+    return _step_sizes_ssys!(step_sizes, dims)
+end
+
+function _step_sizes_ssys!(step_sizes::AbstractVector{<:Integer}, dims::AbstractVector{<:Integer})
+    step_sizes[end] = 1
+    for i ∈ length(dims)-1:-1:1
+        step_sizes[i] = step_sizes[i+1] * dims[i+1]
+    end
+    return step_sizes
+end
+
+"""
+    _step_iterator(dims::Vector, step_sizes::Vector)
+
+length(Dims) nested loops of range dims[i] each.
+Returns array step_iterator s.t. 
+step_iterator[1 + ∑ aᵢ - 1] = 1 + ∑ (aᵢ - 1) * step_sizes[i]
+"""
+function _step_iterator(dims::Vector{<:Integer}, step_sizes::Vector{<:Integer})
+    step_iterator = Vector{Integer}(undef, prod(dims))
+    return _step_iterator!(step_iterator, dims, step_sizes)
+end
+
+function _step_iterator!(
+    step_iterator::AbstractVector{<:Integer},
+    dims::AbstractVector{<:Integer},
+    step_sizes::AbstractVector{<:Integer}
+)
+    step_sizes_idx = _step_sizes_ssys(dims)
+    _step_iterator_rec!(step_iterator, dims, step_sizes_idx, step_sizes, 1, 1, 1)
+    return step_iterator
+end
+
+# Helper for _step_iterator
+function _step_iterator_rec!(
+    res::AbstractVector{<:Integer},
+    dims::AbstractVector{<:Integer},
+    step_sizes_idx::AbstractVector{<:Integer},
+    step_sizes_res::AbstractVector{<:Integer},
+    idx::Integer,
+    acc::Integer,
+    it::Integer
+)
+
+    #Base case
+    if it == length(dims)
+        step_idx = step_sizes_idx[end]
+        step_res = step_sizes_res[end]
+        res[idx] = acc
+        for _ ∈ 2:dims[end] #skip first
+            idx += step_idx
+            acc += step_res
+            res[idx] = acc
+        end
+        return
+    end
+
+    #Rec case
+    step_idx = step_sizes_idx[it]
+    step_res = step_sizes_res[it]
+    _step_iterator_rec!(res, dims, step_sizes_idx, step_sizes_res, idx, acc, it + 1)
+    for _ ∈ 2:dims[it] #skip first
+        idx += step_idx
+        acc += step_res
+        _step_iterator_rec!(res, dims, step_sizes_idx, step_sizes_res, idx, acc, it + 1)
+    end
+end
+
 @doc """
     partial_trace(X::AbstractMatrix, remove::AbstractVector, dims::AbstractVector = _equal_sizes(X))
 
@@ -211,18 +315,13 @@ function _idxperm(perm::Vector{<:Integer}, dims::Vector{<:Integer})
 end
 
 function _idxperm!(p::Vector{<:Integer}, perm::Vector{<:Integer}, dims::Vector{<:Integer})
-    pdims = dims[perm]
+    subsystem_og_step = _step_sizes_ssys(dims)
 
-    ti = similar(dims)
-    pti = similar(dims)
-
-    for i ∈ eachindex(p)
-        _tidx!(ti, i, dims)
-        pti .= @view ti[perm]
-        j = _idx(pti, pdims)
-        p[j] = i
-    end
-    return p
+    subsystem_perm_step = similar(dims)
+    subsystem_perm_step_view = @view subsystem_perm_step[perm]
+    dims_view = @view dims[perm]
+    _step_sizes_ssys!(subsystem_perm_step_view, dims_view)
+    _step_iterator_rec!(p, dims, subsystem_perm_step, subsystem_og_step, 1, 1, 1)
 end
 
 """
@@ -296,7 +395,7 @@ function permutation_matrix(
 ) where {T}
     dims = dims isa Integer ? fill(dims, length(perm)) : dims
     d = prod(dims)
-    id = SA.sparse(one(T)*I, (d, d))
+    id = SA.sparse(one(T) * I, (d, d))
     return permute_systems(id, perm, dims; rows_only = true)
 end
 permutation_matrix(dims, perm) = permutation_matrix(Bool, dims, perm)
