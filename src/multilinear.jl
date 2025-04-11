@@ -149,7 +149,7 @@ end
 Takes the partial trace of matrix `X` with subsystem dimensions `dims` over the subsystems in `remove`.
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """ partial_trace(X::AbstractMatrix, remove::AbstractVector, dims::AbstractVector = _equal_sizes(X))
-for (T, wrapper) ∈ [(:(Hermitian), :(Hermitian)), (:(Symmetric), :(Symmetric))]
+for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian)), (:(Symmetric), :(Symmetric))]
     @eval begin
         function partial_trace(
             X::$T,
@@ -159,47 +159,28 @@ for (T, wrapper) ∈ [(:(Hermitian), :(Hermitian)), (:(Symmetric), :(Symmetric))
             isempty(remove) && return X
             length(remove) == length(dims) && return $wrapper([eltype(X)(tr(X));;])
 
-            keep = Vector{eltype(remove)}(undef, length(dims) - length(remove)) # Systems kept
-            counter = 0
-            for i ∈ 1:length(dims)
-                if i ∉ remove
-                    counter += 1
-                    keep[counter] = i
-                end
-            end
-            dimsY = dims[keep]                        # The tensor dimensions of Y
-            dimsR = dims[remove]                      # The tensor dimensions of the traced out systems
-            dY = prod(dimsY)                          # Dimension of Y
-            dR = prod(dimsR)                          # Dimension of system traced out
+            nsys = length(dims)
 
-            Y = similar(X, (dY, dY))                  # Final output Y
-            tXi = Vector{Int}(undef, length(dims))    # Tensor indexing of X for column
-            tXj = Vector{Int}(undef, length(dims))    # Tensor indexing of X for row
+            keep = _inv_ssys(remove, nsys)
+            ssys_step = _step_sizes_ssys(dims)
 
-            @views tXikeep = tXi[keep]
-            @views tXiremove = tXi[remove]
-            @views tXjkeep = tXj[keep]
-            @views tXjremove = tXj[remove]
+            dims_keep = dims[keep] # The tensor dimensions of Y
+            dims_rm = dims[remove] # The tensor dimensions of the traced out systems
 
-            # We loop through Y and find the corresponding element
-            @inbounds for j ∈ 1:dY
-                # Find current column tensor index for Y
-                _tidx!(tXjkeep, j, dimsY)
-                for i ∈ 1:j
-                    # Find current row tensor index for Y
-                    _tidx!(tXikeep, i, dimsY)
+            dY = prod(dims_keep)    # Dimension of Y
+            Y = zeros(eltype(X), (dY, dY))  # Final output Y
 
-                    # Now loop through the diagonal of the traced out systems
-                    Y[i, j] = 0
-                    for k ∈ 1:dR
-                        _tidx!(tXiremove, k, dimsR)
-                        _tidx!(tXjremove, k, dimsR)
+            ssys_step_keep = ssys_step[keep]
+            ssys_step_rm = ssys_step[remove]
 
-                        # Find (i,j) index of X that we are currently on and add it to total
-                        Xi, Xj = _idx(tXi, dims), _idx(tXj, dims)
-                        Y[i, j] += X[Xi, Xj]
-                    end
-                end
+            step_iterator_keep = _step_iterator(dims_keep, ssys_step_keep)
+            step_iterator_rm = _step_iterator(dims_rm, ssys_step_rm)
+            step_iterator_rm .-= 1
+
+            for k ∈ step_iterator_rm
+                view_k_idx = k .+ step_iterator_keep
+                X_ssys = @view X[view_k_idx, view_k_idx]
+                Y += X_ssys
             end
             if !isbits(Y[1]) #this is a workaround for a bug in Julia ≤ 1.10
                 if $T == Hermitian
@@ -213,41 +194,6 @@ for (T, wrapper) ∈ [(:(Hermitian), :(Hermitian)), (:(Symmetric), :(Symmetric))
     end
 end
 export partial_trace
-
-# TODO test if more efficient for hermitian and symmetric matrices
-function partial_trace(
-    X::AbstractMatrix,
-    remove::AbstractVector{<:Integer},
-    dims::AbstractVector{<:Integer} = _equal_sizes(X)
-)
-    isempty(remove) && return X
-    length(remove) == length(dims) && return [tr(X)]
-
-    nsys = length(dims)
-
-    keep = _inv_ssys(remove, nsys)
-    ssys_step = _step_sizes_ssys(dims)
-
-    dims_keep = dims[keep] # The tensor dimensions of Y
-    dims_rm = dims[remove] # The tensor dimensions of the traced out systems
-
-    dY = prod(dims_keep)    # Dimension of Y
-    Y = zeros(eltype(X), (dY, dY))  # Final output Y
-
-    ssys_step_keep = ssys_step[keep]
-    ssys_step_rm = ssys_step[remove]
-
-    step_iterator_keep = _step_iterator(dims_keep, ssys_step_keep)
-    step_iterator_rm = _step_iterator(dims_rm, ssys_step_rm)
-    step_iterator_rm .-= 1
-
-    for k ∈ step_iterator_rm
-        view_k_idx = k .+ step_iterator_keep
-        X_ssys = @view X[view_k_idx, view_k_idx]
-        Y += X_ssys
-    end
-    return Y
-end
 
 """
     partial_trace(X::AbstractMatrix, remove::Integer, dims::AbstractVector = _equal_sizes(X)))
@@ -491,6 +437,12 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
 end
 export trace_replace
 
+"""
+    trace_replace(X::AbstractMatrix, remove::Integer, dims::AbstractVector = _equal_sizes(X))
+
+Takes the partial trace of matrix `X` with subsystem dimensions `dims` and replace the removed subsystems by identity.
+If the argument `dims` is omitted two equally-sized subsystems are assumed.
+"""
 trace_replace(X::AbstractMatrix, remove::Integer, dims::AbstractVector{<:Integer} = _equal_sizes(X)) =
     trace_replace(X, [remove], dims)
 
@@ -498,8 +450,8 @@ trace_replace(X::AbstractMatrix, remove::Integer, dims::AbstractVector{<:Integer
     apply_to_subsystem(
     op::AbstractMatrix,
     ρ::AbstractMatrix,
-    ssys::AbstractVector{<:Integer},
-    dims::AbstractVector{<:Integer} = _equal_sizes(X)
+    ssys::AbstractVector,
+    dims::AbstractVector = _equal_sizes(X)
 Apply the operator op on the subsytems of ρ identified by ssys
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """
@@ -546,6 +498,15 @@ end
 
 export apply_to_subsystem
 
+"""
+    apply_to_subsystem(
+    op::AbstractMatrix,
+    ρ::AbstractMatrix,
+    ssys::Integer,
+    dims::AbstractVector = _equal_sizes(X)
+Apply the operator op on the subsytems of ρ identified by ssys
+If the argument `dims` is omitted two equally-sized subsystems are assumed.
+"""
 apply_to_subsystem(
     op::AbstractMatrix,
     ρ::AbstractMatrix,
