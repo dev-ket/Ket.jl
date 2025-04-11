@@ -494,7 +494,7 @@ export trace_replace
 trace_replace(X::AbstractMatrix, remove::Integer, dims::AbstractVector{<:Integer} = _equal_sizes(X)) =
     trace_replace(X, [remove], dims)
 
-@doc """
+"""
     apply_to_subsystem(
     op::AbstractMatrix,
     ρ::AbstractMatrix,
@@ -502,54 +502,53 @@ trace_replace(X::AbstractMatrix, remove::Integer, dims::AbstractVector{<:Integer
     dims::AbstractVector{<:Integer} = _equal_sizes(X)
 Apply the operator op on the subsytems of ρ identified by ssys
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
-""" apply_to_subsystem(
+"""
+function apply_to_subsystem(
     op::AbstractMatrix,
     ρ::AbstractMatrix,
     ssys::AbstractVector{<:Integer},
-    dims::AbstractVector{<:Integer} = _equal_sizes(X)
+    dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
 )
-for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian)), (:(Symmetric), :(Symmetric))]
-    @eval begin
-        function apply_to_subsystem(
-            op::AbstractMatrix,
-            ρ::$T,
-            ssys::AbstractVector{<:Integer},
-            dims::AbstractVector{<:Integer}
-        )
-            @assert !isempty(ssys)
-            @assert prod(dims) == size(ρ)[1] "dimensions do not match with ρ"
-            @assert prod(dims[ssys]) == size(op)[1] "dimensions and ssys do not match with matrix op"
+    @assert !isempty(ssys)
+    @assert prod(dims) == size(ρ)[1] "dimensions do not match with ρ"
+    @assert prod(dims[ssys]) == size(op)[1] "dimensions and ssys do not match with matrix op"
 
-            nsys = length(dims)
-            keep = _inv_ssys(ssys, nsys)
-            subs_step = _step_sizes_ssys(dims)
+    nsys = length(dims)
+    keep = _inv_ssys(ssys, nsys)
+    subs_step = _step_sizes_ssys(dims)
 
-            dims_keep = dims[keep]
-            dims_op = dims[ssys]
-            subs_step_keep = subs_step[keep]
-            subs_step_op = subs_step[ssys]
+    dims_keep = dims[keep]
+    dims_op = dims[ssys]
+    subs_step_keep = subs_step[keep]
+    subs_step_op = subs_step[ssys]
 
-            step_iterator_ρ_keep = _step_iterator(dims_keep, subs_step_keep)
-            step_iterator_ρ_keep .-= 1
-            step_iterator_ρ_op = _step_iterator(dims_op, subs_step_op)
-            Y = similar(ρ)
+    step_iterator_ρ_keep = _step_iterator(dims_keep, subs_step_keep)
+    step_iterator_ρ_keep .-= 1
+    step_iterator_ρ_op = _step_iterator(dims_op, subs_step_op)
+    Y = Array{eltype(ρ)}(undef, size(ρ))
 
-            if isempty(keep)
-                ρ_curr_ssys = @view ρ[step_iterator_ρ_op, step_iterator_ρ_op]
-                Y[step_iterator_ρ_op, step_iterator_ρ_op] = op * ρ_curr_ssys
-                return Y
-            end
+    if isempty(keep)
+        ρ_curr_ssys = @view ρ[step_iterator_ρ_op, step_iterator_ρ_op]
+        Y[step_iterator_ρ_op, step_iterator_ρ_op] = op * ρ_curr_ssys
+        return Y
+    end
 
-            for i_keep ∈ step_iterator_ρ_keep
-                view_i_idx = i_keep .+ step_iterator_ρ_op
-                for j_keep ∈ step_iterator_ρ_keep
-                    view_j_idx = j_keep .+ step_iterator_ρ_op
-                    ρ_curr_ssys = @view ρ[view_i_idx, view_j_idx]
-                    Y[view_i_idx, view_j_idx] = op * ρ_curr_ssys
-                end
-            end
-            return $wrapper(Y)
+    for i_keep ∈ step_iterator_ρ_keep
+        view_i_idx = i_keep .+ step_iterator_ρ_op
+        for j_keep ∈ step_iterator_ρ_keep
+            view_j_idx = j_keep .+ step_iterator_ρ_op
+            ρ_curr_ssys = @view ρ[view_i_idx, view_j_idx]
+            Y[view_i_idx, view_j_idx] = op * ρ_curr_ssys
         end
     end
+    return Y
 end
+
 export apply_to_subsystem
+
+apply_to_subsystem(
+    op::AbstractMatrix,
+    ρ::AbstractMatrix,
+    ssys::Integer,
+    dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
+) = apply_to_subsystem(op, ρ, [ssys], dims)
