@@ -90,7 +90,7 @@ end
 
 length(Dims) nested loops of range dims[i] each.
 Returns array step_iterator s.t. 
-step_iterator[1 + ∑ aᵢ - 1] = 1 + ∑ (aᵢ - 1) * step_sizes[i]
+The value at tensor index [a₁, a₂, ...] is 1 + ∑ (aᵢ - 1) * step_sizes[i]
 """
 function _step_iterator(dims::Vector{<:Integer}, step_sizes::Vector{<:Integer})
     isempty(dims) && return Int[]
@@ -443,48 +443,51 @@ Takes the partial trace of matrix `X` with subsystem dimensions `dims` and repla
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """ trace_replace(X::AbstractMatrix, remove::AbstractVector, dims::AbstractVector = _equal_sizes(X))
 
-# TODO implement for hermitian and symmetric
-function trace_replace(
-    X::AbstractMatrix,
-    remove::AbstractVector{<:Integer},
-    dims::AbstractVector{<:Integer} = _equal_sizes(X)
-)
-    isempty(remove) && return X
-    length(remove) == length(dims) && return SA.sparse(tr(X) * I, size(X))
+for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian)), (:(Symmetric), :(Symmetric))]
+    @eval begin
+        function trace_replace(
+            X::$T,
+            remove::AbstractVector{<:Integer},
+            dims::AbstractVector{<:Integer} = _equal_sizes(X)
+        )
+            isempty(remove) && return X
+            length(remove) == length(dims) && return SA.sparse(tr(X) * I, size(X))
 
-    nsys = length(dims)
-    nsys_rp = length(remove)
-    nsys_kept = nsys - nsys_rp
+            nsys = length(dims)
+            nsys_rp = length(remove)
+            nsys_kept = nsys - nsys_rp
 
-    keep = _inv_ssys(remove, nsys)
-    ssys_step = _step_sizes_ssys(dims)
+            keep = _inv_ssys(remove, nsys)
+            ssys_step = _step_sizes_ssys(dims)
 
-    # TODO test if faster using views
-    dims_keep = dims[keep] # The tensor dimensions of Y
-    dims_rp = dims[remove] # The tensor dimensions of the traced out systems
-    ssys_step_keep = ssys_step[keep]
-    ssys_step_rp = ssys_step[remove]
+            # TODO test if faster using views
+            dims_keep = dims[keep] # The tensor dimensions of Y
+            dims_rp = dims[remove] # The tensor dimensions of the traced out systems
+            ssys_step_keep = ssys_step[keep]
+            ssys_step_rp = ssys_step[remove]
 
-    step_iterator_keep = _step_iterator(dims_keep, ssys_step_keep)
-    step_iterator_rp = _step_iterator(dims_rp, ssys_step_rp)
-    step_iterator_rp .-= 1
+            step_iterator_keep = _step_iterator(dims_keep, ssys_step_keep)
+            step_iterator_rp = _step_iterator(dims_rp, ssys_step_rp)
+            step_iterator_rp .-= 1
 
-    #Take the partial trace
-    dpt = prod(dims_keep)
-    pt = zeros(eltype(X), (dpt, dpt))
-    for k ∈ step_iterator_rp
-        view_k_idx = k .+ step_iterator_keep
-        X_ssys = @view X[view_k_idx, view_k_idx]
-        pt += X_ssys
+            #Take the partial trace
+            dpt = prod(dims_keep)
+            pt = zeros(eltype(X), (dpt, dpt))
+            for k ∈ step_iterator_rp
+                view_k_idx = k .+ step_iterator_keep
+                X_ssys = @view X[view_k_idx, view_k_idx]
+                pt += X_ssys
+            end
+
+            #Add the partial trace
+            Y = zeros(eltype(X), size(X))  # Final output Y
+            for k ∈ step_iterator_rp
+                view_k_idx = k .+ step_iterator_keep
+                Y[view_k_idx, view_k_idx] += pt
+            end
+            return $wrapper(Y)
+        end
     end
-
-    #Add the partial trace
-    Y = zeros(eltype(X), size(X))  # Final output Y
-    for k ∈ step_iterator_rp
-        view_k_idx = k .+ step_iterator_keep
-        Y[view_k_idx, view_k_idx] += pt
-    end
-    return Y
 end
 export trace_replace
 
@@ -505,45 +508,48 @@ If the argument `dims` is omitted two equally-sized subsystems are assumed.
     ssys::AbstractVector{<:Integer},
     dims::AbstractVector{<:Integer} = _equal_sizes(X)
 )
+for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian)), (:(Symmetric), :(Symmetric))]
+    @eval begin
+        function apply_to_subsystem(
+            op::AbstractMatrix,
+            ρ::$T,
+            ssys::AbstractVector{<:Integer},
+            dims::AbstractVector{<:Integer}
+        )
+            @assert !isempty(ssys)
+            @assert prod(dims) == size(ρ)[1] "dimensions do not match with ρ"
+            @assert prod(dims[ssys]) == size(op)[1] "dimensions and ssys do not match with matrix op"
 
-function apply_to_subsystem(
-    op::AbstractMatrix,
-    ρ::AbstractMatrix,
-    ssys::AbstractVector{<:Integer},
-    dims::AbstractVector{<:Integer}
-)
-    @assert !isempty(ssys)
-    @assert prod(dims) == size(ρ)[1] "dimensions do not match with ρ"
-    @assert prod(dims[ssys]) == size(op)[1] "dimensions and ssys do not match with matrix op"
+            nsys = length(dims)
+            keep = _inv_ssys(ssys, nsys)
+            subs_step = _step_sizes_ssys(dims)
 
-    nsys = length(dims)
-    keep = _inv_ssys(ssys, nsys)
-    subs_step = _step_sizes_ssys(dims)
+            dims_keep = dims[keep]
+            dims_op = dims[ssys]
+            subs_step_keep = subs_step[keep]
+            subs_step_op = subs_step[ssys]
 
-    dims_keep = dims[keep]
-    dims_op = dims[ssys]
-    subs_step_keep = subs_step[keep]
-    subs_step_op = subs_step[ssys]
+            step_iterator_ρ_keep = _step_iterator(dims_keep, subs_step_keep)
+            step_iterator_ρ_keep .-= 1
+            step_iterator_ρ_op = _step_iterator(dims_op, subs_step_op)
+            Y = similar(ρ)
 
-    step_iterator_ρ_keep = _step_iterator(dims_keep, subs_step_keep)
-    step_iterator_ρ_keep .-= 1
-    step_iterator_ρ_op = _step_iterator(dims_op, subs_step_op)
-    Y = similar(ρ)
+            if isempty(keep)
+                ρ_curr_ssys = @view ρ[step_iterator_ρ_op, step_iterator_ρ_op]
+                Y[step_iterator_ρ_op, step_iterator_ρ_op] = op * ρ_curr_ssys
+                return Y
+            end
 
-    if isempty(keep)
-        ρ_curr_ssys = @view ρ[step_iterator_ρ_op, step_iterator_ρ_op]
-        Y[step_iterator_ρ_op, step_iterator_ρ_op] = op * ρ_curr_ssys
-        return Y
-    end
-
-    for i_keep ∈ step_iterator_ρ_keep
-        view_i_idx = i_keep .+ step_iterator_ρ_op
-        for j_keep ∈ step_iterator_ρ_keep
-            view_j_idx = j_keep .+ step_iterator_ρ_op
-            ρ_curr_ssys = @view ρ[view_i_idx, view_j_idx]
-            Y[view_i_idx, view_j_idx] = op * ρ_curr_ssys
+            for i_keep ∈ step_iterator_ρ_keep
+                view_i_idx = i_keep .+ step_iterator_ρ_op
+                for j_keep ∈ step_iterator_ρ_keep
+                    view_j_idx = j_keep .+ step_iterator_ρ_op
+                    ρ_curr_ssys = @view ρ[view_i_idx, view_j_idx]
+                    Y[view_i_idx, view_j_idx] = op * ρ_curr_ssys
+                end
+            end
+            return $wrapper(Y)
         end
     end
-    return Y
 end
 export apply_to_subsystem
