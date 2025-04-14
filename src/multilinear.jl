@@ -468,10 +468,9 @@ function apply_to_subsystem(
 
     for i ∈ 1:op_size:ρ_size-1
         for j ∈ 1:op_size:ρ_size-1
-            # Y_view = @view Y[i:i+op_size-1, j:j+op_size-1]
-            # ρ_view = @view ρ_perm[i:i+op_size-1, j:j+op_size-1]
-            # mul!(Y_view, op, ρ_view) # does not work with jump
-            Y[i:i+op_size-1, j:j+op_size-1] = op * ρ_perm[i:i+op_size-1, j:j+op_size-1] # 30% slower but works with jump
+            Y_view = @view Y[i:i+op_size-1, j:j+op_size-1]
+            ρ_view = @view ρ_perm[i:i+op_size-1, j:j+op_size-1]
+            mul!(Y_view, op, ρ_view)
         end
     end
     return permute_systems(Y, inv_perm, dims_perm)
