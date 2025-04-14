@@ -164,10 +164,10 @@
         model = JuMP.Model()
         JuMP.@variable(model, ρ[1:4, 1:4], Hermitian)
         trrp = [
-            tr(ρ[1:2, 1:2]) 0 tr(ρ[1:2, 3:4]) 0
-            0 tr(ρ[1:2, 1:2]) 0 tr(ρ[1:2, 3:4])
-            tr(ρ[3:4, 1:2]) 0 tr(ρ[3:4, 3:4]) 0
-            0 tr(ρ[3:4, 1:2]) 0 tr(ρ[3:4, 3:4])
+            tr(ρ[1:2, 1:2])./2 0 tr(ρ[1:2, 3:4])./2 0
+            0 tr(ρ[1:2, 1:2])./2 0 tr(ρ[1:2, 3:4])./2
+            tr(ρ[3:4, 1:2])./2 0 tr(ρ[3:4, 3:4])./2 0
+            0 tr(ρ[3:4, 1:2])./2 0 tr(ρ[3:4, 3:4])./2
         ]
         @test trace_replace(ρ, 2, [2, 2]) == trrp
         d1, d2, d3 = 2, 2, 3
@@ -179,11 +179,11 @@
             ac = kron(a, c)
             bc = kron(b, c)
             abc = kron(ab, c)
-            I2 = Matrix(one(T) * I, (2, 2))
-            I3 = Matrix(one(T) * I, (3, 3))
-            I4 = Matrix(one(T) * I, (4, 4))
-            I6 = Matrix(one(T) * I, (6, 6))
-            I12 = Matrix(one(T) * I, (12, 12))
+            I2 = Matrix(one(T) * I, (2, 2)) ./ 2 #Normalized identity
+            I3 = Matrix(one(T) * I, (3, 3)) ./ 3
+            I4 = Matrix(one(T) * I, (4, 4)) ./ 4
+            I6 = Matrix(one(T) * I, (6, 6)) ./ 6
+            I12 = Matrix(one(T) * I, (12, 12)) ./ 12
             @test trace_replace(ab, [1, 2]) ≈ tr(ab) * I4
             @test trace_replace(ab, 2) ≈ kron(partial_trace(ab, 2), I2)
             @test trace_replace(ab, 1) ≈ kron(I2, partial_trace(ab, 1))

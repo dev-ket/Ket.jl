@@ -369,24 +369,24 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
     @eval begin
         function trace_replace(
             X::$T,
-            remove::AbstractVector{<:Integer},
+            replace::AbstractVector{<:Integer},
             dims::AbstractVector{<:Integer} = _equal_sizes(X)
         )
-            isempty(remove) && return X
-            length(remove) == length(dims) && return SA.sparse(tr(X) * I, size(X))
+            isempty(replace) && return X
+            length(replace) == length(dims) && return SA.sparse(tr(X) / prod(dims[replace]) * I, size(X))
 
             nsys = length(dims)
-            nsys_rp = length(remove)
+            nsys_rp = length(replace)
             nsys_kept = nsys - nsys_rp
 
-            keep = _subsystems_complement(remove, nsys)
+            keep = _subsystems_complement(replace, nsys)
             ssys_step = _step_sizes_ssys(dims)
 
             # TODO test if faster using views
             dims_keep = dims[keep] # The tensor dimensions of Y
-            dims_rp = dims[remove] # The tensor dimensions of the traced out systems
+            dims_rp = dims[replace] # The tensor dimensions of the traced out systems
             ssys_step_keep = ssys_step[keep]
-            ssys_step_rp = ssys_step[remove]
+            ssys_step_rp = ssys_step[replace]
 
             step_iterator_keep = _step_iterator(dims_keep, ssys_step_keep)
             step_iterator_rp = _step_iterator(dims_rp, ssys_step_rp)
@@ -400,6 +400,8 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
                 X_ssys = @view X[view_k_idx, view_k_idx]
                 pt += X_ssys
             end
+
+            pt ./= prod(dims_rp) # normalize for trace preservation
 
             #Add the partial trace
             Y = zeros(eltype(X), size(X))  # Final output Y
