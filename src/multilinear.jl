@@ -451,7 +451,7 @@ trace_replace(X::AbstractMatrix, remove::Integer, dims::AbstractVector{<:Integer
     op::AbstractMatrix,
     ρ::AbstractMatrix,
     ssys::AbstractVector,
-    dims::AbstractVector = _equal_sizes(X)
+    dims::AbstractVector = _equal_sizes(ρ)
 Apply the operator `op` on the subsytems of `ρ` identified by `ssys`
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """
