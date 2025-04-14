@@ -444,34 +444,32 @@ function apply_to_subsystem(
     @assert prod(dims[ssys]) == size(op)[1] "dimensions and ssys do not match with matrix op"
 
     nsys = length(dims)
-    keep = _subsystems_complement(ssys, nsys)
-    subs_step = _step_sizes_ssys(dims)
+    keep = Ket._subsystems_complement(ssys, nsys)
+
+    op_size = size(op, 1)
+    ρ_size = size(ρ, 1)
 
     dims_keep = dims[keep]
     dims_op = dims[ssys]
-    subs_step_keep = subs_step[keep]
-    subs_step_op = subs_step[ssys]
 
-    step_iterator_ρ_keep = _step_iterator(dims_keep, subs_step_keep)
-    step_iterator_ρ_keep .-= 1
-    step_iterator_ρ_op = _step_iterator(dims_op, subs_step_op)
+    perm = vcat(keep, ssys)
+    dims_perm = vcat(dims_keep, dims_op)
+
+    p = sortperm(perm)
+    inv_perm = collect(1:nsys)[p]
+
+    ρ_perm = permute_systems(ρ, perm, dims)
     Y = Array{eltype(ρ)}(undef, size(ρ))
 
-    if isempty(keep)
-        ρ_curr_ssys = @view ρ[step_iterator_ρ_op, step_iterator_ρ_op]
-        Y[step_iterator_ρ_op, step_iterator_ρ_op] = op * ρ_curr_ssys
-        return Y
-    end
-
-    for i_keep ∈ step_iterator_ρ_keep
-        view_i_idx = i_keep .+ step_iterator_ρ_op
-        for j_keep ∈ step_iterator_ρ_keep
-            view_j_idx = j_keep .+ step_iterator_ρ_op
-            ρ_curr_ssys = @view ρ[view_i_idx, view_j_idx]
-            Y[view_i_idx, view_j_idx] = op * ρ_curr_ssys
+    for i ∈ 1:op_size:ρ_size-1
+        for j ∈ 1:op_size:ρ_size-1
+            # Y_view = @view Y[i:i+op_size-1, j:j+op_size-1]
+            # ρ_view = @view ρ_perm[i:i+op_size-1, j:j+op_size-1]
+            # mul!(Y_view, op, ρ_view) # does not work with jump
+            Y[i:i+op_size-1, j:j+op_size-1] = op * ρ_perm[i:i+op_size-1, j:j+op_size-1] # 30% slower but works with jump
         end
     end
-    return Y
+    return permute_systems(Y, inv_perm, dims_perm)
 end
 
 export apply_to_subsystem
