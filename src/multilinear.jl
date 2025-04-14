@@ -404,7 +404,7 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
             pt ./= prod(dims_rp) # normalize for trace preservation
 
             #Add the partial trace
-            Y = zeros(eltype(X), size(X))  # Final output Y
+            Y = Matrix{typeof(1 * X[1])}(undef, size(X)) #hack for JuMP variables
             for k ∈ step_iterator_rp
                 view_k_idx = k .+ step_iterator_keep
                 Y[view_k_idx, view_k_idx] += pt
