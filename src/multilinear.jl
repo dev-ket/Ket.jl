@@ -504,7 +504,7 @@ export apply_to_subsystem
     ρ::AbstractMatrix,
     ssys::Integer,
     dims::AbstractVector = _equal_sizes(ρ)
-Apply the operator op on the subsytems of ρ identified by ssys
+Apply the operator `op` on the subsytems of `ρ` identified by `ssys`
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """
 apply_to_subsystem(
