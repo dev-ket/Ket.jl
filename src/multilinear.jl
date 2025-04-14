@@ -38,30 +38,12 @@ function _idx(tidx::Vector{<:Integer}, dims::Vector{<:Integer})
 end
 
 """
-    _inv_ssys(ssys::AbstractVector, nsys::Integer)
+    _subsystems_complement(ssys::AbstractVector, nsys::Integer)
 
 Return the complement of the set of subsystems given ; {x ∈ [1,nsys] : x ∉ ssys}
 """
-function _inv_ssys(ssys::AbstractVector{<:Integer}, nsys::Integer)
-    inv_ssys = Vector{Integer}(undef, nsys - length(ssys))
-    _inv_ssys!(inv_ssys, ssys, nsys)
-    return inv_ssys
-end
-
-function _inv_ssys!(inv_ssys::AbstractVector{<:Integer}, ssys::AbstractVector{<:Integer}, nsys::Integer)
-    isempty(ssys) && return 1:nsys
-    nsys_og = length(ssys)
-    sorted_ssys = sort(ssys)
-    i, j = 1, 1
-    for k ∈ 1:nsys
-        if j <= nsys_og && k == sorted_ssys[j]
-            j += 1
-            continue
-        end
-        inv_ssys[i] = k
-        i += 1
-    end
-    return inv_ssys
+function _subsystems_complement(ssys::AbstractVector{<:Integer}, nsys::Integer)
+    return deleteat!(collect(1:nsys), sort(ssys))
 end
 
 """
@@ -161,7 +143,7 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
 
             nsys = length(dims)
 
-            keep = _inv_ssys(remove, nsys)
+            keep = _subsystems_complement(remove, nsys)
             ssys_step = _step_sizes_ssys(dims)
 
             dims_keep = dims[keep] # The tensor dimensions of Y
@@ -221,14 +203,8 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
             isempty(transp) && return X
             length(transp) == length(dims) && return $wrapper(collect(transpose(X)))
 
-            keep = Vector{eltype(transp)}(undef, length(dims) - length(transp)) # Systems kept
-            counter = 0
-            for i ∈ 1:length(dims)
-                if i ∉ transp
-                    counter += 1
-                    keep[counter] = i
-                end
-            end
+            nsys = length(dims)
+            keep = _subsystems_complement(transp, nsys)
 
             d = size(X, 1)                            # Dimension of the final output Y
             Y = similar(X, (d, d))                    # Final output Y
@@ -403,7 +379,7 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
             nsys_rp = length(remove)
             nsys_kept = nsys - nsys_rp
 
-            keep = _inv_ssys(remove, nsys)
+            keep = _subsystems_complement(remove, nsys)
             ssys_step = _step_sizes_ssys(dims)
 
             # TODO test if faster using views
@@ -466,7 +442,7 @@ function apply_to_subsystem(
     @assert prod(dims[ssys]) == size(op)[1] "dimensions and ssys do not match with matrix op"
 
     nsys = length(dims)
-    keep = _inv_ssys(ssys, nsys)
+    keep = _subsystems_complement(ssys, nsys)
     subs_step = _step_sizes_ssys(dims)
 
     dims_keep = dims[keep]
