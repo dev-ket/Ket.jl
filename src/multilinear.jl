@@ -150,7 +150,7 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
             dims_rm = dims[remove] # The tensor dimensions of the traced out systems
 
             dY = prod(dims_keep)    # Dimension of Y
-            Y = zeros(eltype(X), (dY, dY))  # Final output Y
+            Y = Matrix{typeof(1 * X[1])}(undef, dY, dY) #hack for JuMP variables
 
             ssys_step_keep = ssys_step[keep]
             ssys_step_rm = ssys_step[remove]
