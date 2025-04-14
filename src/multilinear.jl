@@ -464,7 +464,7 @@ function apply_to_subsystem(
         return permute_systems(Y, inv_perm, dims_perm)
     end
 
-    Y = Array{eltype(ρ)}(undef, size(ρ))
+    Y = Matrix{typeof(1 * ρ[1])}(undef, size(ρ)) #hack for JuMP variables
 
     for i ∈ 1:op_size:ρ_size-1
         for j ∈ 1:op_size:ρ_size-1
