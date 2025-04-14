@@ -151,6 +151,9 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
 
             dY = prod(dims_keep)    # Dimension of Y
             Y = Matrix{typeof(1 * X[1])}(undef, dY, dY) #hack for JuMP variables
+            for i ∈ eachindex(Y)
+                Y[i] = 0
+            end
 
             ssys_step_keep = ssys_step[keep]
             ssys_step_rm = ssys_step[remove]
@@ -405,6 +408,9 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
 
             #Add the partial trace
             Y = Matrix{typeof(1 * X[1])}(undef, size(X)) #hack for JuMP variables
+            for i ∈ eachindex(Y)
+                Y[i] = 0
+            end
             for k ∈ step_iterator_rp
                 view_k_idx = k .+ step_iterator_keep
                 Y[view_k_idx, view_k_idx] += pt
@@ -466,11 +472,13 @@ function apply_to_subsystem(
 
     Y = Matrix{typeof(1 * ρ[1])}(undef, size(ρ)) #hack for JuMP variables
 
-    for i ∈ 1:op_size:ρ_size-1
-        for j ∈ 1:op_size:ρ_size-1
-            Y_view = @view Y[i:i+op_size-1, j:j+op_size-1]
-            ρ_view = @view ρ_perm[i:i+op_size-1, j:j+op_size-1]
-            mul!(Y_view, op, ρ_view)
+    if eltype(ρ) <: JuMP.AbstractJuMPScalar
+        for j ∈ 1:op_size:ρ_size-1, i ∈ 1:op_size:ρ_size-1
+            @views Y[i:i+op_size-1, j:j+op_size-1] .= op * ρ_perm[i:i+op_size-1, j:j+op_size-1]
+        end
+    else
+        for j ∈ 1:op_size:ρ_size-1, i ∈ 1:op_size:ρ_size-1
+            @views mul!(Y[i:i+op_size-1, j:j+op_size-1], op, ρ_perm[i:i+op_size-1, j:j+op_size-1])
         end
     end
     return permute_systems(Y, inv_perm, dims_perm)
