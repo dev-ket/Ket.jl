@@ -458,9 +458,9 @@ function apply_to_subsystem(
     inv_perm = collect(1:nsys)[p]
     ρ_perm = permute_systems(ρ, perm, dims)
 
-    #sparce optimization
+    #sparse optimization
     if SA.issparse(ρ)
-        Y = SA.sparse(kron(op, I(prod(dims_keep)))) * ρ_perm
+        Y = kron(SA.sparse(op), I(prod(dims_keep)))) * SA.sparse(ρ_perm)
         return permute_systems(Y, inv_perm, dims_perm)
     end
 
