@@ -47,19 +47,19 @@ function _subsystems_complement(ssys::AbstractVector{<:Integer}, nsys::Integer)
 end
 
 """
-    _step_sizes_ssys(dims::AbstractVector)
+    _step_sizes_subsystems(dims::AbstractVector)
 
 Return the array step_sizes s.t. 
 step_sizes[j] is the step in standard index to go from tensor index 
 [i₁, i₂, ..., iⱼ, ...] to tensor index [i₁, i₂, ..., iⱼ + 1, ...]
 """
-function _step_sizes_ssys(dims::AbstractVector{<:Integer})
+function _step_sizes_subsystems(dims::AbstractVector{<:Integer})
     isempty(dims) && return Int[]
     step_sizes = similar(dims)
-    return _step_sizes_ssys!(step_sizes, dims)
+    return _step_sizes_subsystems!(step_sizes, dims)
 end
 
-function _step_sizes_ssys!(step_sizes::AbstractVector{<:Integer}, dims::AbstractVector{<:Integer})
+function _step_sizes_subsystems!(step_sizes::AbstractVector{<:Integer}, dims::AbstractVector{<:Integer})
     step_sizes[end] = 1
     for i ∈ length(dims)-1:-1:1
         step_sizes[i] = step_sizes[i+1] * dims[i+1]
@@ -85,7 +85,7 @@ function _step_iterator!(
     dims::AbstractVector{<:Integer},
     step_sizes::AbstractVector{<:Integer}
 )
-    step_sizes_idx = _step_sizes_ssys(dims)
+    step_sizes_idx = _step_sizes_subsystems(dims)
     _step_iterator_rec!(step_iterator, dims, step_sizes_idx, step_sizes, 1, 1, 1)
     return step_iterator
 end
@@ -144,7 +144,7 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
             nsys = length(dims)
 
             keep = _subsystems_complement(remove, nsys)
-            ssys_step = _step_sizes_ssys(dims)
+            ssys_step = _step_sizes_subsystems(dims)
 
             dims_keep = dims[keep] # The tensor dimensions of Y
             dims_rm = dims[remove] # The tensor dimensions of the traced out systems
@@ -272,12 +272,12 @@ function _idxperm(perm::Vector{<:Integer}, dims::Vector{<:Integer})
 end
 
 function _idxperm!(p::Vector{<:Integer}, perm::Vector{<:Integer}, dims::Vector{<:Integer})
-    subsystem_og_step = _step_sizes_ssys(dims)
+    subsystem_og_step = _step_sizes_subsystems(dims)
 
     subsystem_perm_step = similar(dims)
     subsystem_perm_step_view = @view subsystem_perm_step[perm]
     dims_view = @view dims[perm]
-    _step_sizes_ssys!(subsystem_perm_step_view, dims_view)
+    _step_sizes_subsystems!(subsystem_perm_step_view, dims_view)
     _step_iterator_rec!(p, dims, subsystem_perm_step, subsystem_og_step, 1, 1, 1)
 end
 
@@ -380,7 +380,7 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
             nsys_kept = nsys - nsys_rp
 
             keep = _subsystems_complement(replace, nsys)
-            ssys_step = _step_sizes_ssys(dims)
+            ssys_step = _step_sizes_subsystems(dims)
 
             # TODO test if faster using views
             dims_keep = dims[keep] # The tensor dimensions of Y
@@ -454,11 +454,16 @@ function apply_to_subsystem(
 
     perm = vcat(keep, ssys)
     dims_perm = vcat(dims_keep, dims_op)
-
     p = sortperm(perm)
     inv_perm = collect(1:nsys)[p]
-
     ρ_perm = permute_systems(ρ, perm, dims)
+
+    #sparce optimization
+    if SA.issparse(ρ)
+        Y = SA.sparse(kron(op, I(prod(dims_keep)))) * ρ_perm
+        return permute_systems(Y, inv_perm, dims_perm)
+    end
+
     Y = Array{eltype(ρ)}(undef, size(ρ))
 
     for i ∈ 1:op_size:ρ_size-1
