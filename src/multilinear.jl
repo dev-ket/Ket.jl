@@ -154,6 +154,7 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
             for i ∈ eachindex(Y)
                 Y[i] = 0
             end
+            Y = $wrapper(Y)
 
             ssys_step_keep = ssys_step[keep]
             ssys_step_rm = ssys_step[remove]
@@ -165,16 +166,9 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
             for k ∈ step_iterator_rm
                 view_k_idx = k .+ step_iterator_keep
                 X_ssys = @view X[view_k_idx, view_k_idx]
-                Y += X_ssys
+                Y += $wrapper(X_ssys)
             end
-            if !isbits(Y[1]) #this is a workaround for a bug in Julia ≤ 1.10
-                if $T == Hermitian
-                    LinearAlgebra.copytri!(Y, 'U', true)
-                elseif $T == Symmetric
-                    LinearAlgebra.copytri!(Y, 'U')
-                end
-            end
-            return $wrapper(Y)
+            return Y
         end
     end
 end
@@ -397,14 +391,8 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
 
             #Take the partial trace
             dpt = prod(dims_keep)
-            pt = zeros(eltype(X), (dpt, dpt))
-            for k ∈ step_iterator_rp
-                view_k_idx = k .+ step_iterator_keep
-                X_ssys = @view X[view_k_idx, view_k_idx]
-                pt += X_ssys
-            end
-
-            pt ./= prod(dims_rp) # normalize for trace preservation
+            pt = partial_trace(X, replace, dims)
+            pt /= prod(dims_rp) # normalize for trace preservation
 
             #Add the partial trace
             Y = Matrix{typeof(1 * X[1])}(undef, size(X)) #hack for JuMP variables
@@ -450,7 +438,7 @@ function apply_to_subsystem(
     @assert prod(dims[ssys]) == size(op)[1] "dimensions and ssys do not match with matrix op"
 
     nsys = length(dims)
-    keep = Ket._subsystems_complement(ssys, nsys)
+    keep = _subsystems_complement(ssys, nsys)
 
     op_size = size(op, 1)
     ρ_size = size(ρ, 1)
