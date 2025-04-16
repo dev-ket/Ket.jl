@@ -203,46 +203,27 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
             nsys = length(dims)
             keep = _subsystems_complement(transp, nsys)
 
-            d = size(X, 1)                            # Dimension of the final output Y
-            Y = similar(X, (d, d))                    # Final output Y
+            dims_keep = dims[keep]
+            dims_transp = dims[transp]
 
-            tXi = Vector{Int}(undef, length(dims))    # Tensor indexing of X for row
-            tXj = Vector{Int}(undef, length(dims))    # Tensor indexing of X for column
+            keep_size = prod(dims_keep)
+            transp_size = prod(dims_transp)
+            prod(dims_keep) > prod(dims_transp) && return partial_transpose(transpose(X), keep, dims)
 
-            tYi = Vector{Int}(undef, length(dims))    # Tensor indexing of Y for row
-            tYj = Vector{Int}(undef, length(dims))    # Tensor indexing of Y for column
+            X_size = size(X, 1)                            # Dimension of the final output Y
+            Y = similar(X, (X_size, X_size))                    # Final output Y
 
-            @inbounds for j ∈ 1:d
-                _tidx!(tYj, j, dims)
-                for i ∈ 1:j-1
-                    _tidx!(tYi, i, dims)
+            perm = vcat(keep, transp)
+            dims_perm = vcat(dims_keep, dims_transp)
 
-                    for k ∈ keep
-                        tXi[k] = tYi[k]
-                        tXj[k] = tYj[k]
-                    end
+            p = sortperm(perm)
+            inv_perm = collect(1:nsys)[p]
+            X_perm = permute_systems(X, perm, dims)
 
-                    for t ∈ transp
-                        tXi[t] = tYj[t]
-                        tXj[t] = tYi[t]
-                    end
-
-                    Xi, Xj = _idx(tXi, dims), _idx(tXj, dims)
-                    Y[i, j] = X[Xi, Xj]
-                    Y[j, i] = X[Xj, Xi]
-                end
-                for k ∈ keep
-                    tXj[k] = tYj[k]
-                end
-
-                for t ∈ transp
-                    tXj[t] = tYj[t]
-                end
-
-                Xj = _idx(tXj, dims)
-                Y[j, j] = X[Xj, Xj]
+            for j ∈ 1:transp_size:X_size-1, i ∈ 1:transp_size:X_size-1
+                @views Y[i:i+transp_size-1, j:j+transp_size-1] = transpose(X_perm[i:i+transp_size-1, j:j+transp_size-1])
             end
-            return $wrapper(Y)
+            return $wrapper(permute_systems(Y, inv_perm, dims_perm))
         end
     end
 end
