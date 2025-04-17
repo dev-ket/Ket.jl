@@ -215,7 +215,7 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
             prod(dims_keep) > prod(dims_transp) && return partial_transpose(transpose(X), keep, dims)
 
             X_size = size(X, 1)                            # Dimension of the final output Y
-            Y = similar(X, (X_size, X_size))                    # Final output Y
+            Y = similar(parent(X))                    # Final output Y
 
             perm = vcat(keep, transp)
             dims_perm = vcat(dims_keep, dims_transp)
