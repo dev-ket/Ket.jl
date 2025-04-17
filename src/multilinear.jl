@@ -131,7 +131,8 @@ end
 Takes the partial trace of matrix `X` with subsystem dimensions `dims` over the subsystems in `remove`.
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """ partial_trace(X::AbstractMatrix, remove::AbstractVector, dims::AbstractVector = _equal_sizes(X))
-for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian)), (:(Symmetric), :(Symmetric))]
+for (T, limit, wrapper) ∈
+    [(:AbstractMatrix, :dY, :identity), (:(Hermitian), :j, :(Hermitian)), (:(Symmetric), :j, :(Symmetric))]
     @eval begin
         function partial_trace(
             X::$T,
@@ -154,7 +155,6 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
             for i ∈ eachindex(Y)
                 Y[i] = 0
             end
-            Y = $wrapper(Y)
 
             ssys_step_keep = ssys_step[keep]
             ssys_step_rm = ssys_step[remove]
@@ -165,10 +165,18 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
 
             for k ∈ step_iterator_rm
                 view_k_idx = k .+ step_iterator_keep
-                X_ssys = @view X[view_k_idx, view_k_idx]
-                Y += $wrapper(X_ssys)
+                for j ∈ 1:dY, i ∈ 1:$limit
+                    Y[i, j] += X[view_k_idx[i], view_k_idx[j]]
+                end
             end
-            return Y
+            if !isbits(Y[1]) #this is a workaround for a bug in Julia ≤ 1.10
+                if $T == Hermitian
+                    LinearAlgebra.copytri!(Y, 'U', true)
+                elseif $T == Symmetric
+                    LinearAlgebra.copytri!(Y, 'U')
+                end
+            end
+            return $wrapper(Y)
         end
     end
 end
@@ -344,7 +352,8 @@ Takes the partial trace of matrix `X` with subsystem dimensions `dims` and repla
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """ trace_replace(X::AbstractMatrix, remove::AbstractVector, dims::AbstractVector = _equal_sizes(X))
 
-for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian)), (:(Symmetric), :(Symmetric))]
+for (T, limit, wrapper) ∈
+    [(:AbstractMatrix, :dpt, :identity), (:(Hermitian), :j, :(Hermitian)), (:(Symmetric), :j, :(Symmetric))]
     @eval begin
         function trace_replace(
             X::$T,
@@ -361,7 +370,6 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
             keep = _subsystems_complement(replace, nsys)
             ssys_step = _step_sizes_subsystems(dims)
 
-            # TODO test if faster using views
             dims_keep = dims[keep] # The tensor dimensions of Y
             dims_rp = dims[replace] # The tensor dimensions of the traced out systems
             ssys_step_keep = ssys_step[keep]
@@ -383,7 +391,9 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
             end
             for k ∈ step_iterator_rp
                 view_k_idx = k .+ step_iterator_keep
-                Y[view_k_idx, view_k_idx] += pt
+                for j ∈ 1:dpt, i ∈ 1:$limit
+                    Y[view_k_idx[i], view_k_idx[j]] += pt[i, j]
+                end
             end
             return $wrapper(Y)
         end
