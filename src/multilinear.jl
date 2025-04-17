@@ -1,43 +1,4 @@
 """
-    _tidx(idx::Integer, dims::Vector)
-
-Converts a standard index `idx` to a tensor index [i₁, i₂, ...] with subsystems dimensions `dims`.
-"""
-function _tidx(idx::Integer, dims::Vector{<:Integer})
-    result = Vector{Int}(undef, length(dims))
-    _tidx!(result, idx, dims)
-    return result
-end
-
-function _tidx!(tidx::AbstractVector{<:Integer}, idx::Integer, dims::Vector{<:Integer})
-    nsys = length(dims)
-    cidx = idx - 1 # Current index
-    dr = prod(dims)
-    for k ∈ 1:nsys
-        # Everytime you increase a tensor index you shift by the product of remaining dimensions
-        dr ÷= dims[k]
-        tidx[k] = (cidx ÷ dr) + 1
-        cidx %= dr
-    end
-    return tidx
-end
-
-"""
-    _idx(tidx::Vector, dims::Vector)
-
-Converts a tensor index `tidx` = [i₁, i₂, ...] with subsystems dimensions `dims` to a standard index.
-"""
-function _idx(tidx::Vector{<:Integer}, dims::Vector{<:Integer})
-    i = 1
-    shift = 1
-    for k ∈ length(tidx):-1:1
-        i += (tidx[k] - 1) * shift
-        shift *= dims[k]
-    end
-    return i
-end
-
-"""
     _subsystems_complement(ssys::AbstractVector, nsys::Integer)
 
 Return the complement of the set of subsystems given ; {x ∈ [1,nsys] : x ∉ ssys}
