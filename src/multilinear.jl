@@ -94,6 +94,7 @@ end
 Takes the partial trace of matrix `X` with subsystem dimensions `dims` over the subsystems in `remove`.
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """ partial_trace(X::AbstractMatrix, remove::AbstractVector, dims::AbstractVector = _equal_sizes(X))
+
 for (T, limit, wrapper) ∈
     [(:AbstractMatrix, :dY, :identity), (:(Hermitian), :j, :(Hermitian)), (:(Symmetric), :j, :(Symmetric))]
     @eval begin
@@ -111,7 +112,7 @@ for (T, limit, wrapper) ∈
             ssys_step = _step_sizes_subsystems(dims)
 
             dims_keep = dims[keep] # The tensor dimensions of Y
-            dims_rm = dims[remove] # The tensor dimensions of the traced out systems
+            dims_remove = dims[remove] # The tensor dimensions of the traced out systems
 
             dY = prod(dims_keep)    # Dimension of Y
             Y = Matrix{typeof(1 * X[1])}(undef, dY, dY) #hack for JuMP variables
@@ -119,15 +120,12 @@ for (T, limit, wrapper) ∈
                 Y[i] = 0
             end
 
-            ssys_step_keep = ssys_step[keep]
-            ssys_step_rm = ssys_step[remove]
-
-            step_iterator_keep = _step_iterator(dims_keep, ssys_step_keep)
-            step_iterator_rm = _step_iterator(dims_rm, ssys_step_rm)
-            step_iterator_rm .-= 1
+            step_iterator_keep = _step_iterator(dims_keep, ssys_step[keep])
+            step_iterator_remove = _step_iterator(dims_remove, ssys_step[remove])
+            step_iterator_remove .-= 1
 
             view_k_idx = similar(step_iterator_keep)
-            for k ∈ step_iterator_rm
+            for k ∈ step_iterator_remove
                 view_k_idx .= k .+ step_iterator_keep
                 for j ∈ 1:dY, i ∈ 1:$limit
                     Y[i, j] += X[view_k_idx[i], view_k_idx[j]]
@@ -175,8 +173,8 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
             transp_size = prod(dims_transp)
             prod(dims_keep) > prod(dims_transp) && return partial_transpose(transpose(X), keep, dims)
 
-            X_size = size(X, 1)                            # Dimension of the final output Y
-            Y = similar(X, X_size, X_size)                    # Final output Y
+            X_size = size(X, 1)
+            Y = similar(X, X_size, X_size)                 # hack to unwrap multiple layers
 
             perm = vcat(keep, transp)
             dims_perm = vcat(dims_keep, dims_transp)
@@ -310,7 +308,7 @@ If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """ trace_replace(X::AbstractMatrix, remove::AbstractVector, dims::AbstractVector = _equal_sizes(X))
 
 for (T, limit, wrapper) ∈
-    [(:AbstractMatrix, :dpt, :identity), (:(Hermitian), :j, :(Hermitian)), (:(Symmetric), :j, :(Symmetric))]
+    [(:AbstractMatrix, :dim_ptX, :identity), (:(Hermitian), :j, :(Hermitian)), (:(Symmetric), :j, :(Symmetric))]
     @eval begin
         function trace_replace(
             X::$T,
@@ -321,25 +319,20 @@ for (T, limit, wrapper) ∈
             length(replace) == length(dims) && return $wrapper(Matrix(I * tr(X) / size(X, 1), size(X)))
 
             nsys = length(dims)
-            nsys_rp = length(replace)
-            nsys_kept = nsys - nsys_rp
-
             keep = _subsystems_complement(replace, nsys)
             ssys_step = _step_sizes_subsystems(dims)
 
             dims_keep = dims[keep] # The tensor dimensions of Y
-            dims_rp = dims[replace] # The tensor dimensions of the traced out systems
-            ssys_step_keep = ssys_step[keep]
-            ssys_step_rp = ssys_step[replace]
+            dims_replace = dims[replace] # The tensor dimensions of the traced out systems
 
-            step_iterator_keep = _step_iterator(dims_keep, ssys_step_keep)
-            step_iterator_rp = _step_iterator(dims_rp, ssys_step_rp)
-            step_iterator_rp .-= 1
+            step_iterator_keep = _step_iterator(dims_keep, ssys_step[keep])
+            step_iterator_replace = _step_iterator(dims_replace, ssys_step[replace])
+            step_iterator_replace .-= 1
 
             #Take the partial trace
-            dpt = prod(dims_keep)
-            pt = partial_trace(X, replace, dims)
-            parent(pt) ./= prod(dims_rp) # normalize for trace preservation
+            dim_ptX = prod(dims_keep)
+            ptX = parent(partial_trace(X, replace, dims)) #take the parent for efficiency
+            ptX ./= prod(dims_replace) # normalize for trace preservation
 
             #Add the partial trace
             Y = Matrix{typeof(1 * X[1])}(undef, size(X)) #hack for JuMP variables
@@ -347,10 +340,10 @@ for (T, limit, wrapper) ∈
                 Y[i] = 0
             end
             view_k_idx = similar(step_iterator_keep)
-            for k ∈ step_iterator_rp
+            for k ∈ step_iterator_replace
                 view_k_idx .= k .+ step_iterator_keep
-                for j ∈ 1:dpt, i ∈ 1:$limit
-                    Y[view_k_idx[i], view_k_idx[j]] += pt[i, j]
+                for j ∈ 1:dim_ptX, i ∈ 1:$limit
+                    Y[view_k_idx[i], view_k_idx[j]] += ptX[i, j]
                 end
             end
             return $wrapper(Y)
