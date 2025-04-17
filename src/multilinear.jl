@@ -165,17 +165,11 @@ for (T, limit, wrapper) ∈
             step_iterator_rm = _step_iterator(dims_rm, ssys_step_rm)
             step_iterator_rm .-= 1
 
+            view_k_idx = similar(step_iterator_keep)
             for k ∈ step_iterator_rm
-                view_k_idx = k .+ step_iterator_keep
+                view_k_idx .= k .+ step_iterator_keep
                 for j ∈ 1:dY, i ∈ 1:$limit
                     Y[i, j] += X[view_k_idx[i], view_k_idx[j]]
-                end
-            end
-            if !isbits(Y[1]) #this is a workaround for a bug in Julia ≤ 1.10
-                if $T == Hermitian
-                    LinearAlgebra.copytri!(Y, 'U', true)
-                elseif $T == Symmetric
-                    LinearAlgebra.copytri!(Y, 'U')
                 end
             end
             return $wrapper(Y)
@@ -390,8 +384,9 @@ for (T, limit, wrapper) ∈
             for i ∈ eachindex(Y)
                 Y[i] = 0
             end
+            view_k_idx = similar(step_iterator_keep)
             for k ∈ step_iterator_rp
-                view_k_idx = k .+ step_iterator_keep
+                view_k_idx .= k .+ step_iterator_keep
                 for j ∈ 1:dpt, i ∈ 1:$limit
                     Y[view_k_idx[i], view_k_idx[j]] += pt[i, j]
                 end
