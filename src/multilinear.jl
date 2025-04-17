@@ -377,7 +377,7 @@ for (T, limit, wrapper) ∈
             #Take the partial trace
             dpt = prod(dims_keep)
             pt = partial_trace(X, replace, dims)
-            pt /= prod(dims_rp) # normalize for trace preservation
+            pt ./= prod(dims_rp) # normalize for trace preservation
 
             #Add the partial trace
             Y = Matrix{typeof(1 * X[1])}(undef, size(X)) #hack for JuMP variables
