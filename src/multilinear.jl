@@ -55,11 +55,13 @@ step_sizes[j] is the step in standard index to go from tensor index
 """
 function _step_sizes_subsystems(dims::AbstractVector{<:Integer})
     isempty(dims) && return Int[]
-    step_sizes = similar(dims)
-    return _step_sizes_subsystems!(step_sizes, dims)
+    step_sizes = Vector{Int}(undef, length(dims))
+    _step_sizes_subsystems!(step_sizes, dims)
+    return step_sizes
 end
 
-function _step_sizes_subsystems!(step_sizes::AbstractVector{<:Integer}, dims::AbstractVector{<:Integer})
+function _step_sizes_subsystems!(step_sizes::Vector{Int}, dims::AbstractVector{<:Integer})
+    dims = Int.(dims)
     step_sizes[end] = 1
     for i ∈ length(dims)-1:-1:1
         step_sizes[i] = step_sizes[i+1] * dims[i+1]
@@ -68,23 +70,21 @@ function _step_sizes_subsystems!(step_sizes::AbstractVector{<:Integer}, dims::Ab
 end
 
 """
-    _step_iterator(dims::Vector, step_sizes::Vector)
+    _step_iterator(dims::AbstractVector, step_sizes::Vector)
 
 length(Dims) nested loops of range dims[i] each.
 Returns array step_iterator s.t. 
 The value at tensor index [a₁, a₂, ...] is 1 + ∑ (aᵢ - 1) * step_sizes[i]
 """
-function _step_iterator(dims::Vector{<:Integer}, step_sizes::Vector{<:Integer})
+function _step_iterator(dims::AbstractVector{<:Integer}, step_sizes::Vector{Int})
     isempty(dims) && return Int[]
-    step_iterator = Vector{Integer}(undef, prod(dims))
-    return _step_iterator!(step_iterator, dims, step_sizes)
+    step_iterator = Vector{Int}(undef, prod(dims))
+    _step_iterator!(step_iterator, dims, step_sizes)
+    return step_iterator
 end
 
-function _step_iterator!(
-    step_iterator::AbstractVector{<:Integer},
-    dims::AbstractVector{<:Integer},
-    step_sizes::AbstractVector{<:Integer}
-)
+function _step_iterator!(step_iterator::Vector{Int}, dims::AbstractVector{<:Integer}, step_sizes::Vector{Int})
+    dims = Int.(dims)
     step_sizes_idx = _step_sizes_subsystems(dims)
     _step_iterator_rec!(step_iterator, dims, step_sizes_idx, step_sizes, 1, 1, 1)
     return step_iterator
@@ -92,13 +92,13 @@ end
 
 # Helper for _step_iterator
 function _step_iterator_rec!(
-    res::AbstractVector{<:Integer},
-    dims::AbstractVector{<:Integer},
-    step_sizes_idx::AbstractVector{<:Integer},
-    step_sizes_res::AbstractVector{<:Integer},
-    idx::Integer,
-    acc::Integer,
-    it::Integer
+    res::Vector{Int},
+    dims::Vector{Int},
+    step_sizes_idx::Vector{Int},
+    step_sizes_res::Vector{Int},
+    idx::Int,
+    acc::Int,
+    it::Int
 )
 
     #Base case
@@ -250,12 +250,13 @@ function _idxperm(perm::Vector{<:Integer}, dims::Vector{<:Integer})
 end
 
 function _idxperm!(p::Vector{<:Integer}, perm::Vector{<:Integer}, dims::Vector{<:Integer})
+    dims = Int.(dims)
     subsystem_og_step = _step_sizes_subsystems(dims)
+    subsystem_perm_step = Vector{Int}(undef, length(dims))
 
-    subsystem_perm_step = similar(dims)
-    subsystem_perm_step_view = @view subsystem_perm_step[perm]
     dims_view = @view dims[perm]
-    _step_sizes_subsystems!(subsystem_perm_step_view, dims_view)
+    step_sizes_perm = _step_sizes_subsystems(dims_view)
+    @views subsystem_perm_step[perm] = step_sizes_perm[:]
     _step_iterator_rec!(p, dims, subsystem_perm_step, subsystem_og_step, 1, 1, 1)
 end
 
