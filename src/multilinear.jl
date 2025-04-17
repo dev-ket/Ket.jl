@@ -356,7 +356,7 @@ for (T, limit, wrapper) ∈
             dims::AbstractVector{<:Integer} = _equal_sizes(X)
         )
             isempty(replace) && return X
-            length(replace) == length(dims) && return SA.sparse(tr(X) / prod(dims[replace]) * I, size(X))
+            length(replace) == length(dims) && return $wrapper(Matrix(I * tr(X) / size(X, 1), size(X)))
 
             nsys = length(dims)
             nsys_rp = length(replace)
