@@ -414,6 +414,7 @@ op::AbstractMatrix,
 ssys::AbstractVector,
 dims::AbstractVector = _equal_sizes(ρ)
 Apply the operator `op` on the subsytems of `ρ` identified by `ssys`
+(op ⊗ I) * ρ * (op ⊗ I)†
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """
 function apply_to_subsystem(
@@ -443,18 +444,18 @@ function apply_to_subsystem(
 
     #sparse optimization
     if SA.issparse(ρ)
-        Y = kron(SA.sparse(op), I(prod(dims_keep))) * SA.sparse(ρ_perm)
-        return permute_systems(Y, inv_perm, dims_perm)
+        op_perm = permute_systems(kron(I(prod(dims_keep)), SA.sparse(op)), inv_perm, dims_perm)
+        return op_perm * ρ * op_perm'
     end
 
     Y = Matrix{typeof(1 * ρ[1])}(undef, size(ρ)) #hack for JuMP variables
-    interm = similar(op)
 
     if eltype(ρ) <: JuMP.AbstractJuMPScalar
         for j ∈ 1:op_size:ρ_size-1, i ∈ 1:op_size:ρ_size-1
             @views Y[i:i+op_size-1, j:j+op_size-1] .= op * ρ_perm[i:i+op_size-1, j:j+op_size-1] * op'
         end
     else
+        # interm = similar(op)
         for j ∈ 1:op_size:ρ_size-1, i ∈ 1:op_size:ρ_size-1
             Y[i:i+op_size-1, j:j+op_size-1] .= op * ρ_perm[i:i+op_size-1, j:j+op_size-1] * op'
             # mul!(interm, op, ρ_perm[i:i+op_size-1, j:j+op_size-1])
@@ -473,6 +474,7 @@ op::AbstractMatrix,
 ssys::Integer,
 dims::AbstractVector = _equal_sizes(ρ)
 Apply the operator `op` on the subsytems of `ρ` identified by `ssys`
+(op ⊗ I) * ρ * (op ⊗ I)†
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """
 apply_to_subsystem(
@@ -489,6 +491,7 @@ op::AbstractMatrix,
 ssys::AbstractVector,
 dims::AbstractVector = _equal_sizes(ρ)
 Apply the operator `op` on the subsytems of `ρ` identified by `ssys`
+(op ⊗ I) * ψ
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """
 function apply_to_subsystem(
@@ -538,6 +541,7 @@ op::AbstractMatrix,
 ssys::Integer,
 dims::AbstractVector = _equal_sizes(ρ)
 Apply the operator `op` on the subsytems of `ρ` identified by `ssys`
+(op ⊗ I) * ψ
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """
 apply_to_subsystem(

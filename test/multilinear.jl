@@ -38,6 +38,17 @@
                       permute_systems(kron(I2, bc), [2, 1, 3], [2, 2, 3])'
                 @test apply_to_subsystem(abc, abc, [2, 1, 3], [2, 2, 3]) ≈
                       permute_systems(abc, [2, 1, 3], [2, 2, 3]) * abc * permute_systems(abc, [2, 1, 3], [2, 2, 3])'
+
+                #sparse arrays
+                d = 3^4
+                SparseM = SparseArrays.spdiagm(-1 => randn(T, d - 1), 1 => randn(T, d - 1))
+                StdM = Matrix(SparseM)
+                op1 = randn(T, 3^2, 3^2)
+                op2 = randn(T, d, d)
+                @test apply_to_subsystem(op1, SparseM, [3, 1], [3, 3, 3, 3]) ≈
+                      apply_to_subsystem(op1, StdM, [3, 1], [3, 3, 3, 3])
+                @test apply_to_subsystem(op2, SparseM, [3, 1, 4, 2], [3, 3, 3, 3]) ≈
+                      apply_to_subsystem(op2, StdM, [3, 1, 4, 2], [3, 3, 3, 3])
             end
             for wrapper ∈ (Symmetric, Hermitian)
                 a = randn(ComplexF64, d1, d1)
