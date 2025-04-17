@@ -448,14 +448,17 @@ function apply_to_subsystem(
     end
 
     Y = Matrix{typeof(1 * ρ[1])}(undef, size(ρ)) #hack for JuMP variables
+    interm = similar(op)
 
     if eltype(ρ) <: JuMP.AbstractJuMPScalar
         for j ∈ 1:op_size:ρ_size-1, i ∈ 1:op_size:ρ_size-1
-            @views Y[i:i+op_size-1, j:j+op_size-1] .= op * ρ_perm[i:i+op_size-1, j:j+op_size-1]
+            @views Y[i:i+op_size-1, j:j+op_size-1] .= op * ρ_perm[i:i+op_size-1, j:j+op_size-1] * op'
         end
     else
         for j ∈ 1:op_size:ρ_size-1, i ∈ 1:op_size:ρ_size-1
-            @views mul!(Y[i:i+op_size-1, j:j+op_size-1], op, ρ_perm[i:i+op_size-1, j:j+op_size-1])
+            Y[i:i+op_size-1, j:j+op_size-1] .= op * ρ_perm[i:i+op_size-1, j:j+op_size-1] * op'
+            # mul!(interm, op, ρ_perm[i:i+op_size-1, j:j+op_size-1])
+            # mul!(Y[i:i+op_size-1, j:j+op_size-1], interm, op')
         end
     end
     return permute_systems(Y, inv_perm, dims_perm)
