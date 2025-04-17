@@ -256,7 +256,7 @@ end
 
 function _idxperm!(p::Vector{<:Integer}, perm::Vector{<:Integer}, dims::Vector{<:Integer})
     subsystem_og_step = _step_sizes_subsystems(dims)
-    subsystem_perm_step = Vector{eltype(dims)}(undef, length(dims))
+    subsystem_perm_step = similar(dims)
 
     dims_view = @view dims[perm]
     step_sizes_perm = _step_sizes_subsystems(dims_view)
