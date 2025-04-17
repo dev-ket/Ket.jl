@@ -206,6 +206,50 @@
             @test trace_replace(M, [1, 3], [d1, d2, d3]) ≈ trace_replace(x, [1, 3], [d1, d2, d3])
         end
     end
+    @testset "Apply to subsystem      " begin
+        model = JuMP.Model()
+        H = [1 1; 1 -1]
+        JuMP.@variable(model, ρ[1:4, 1:4], Hermitian)
+        res = Array{eltype(ρ)}(undef, 4, 4)
+        res[1:2, 1:2] = H * ρ[1:2, 1:2]
+        res[1:2, 3:4] = H * ρ[1:2, 3:4]
+        res[3:4, 1:2] = H * ρ[3:4, 1:2]
+        res[3:4, 3:4] = H * ρ[3:4, 3:4]
+        @test apply_to_subsystem(H, ρ, 2, [2, 2]) == res
+        d1, d2, d3 = 2, 2, 3
+        for R ∈ (Float64, Double64, Float128, BigFloat), T ∈ (R, Complex{R})
+            a = randn(T, d1, d1)
+            b = randn(T, d2, d2)
+            c = randn(T, d3, d3)
+            ab = kron(a, b)
+            ac = kron(a, c)
+            bc = kron(b, c)
+            abc = kron(ab, c)
+            I2 = Matrix(one(T) * I, (2, 2))
+            I3 = Matrix(one(T) * I, (3, 3))
+            I4 = Matrix(one(T) * I, (4, 4))
+            I6 = Matrix(one(T) * I, (6, 6))
+            @test apply_to_subsystem(a, ab, 1) ≈ kron(a, I2) * ab
+            @test apply_to_subsystem(a, ab, 2) ≈ kron(I2, a) * ab
+            @test apply_to_subsystem(a, abc, 1, [2, 2, 3]) ≈ kron(a, I6) * abc
+            @test apply_to_subsystem(a, abc, 2, [2, 2, 3]) ≈ kron(I2, a, I3) * abc
+            @test apply_to_subsystem(c, abc, 3, [2, 2, 3]) ≈ kron(I4, c) * abc
+            @test apply_to_subsystem(ab, ab, [1, 2]) ≈ ab * ab
+            @test apply_to_subsystem(ab, ab, [2, 1]) ≈ permute_systems(ab, [2, 1], [2, 2]) * ab
+            @test apply_to_subsystem(ac, abc, [2, 3], [2, 2, 3]) ≈ kron(I2, ac) * abc
+            @test apply_to_subsystem(bc, abc, [1, 3], [2, 2, 3]) ≈
+                  permute_systems(kron(I2, bc), [2, 1, 3], [2, 2, 3]) * abc
+            @test apply_to_subsystem(abc, abc, [2, 1, 3], [2, 2, 3]) ≈ permute_systems(abc, [2, 1, 3], [2, 2, 3]) * abc
+        end
+        for wrapper ∈ (Symmetric, Hermitian)
+            a = randn(ComplexF64, d1, d1)
+            b = randn(ComplexF64, d1 * d3, d1 * d3)
+            M = wrapper(randn(ComplexF64, (d1 * d2 * d3, d1 * d2 * d3)))
+            x = Matrix(M)
+            @test apply_to_subsystem(a, M, 1, [2, 2, 3]) ≈ apply_to_subsystem(a, x, 1, [2, 2, 3])
+            @test apply_to_subsystem(b, M, [1, 3], [2, 2, 3]) ≈ apply_to_subsystem(b, x, [1, 3], [2, 2, 3])
+        end
+    end
 end
 
 #TODO add test with JuMP variables

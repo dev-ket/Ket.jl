@@ -406,3 +406,75 @@ If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """
 trace_replace(X::AbstractMatrix, remove::Integer, dims::AbstractVector{<:Integer} = _equal_sizes(X)) =
     trace_replace(X, [remove], dims)
+
+"""
+apply_to_subsystem(
+op::AbstractMatrix,
+ρ::AbstractMatrix,
+ssys::AbstractVector,
+dims::AbstractVector = _equal_sizes(ρ)
+Apply the operator `op` on the subsytems of `ρ` identified by `ssys`
+If the argument `dims` is omitted two equally-sized subsystems are assumed.
+"""
+function apply_to_subsystem(
+    op::AbstractMatrix,
+    ρ::AbstractMatrix,
+    ssys::AbstractVector{<:Integer},
+    dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
+)
+    @assert !isempty(ssys)
+    @assert prod(dims) == size(ρ)[1] "dimensions do not match with ρ"
+    @assert prod(dims[ssys]) == size(op)[1] "dimensions and ssys do not match with matrix op"
+
+    nsys = length(dims)
+    keep = _subsystems_complement(ssys, nsys)
+
+    op_size = size(op, 1)
+    ρ_size = size(ρ, 1)
+
+    dims_keep = dims[keep]
+    dims_op = dims[ssys]
+
+    perm = vcat(keep, ssys)
+    dims_perm = vcat(dims_keep, dims_op)
+    p = sortperm(perm)
+    inv_perm = collect(1:nsys)[p]
+    ρ_perm = permute_systems(ρ, perm, dims)
+
+    #sparse optimization
+    if SA.issparse(ρ)
+        Y = kron(SA.sparse(op), I(prod(dims_keep))) * SA.sparse(ρ_perm)
+        return permute_systems(Y, inv_perm, dims_perm)
+    end
+
+    Y = Matrix{typeof(1 * ρ[1])}(undef, size(ρ)) #hack for JuMP variables
+
+    if eltype(ρ) <: JuMP.AbstractJuMPScalar
+        for j ∈ 1:op_size:ρ_size-1, i ∈ 1:op_size:ρ_size-1
+            @views Y[i:i+op_size-1, j:j+op_size-1] .= op * ρ_perm[i:i+op_size-1, j:j+op_size-1]
+        end
+    else
+        for j ∈ 1:op_size:ρ_size-1, i ∈ 1:op_size:ρ_size-1
+            @views mul!(Y[i:i+op_size-1, j:j+op_size-1], op, ρ_perm[i:i+op_size-1, j:j+op_size-1])
+        end
+    end
+    return permute_systems(Y, inv_perm, dims_perm)
+end
+
+export apply_to_subsystem
+
+"""
+apply_to_subsystem(
+op::AbstractMatrix,
+ρ::AbstractMatrix,
+ssys::Integer,
+dims::AbstractVector = _equal_sizes(ρ)
+Apply the operator `op` on the subsytems of `ρ` identified by `ssys`
+If the argument `dims` is omitted two equally-sized subsystems are assumed.
+"""
+apply_to_subsystem(
+    op::AbstractMatrix,
+    ρ::AbstractMatrix,
+    ssys::Integer,
+    dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
+) = apply_to_subsystem(op, ρ, [ssys], dims)
