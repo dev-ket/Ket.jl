@@ -225,7 +225,7 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
             X_perm = permute_systems(X, perm, dims)
 
             for j ∈ 1:transp_size:X_size-1, i ∈ 1:transp_size:X_size-1
-                @views Y[i:i+transp_size-1, j:j+transp_size-1] = transpose(X_perm[i:i+transp_size-1, j:j+transp_size-1])
+                @views Y[i:i+transp_size-1, j:j+transp_size-1] .= transpose(X_perm[i:i+transp_size-1, j:j+transp_size-1])
             end
             return $wrapper(permute_systems(Y, inv_perm, dims_perm))
         end
