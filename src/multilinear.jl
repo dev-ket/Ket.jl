@@ -61,7 +61,6 @@ function _step_sizes_subsystems(dims::AbstractVector{<:Integer})
 end
 
 function _step_sizes_subsystems!(step_sizes::Vector{Int}, dims::AbstractVector{<:Integer})
-    dims = Int.(dims)
     step_sizes[end] = 1
     for i ∈ length(dims)-1:-1:1
         step_sizes[i] = step_sizes[i+1] * dims[i+1]
@@ -76,15 +75,18 @@ length(Dims) nested loops of range dims[i] each.
 Returns array step_iterator s.t. 
 The value at tensor index [a₁, a₂, ...] is 1 + ∑ (aᵢ - 1) * step_sizes[i]
 """
-function _step_iterator(dims::AbstractVector{<:Integer}, step_sizes::Vector{Int})
+function _step_iterator(dims::AbstractVector{<:Integer}, step_sizes::AbstractVector{<:Integer})
     isempty(dims) && return Int[]
     step_iterator = Vector{Int}(undef, prod(dims))
     _step_iterator!(step_iterator, dims, step_sizes)
     return step_iterator
 end
 
-function _step_iterator!(step_iterator::Vector{Int}, dims::AbstractVector{<:Integer}, step_sizes::Vector{Int})
-    dims = Int.(dims)
+function _step_iterator!(
+    step_iterator::Vector{Int},
+    dims::AbstractVector{<:Integer},
+    step_sizes::AbstractVector{<:Integer}
+)
     step_sizes_idx = _step_sizes_subsystems(dims)
     _step_iterator_rec!(step_iterator, dims, step_sizes_idx, step_sizes, 1, 1, 1)
     return step_iterator
@@ -93,12 +95,12 @@ end
 # Helper for _step_iterator
 function _step_iterator_rec!(
     res::Vector{Int},
-    dims::Vector{Int},
-    step_sizes_idx::Vector{Int},
-    step_sizes_res::Vector{Int},
-    idx::Int,
-    acc::Int,
-    it::Int
+    dims::AbstractVector{<:Integer},
+    step_sizes_idx::AbstractVector{<:Integer},
+    step_sizes_res::AbstractVector{<:Integer},
+    idx::Integer,
+    acc::Integer,
+    it::Integer
 )
 
     #Base case
@@ -258,7 +260,6 @@ function _idxperm(perm::Vector{<:Integer}, dims::Vector{<:Integer})
 end
 
 function _idxperm!(p::Vector{<:Integer}, perm::Vector{<:Integer}, dims::Vector{<:Integer})
-    dims = Int.(dims)
     subsystem_og_step = _step_sizes_subsystems(dims)
     subsystem_perm_step = Vector{Int}(undef, length(dims))
 
