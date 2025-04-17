@@ -16,16 +16,23 @@ shiftclock
 pauli
 gellmann
 gellmann!
-partial_trace
-partial_transpose
-permute_systems
 cleanup!
 symmetric_projector
 symmetric_isometry
 orthonormal_range
-permutation_matrix
 n_body_basis
 ```
+
+## Multilinear algebra
+
+```@docs
+partial_trace
+partial_transpose
+permute_systems
+permutation_matrix
+trace_replace
+```
+
 
 ## Channels
 

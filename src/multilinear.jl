@@ -37,13 +37,102 @@ function _idx(tidx::Vector{<:Integer}, dims::Vector{<:Integer})
     return i
 end
 
+"""
+    _subsystems_complement(ssys::AbstractVector, nsys::Integer)
+
+Return the complement of the set of subsystems given ; {x ∈ [1,nsys] : x ∉ ssys}
+"""
+function _subsystems_complement(ssys::AbstractVector{<:Integer}, nsys::Integer)
+    return deleteat!(collect(1:nsys), sort(ssys))
+end
+
+"""
+    _step_sizes_subsystems(dims::AbstractVector)
+
+Return the array step_sizes s.t. 
+step_sizes[j] is the step in standard index to go from tensor index 
+[i₁, i₂, ..., iⱼ, ...] to tensor index [i₁, i₂, ..., iⱼ + 1, ...]
+"""
+function _step_sizes_subsystems(dims::AbstractVector{<:Integer})
+    isempty(dims) && return eltype(dims)[]
+    step_sizes = similar(dims)
+    _step_sizes_subsystems!(step_sizes, dims)
+    return step_sizes
+end
+
+function _step_sizes_subsystems!(step_sizes::AbstractVector{<:Integer}, dims::AbstractVector{<:Integer})
+    step_sizes[end] = 1
+    for i ∈ length(dims)-1:-1:1
+        step_sizes[i] = step_sizes[i+1] * dims[i+1]
+    end
+    return step_sizes
+end
+
+"""
+    _step_iterator(dims::AbstractVector, step_sizes::Vector)
+
+length(Dims) nested loops of range dims[i] each.
+Returns array step_iterator s.t. 
+The value at tensor index [a₁, a₂, ...] is 1 + ∑ (aᵢ - 1) * step_sizes[i]
+"""
+function _step_iterator(dims::AbstractVector{<:Integer}, step_sizes::AbstractVector{<:Integer})
+    isempty(dims) && return eltype(dims)[]
+    step_iterator = Vector{eltype(dims)}(undef, prod(dims))
+    _step_iterator!(step_iterator, dims, step_sizes)
+    return step_iterator
+end
+
+function _step_iterator!(
+    step_iterator::AbstractVector{<:Integer},
+    dims::AbstractVector{<:Integer},
+    step_sizes::AbstractVector{<:Integer}
+)
+    step_sizes_idx = _step_sizes_subsystems(dims)
+    _step_iterator_rec!(step_iterator, dims, step_sizes_idx, step_sizes, 1, 1, 1)
+    return step_iterator
+end
+
+# Helper for _step_iterator
+function _step_iterator_rec!(
+    res::AbstractVector{<:Integer},
+    dims::AbstractVector{<:Integer},
+    step_sizes_idx::AbstractVector{<:Integer},
+    step_sizes_res::AbstractVector{<:Integer},
+    idx::Integer,
+    acc::Integer,
+    it::Integer
+)
+
+    #Base case
+    if it == length(dims)
+        step_idx = step_sizes_idx[end]
+        step_res = step_sizes_res[end]
+        res[idx] = acc
+        for _ ∈ 2:dims[end] #skip first
+            idx += step_idx
+            acc += step_res
+            res[idx] = acc
+        end
+        return
+    end
+
+    #Rec case
+    step_idx = step_sizes_idx[it]
+    step_res = step_sizes_res[it]
+    _step_iterator_rec!(res, dims, step_sizes_idx, step_sizes_res, idx, acc, it + 1)
+    for _ ∈ 2:dims[it] #skip first
+        idx += step_idx
+        acc += step_res
+        _step_iterator_rec!(res, dims, step_sizes_idx, step_sizes_res, idx, acc, it + 1)
+    end
+end
+
 @doc """
     partial_trace(X::AbstractMatrix, remove::AbstractVector, dims::AbstractVector = _equal_sizes(X))
 
 Takes the partial trace of matrix `X` with subsystem dimensions `dims` over the subsystems in `remove`.
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """ partial_trace(X::AbstractMatrix, remove::AbstractVector, dims::AbstractVector = _equal_sizes(X))
-
 for (T, limit, wrapper) ∈
     [(:AbstractMatrix, :dY, :identity), (:(Hermitian), :j, :(Hermitian)), (:(Symmetric), :j, :(Symmetric))]
     @eval begin
@@ -55,53 +144,32 @@ for (T, limit, wrapper) ∈
             isempty(remove) && return X
             length(remove) == length(dims) && return $wrapper([eltype(X)(tr(X));;])
 
-            keep = Vector{eltype(remove)}(undef, length(dims) - length(remove)) # Systems kept
-            counter = 0
-            for i ∈ 1:length(dims)
-                if i ∉ remove
-                    counter += 1
-                    keep[counter] = i
-                end
+            nsys = length(dims)
+
+            keep = _subsystems_complement(remove, nsys)
+            ssys_step = _step_sizes_subsystems(dims)
+
+            dims_keep = dims[keep] # The tensor dimensions of Y
+            dims_rm = dims[remove] # The tensor dimensions of the traced out systems
+
+            dY = prod(dims_keep)    # Dimension of Y
+            Y = Matrix{typeof(1 * X[1])}(undef, dY, dY) #hack for JuMP variables
+            for i ∈ eachindex(Y)
+                Y[i] = 0
             end
-            dimsY = dims[keep]                        # The tensor dimensions of Y
-            dimsR = dims[remove]                      # The tensor dimensions of the traced out systems
-            dY = prod(dimsY)                          # Dimension of Y
-            dR = prod(dimsR)                          # Dimension of system traced out
 
-            Y = similar(X, (dY, dY))                  # Final output Y
-            tXi = Vector{Int}(undef, length(dims))    # Tensor indexing of X for column
-            tXj = Vector{Int}(undef, length(dims))    # Tensor indexing of X for row
+            ssys_step_keep = ssys_step[keep]
+            ssys_step_rm = ssys_step[remove]
 
-            @views tXikeep = tXi[keep]
-            @views tXiremove = tXi[remove]
-            @views tXjkeep = tXj[keep]
-            @views tXjremove = tXj[remove]
+            step_iterator_keep = _step_iterator(dims_keep, ssys_step_keep)
+            step_iterator_rm = _step_iterator(dims_rm, ssys_step_rm)
+            step_iterator_rm .-= 1
 
-            # We loop through Y and find the corresponding element
-            @inbounds for j ∈ 1:dY
-                # Find current column tensor index for Y
-                _tidx!(tXjkeep, j, dimsY)
-                for i ∈ 1:$limit
-                    # Find current row tensor index for Y
-                    _tidx!(tXikeep, i, dimsY)
-
-                    # Now loop through the diagonal of the traced out systems
-                    Y[i, j] = 0
-                    for k ∈ 1:dR
-                        _tidx!(tXiremove, k, dimsR)
-                        _tidx!(tXjremove, k, dimsR)
-
-                        # Find (i,j) index of X that we are currently on and add it to total
-                        Xi, Xj = _idx(tXi, dims), _idx(tXj, dims)
-                        Y[i, j] += X[Xi, Xj]
-                    end
-                end
-            end
-            if !isbits(Y[1]) #this is a workaround for a bug in Julia ≤ 1.10
-                if $T == Hermitian
-                    LinearAlgebra.copytri!(Y, 'U', true)
-                elseif $T == Symmetric
-                    LinearAlgebra.copytri!(Y, 'U')
+            view_k_idx = similar(step_iterator_keep)
+            for k ∈ step_iterator_rm
+                view_k_idx .= k .+ step_iterator_keep
+                for j ∈ 1:dY, i ∈ 1:$limit
+                    Y[i, j] += X[view_k_idx[i], view_k_idx[j]]
                 end
             end
             return $wrapper(Y)
@@ -136,55 +204,31 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
             isempty(transp) && return X
             length(transp) == length(dims) && return $wrapper(collect(transpose(X)))
 
-            keep = Vector{eltype(transp)}(undef, length(dims) - length(transp)) # Systems kept
-            counter = 0
-            for i ∈ 1:length(dims)
-                if i ∉ transp
-                    counter += 1
-                    keep[counter] = i
-                end
+            nsys = length(dims)
+            keep = _subsystems_complement(transp, nsys)
+
+            dims_keep = dims[keep]
+            dims_transp = dims[transp]
+
+            keep_size = prod(dims_keep)
+            transp_size = prod(dims_transp)
+            prod(dims_keep) > prod(dims_transp) && return partial_transpose(transpose(X), keep, dims)
+
+            X_size = size(X, 1)                            # Dimension of the final output Y
+            Y = similar(X, X_size, X_size)                    # Final output Y
+
+            perm = vcat(keep, transp)
+            dims_perm = vcat(dims_keep, dims_transp)
+
+            p = sortperm(perm)
+            inv_perm = collect(1:nsys)[p]
+            X_perm = permute_systems(X, perm, dims)
+
+            for j ∈ 1:transp_size:X_size-1, i ∈ 1:transp_size:X_size-1
+                @views Y[i:i+transp_size-1, j:j+transp_size-1] .=
+                    transpose(X_perm[i:i+transp_size-1, j:j+transp_size-1])
             end
-
-            d = size(X, 1)                            # Dimension of the final output Y
-            Y = similar(X, (d, d))                    # Final output Y
-
-            tXi = Vector{Int}(undef, length(dims))    # Tensor indexing of X for row
-            tXj = Vector{Int}(undef, length(dims))    # Tensor indexing of X for column
-
-            tYi = Vector{Int}(undef, length(dims))    # Tensor indexing of Y for row
-            tYj = Vector{Int}(undef, length(dims))    # Tensor indexing of Y for column
-
-            @inbounds for j ∈ 1:d
-                _tidx!(tYj, j, dims)
-                for i ∈ 1:j-1
-                    _tidx!(tYi, i, dims)
-
-                    for k ∈ keep
-                        tXi[k] = tYi[k]
-                        tXj[k] = tYj[k]
-                    end
-
-                    for t ∈ transp
-                        tXi[t] = tYj[t]
-                        tXj[t] = tYi[t]
-                    end
-
-                    Xi, Xj = _idx(tXi, dims), _idx(tXj, dims)
-                    Y[i, j] = X[Xi, Xj]
-                    Y[j, i] = X[Xj, Xi]
-                end
-                for k ∈ keep
-                    tXj[k] = tYj[k]
-                end
-
-                for t ∈ transp
-                    tXj[t] = tYj[t]
-                end
-
-                Xj = _idx(tXj, dims)
-                Y[j, j] = X[Xj, Xj]
-            end
-            return $wrapper(Y)
+            return $wrapper(permute_systems(Y, inv_perm, dims_perm))
         end
     end
 end
@@ -205,24 +249,19 @@ partial_transpose(X::AbstractMatrix, transp::Integer, dims::AbstractVector{<:Int
 Computes the index permutation associated with permuting the subsystems of a vector with subsystem dimensions `dims` according to `perm`.
 """
 function _idxperm(perm::Vector{<:Integer}, dims::Vector{<:Integer})
-    p = Vector{Int}(undef, prod(dims))
+    p = Vector{eltype(dims)}(undef, prod(dims))
     _idxperm!(p, perm, dims)
     return p
 end
 
 function _idxperm!(p::Vector{<:Integer}, perm::Vector{<:Integer}, dims::Vector{<:Integer})
-    pdims = dims[perm]
+    subsystem_og_step = _step_sizes_subsystems(dims)
+    subsystem_perm_step = similar(dims)
 
-    ti = similar(dims)
-    pti = similar(dims)
-
-    for i ∈ eachindex(p)
-        _tidx!(ti, i, dims)
-        pti .= @view ti[perm]
-        j = _idx(pti, pdims)
-        p[j] = i
-    end
-    return p
+    dims_view = @view dims[perm]
+    step_sizes_perm = _step_sizes_subsystems(dims_view)
+    @views subsystem_perm_step[perm] = step_sizes_perm[:]
+    _step_iterator_rec!(p, dims, subsystem_perm_step, subsystem_og_step, 1, 1, 1)
 end
 
 """
@@ -296,8 +335,74 @@ function permutation_matrix(
 ) where {T}
     dims = dims isa Integer ? fill(dims, length(perm)) : dims
     d = prod(dims)
-    id = SA.sparse(one(T)*I, (d, d))
+    id = SA.sparse(one(T) * I, (d, d))
     return permute_systems(id, perm, dims; rows_only = true)
 end
 permutation_matrix(dims, perm) = permutation_matrix(Bool, dims, perm)
 export permutation_matrix
+
+@doc """
+    trace_replace(X::AbstractMatrix, remove::AbstractVector, dims::AbstractVector = _equal_sizes(X))
+
+Takes the partial trace of matrix `X` with subsystem dimensions `dims` and replace the removed subsystems by identity.
+If the argument `dims` is omitted two equally-sized subsystems are assumed.
+""" trace_replace(X::AbstractMatrix, remove::AbstractVector, dims::AbstractVector = _equal_sizes(X))
+
+for (T, limit, wrapper) ∈
+    [(:AbstractMatrix, :dpt, :identity), (:(Hermitian), :j, :(Hermitian)), (:(Symmetric), :j, :(Symmetric))]
+    @eval begin
+        function trace_replace(
+            X::$T,
+            replace::AbstractVector{<:Integer},
+            dims::AbstractVector{<:Integer} = _equal_sizes(X)
+        )
+            isempty(replace) && return X
+            length(replace) == length(dims) && return $wrapper(Matrix(I * tr(X) / size(X, 1), size(X)))
+
+            nsys = length(dims)
+            nsys_rp = length(replace)
+            nsys_kept = nsys - nsys_rp
+
+            keep = _subsystems_complement(replace, nsys)
+            ssys_step = _step_sizes_subsystems(dims)
+
+            dims_keep = dims[keep] # The tensor dimensions of Y
+            dims_rp = dims[replace] # The tensor dimensions of the traced out systems
+            ssys_step_keep = ssys_step[keep]
+            ssys_step_rp = ssys_step[replace]
+
+            step_iterator_keep = _step_iterator(dims_keep, ssys_step_keep)
+            step_iterator_rp = _step_iterator(dims_rp, ssys_step_rp)
+            step_iterator_rp .-= 1
+
+            #Take the partial trace
+            dpt = prod(dims_keep)
+            pt = partial_trace(X, replace, dims)
+            parent(pt) ./= prod(dims_rp) # normalize for trace preservation
+
+            #Add the partial trace
+            Y = Matrix{typeof(1 * X[1])}(undef, size(X)) #hack for JuMP variables
+            for i ∈ eachindex(Y)
+                Y[i] = 0
+            end
+            view_k_idx = similar(step_iterator_keep)
+            for k ∈ step_iterator_rp
+                view_k_idx .= k .+ step_iterator_keep
+                for j ∈ 1:dpt, i ∈ 1:$limit
+                    Y[view_k_idx[i], view_k_idx[j]] += pt[i, j]
+                end
+            end
+            return $wrapper(Y)
+        end
+    end
+end
+export trace_replace
+
+"""
+    trace_replace(X::AbstractMatrix, remove::Integer, dims::AbstractVector = _equal_sizes(X))
+
+Takes the partial trace of matrix `X` with subsystem dimensions `dims` and replace the removed subsystems by identity.
+If the argument `dims` is omitted two equally-sized subsystems are assumed.
+"""
+trace_replace(X::AbstractMatrix, remove::Integer, dims::AbstractVector{<:Integer} = _equal_sizes(X)) =
+    trace_replace(X, [remove], dims)
