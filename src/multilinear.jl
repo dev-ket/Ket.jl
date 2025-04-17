@@ -54,13 +54,13 @@ step_sizes[j] is the step in standard index to go from tensor index
 [i₁, i₂, ..., iⱼ, ...] to tensor index [i₁, i₂, ..., iⱼ + 1, ...]
 """
 function _step_sizes_subsystems(dims::AbstractVector{<:Integer})
-    isempty(dims) && return Int[]
-    step_sizes = Vector{Int}(undef, length(dims))
+    isempty(dims) && return eltype(dims)[]
+    step_sizes = Vector{eltype(dims)}(undef, length(dims))
     _step_sizes_subsystems!(step_sizes, dims)
     return step_sizes
 end
 
-function _step_sizes_subsystems!(step_sizes::Vector{Int}, dims::AbstractVector{<:Integer})
+function _step_sizes_subsystems!(step_sizes::AbstractVector{<:Integer}, dims::AbstractVector{<:Integer})
     step_sizes[end] = 1
     for i ∈ length(dims)-1:-1:1
         step_sizes[i] = step_sizes[i+1] * dims[i+1]
@@ -76,14 +76,14 @@ Returns array step_iterator s.t.
 The value at tensor index [a₁, a₂, ...] is 1 + ∑ (aᵢ - 1) * step_sizes[i]
 """
 function _step_iterator(dims::AbstractVector{<:Integer}, step_sizes::AbstractVector{<:Integer})
-    isempty(dims) && return Int[]
-    step_iterator = Vector{Int}(undef, prod(dims))
+    isempty(dims) && return eltype(dims)[]
+    step_iterator = Vector{eltype(dims)}(undef, prod(dims))
     _step_iterator!(step_iterator, dims, step_sizes)
     return step_iterator
 end
 
 function _step_iterator!(
-    step_iterator::Vector{Int},
+    step_iterator::AbstractVector{<:Integer},
     dims::AbstractVector{<:Integer},
     step_sizes::AbstractVector{<:Integer}
 )
@@ -94,7 +94,7 @@ end
 
 # Helper for _step_iterator
 function _step_iterator_rec!(
-    res::Vector{Int},
+    res::AbstractVector{<:Integer},
     dims::AbstractVector{<:Integer},
     step_sizes_idx::AbstractVector{<:Integer},
     step_sizes_res::AbstractVector{<:Integer},
@@ -225,7 +225,8 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
             X_perm = permute_systems(X, perm, dims)
 
             for j ∈ 1:transp_size:X_size-1, i ∈ 1:transp_size:X_size-1
-                @views Y[i:i+transp_size-1, j:j+transp_size-1] .= transpose(X_perm[i:i+transp_size-1, j:j+transp_size-1])
+                @views Y[i:i+transp_size-1, j:j+transp_size-1] .=
+                    transpose(X_perm[i:i+transp_size-1, j:j+transp_size-1])
             end
             return $wrapper(permute_systems(Y, inv_perm, dims_perm))
         end
@@ -248,14 +249,14 @@ partial_transpose(X::AbstractMatrix, transp::Integer, dims::AbstractVector{<:Int
 Computes the index permutation associated with permuting the subsystems of a vector with subsystem dimensions `dims` according to `perm`.
 """
 function _idxperm(perm::Vector{<:Integer}, dims::Vector{<:Integer})
-    p = Vector{Int}(undef, prod(dims))
+    p = Vector{eltype(dims)}(undef, prod(dims))
     _idxperm!(p, perm, dims)
     return p
 end
 
 function _idxperm!(p::Vector{<:Integer}, perm::Vector{<:Integer}, dims::Vector{<:Integer})
     subsystem_og_step = _step_sizes_subsystems(dims)
-    subsystem_perm_step = Vector{Int}(undef, length(dims))
+    subsystem_perm_step = Vector{eltype(dims)}(undef, length(dims))
 
     dims_view = @view dims[perm]
     step_sizes_perm = _step_sizes_subsystems(dims_view)
