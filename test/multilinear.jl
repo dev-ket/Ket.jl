@@ -106,9 +106,12 @@
     end
     @testset "Partial trace      " begin
         model = JuMP.Model()
-        JuMP.@variable(model, ρ[1:4, 1:4], Hermitian)
+        JuMP.@variable(model, ρ[1:4, 1:4], Symmetric)
         ptrace = [tr(ρ[1:2, 1:2]) tr(ρ[1:2, 3:4]); tr(ρ[3:4, 1:2]) tr(ρ[3:4, 3:4])]
         @test partial_trace(ρ, 2, [2, 2]) == ptrace
+        JuMP.@variable(model, σ[1:4, 1:4], Hermitian)
+        ptrace = [tr(σ[1:2, 1:2]) tr(σ[1:2, 3:4]); tr(σ[3:4, 1:2]) tr(σ[3:4, 3:4])]
+        @test partial_trace(σ, 2, [2, 2]) == ptrace
         d1, d2, d3 = 2, 2, 3
         for R ∈ (Float64, Double64, Float128, BigFloat), T ∈ (R, Complex{R})
             a = randn(T, d1, d1)
@@ -141,9 +144,12 @@
 
     @testset "Partial transpose  " begin
         model = JuMP.Model()
-        JuMP.@variable(model, ρ[1:4, 1:4], Hermitian)
+        JuMP.@variable(model, ρ[1:4, 1:4], Symmetric)
         ptrans = [transpose(ρ[1:2, 1:2]) transpose(ρ[1:2, 3:4]); transpose(ρ[3:4, 1:2]) transpose(ρ[3:4, 3:4])]
         @test partial_transpose(ρ, 2, [2, 2]) == ptrans
+        JuMP.@variable(model, σ[1:4, 1:4], Hermitian)
+        ptrans = [transpose(σ[1:2, 1:2]) transpose(σ[1:2, 3:4]); transpose(σ[3:4, 1:2]) transpose(σ[3:4, 3:4])]
+        @test partial_transpose(σ, 2, [2, 2]) == ptrans
         d1, d2, d3 = 2, 2, 3
         for R ∈ (Float64, Double64, Float128, BigFloat), T ∈ (R, Complex{R})
             a = randn(T, d1, d1)

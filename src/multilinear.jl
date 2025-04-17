@@ -1,43 +1,4 @@
 """
-    _tidx(idx::Integer, dims::Vector)
-
-Converts a standard index `idx` to a tensor index [i₁, i₂, ...] with subsystems dimensions `dims`.
-"""
-function _tidx(idx::Integer, dims::Vector{<:Integer})
-    result = Vector{Int}(undef, length(dims))
-    _tidx!(result, idx, dims)
-    return result
-end
-
-function _tidx!(tidx::AbstractVector{<:Integer}, idx::Integer, dims::Vector{<:Integer})
-    nsys = length(dims)
-    cidx = idx - 1 # Current index
-    dr = prod(dims)
-    for k ∈ 1:nsys
-        # Everytime you increase a tensor index you shift by the product of remaining dimensions
-        dr ÷= dims[k]
-        tidx[k] = (cidx ÷ dr) + 1
-        cidx %= dr
-    end
-    return tidx
-end
-
-"""
-    _idx(tidx::Vector, dims::Vector)
-
-Converts a tensor index `tidx` = [i₁, i₂, ...] with subsystems dimensions `dims` to a standard index.
-"""
-function _idx(tidx::Vector{<:Integer}, dims::Vector{<:Integer})
-    i = 1
-    shift = 1
-    for k ∈ length(tidx):-1:1
-        i += (tidx[k] - 1) * shift
-        shift *= dims[k]
-    end
-    return i
-end
-
-"""
     _subsystems_complement(ssys::AbstractVector, nsys::Integer)
 
 Return the complement of the set of subsystems given ; {x ∈ [1,nsys] : x ∉ ssys}
@@ -150,7 +111,7 @@ for (T, limit, wrapper) ∈
             ssys_step = _step_sizes_subsystems(dims)
 
             dims_keep = dims[keep] # The tensor dimensions of Y
-            dims_rm = dims[remove] # The tensor dimensions of the traced out systems
+            dims_remove = dims[remove] # The tensor dimensions of the traced out systems
 
             dY = prod(dims_keep)    # Dimension of Y
             Y = Matrix{typeof(1 * X[1])}(undef, dY, dY) #hack for JuMP variables
@@ -158,15 +119,12 @@ for (T, limit, wrapper) ∈
                 Y[i] = 0
             end
 
-            ssys_step_keep = ssys_step[keep]
-            ssys_step_rm = ssys_step[remove]
-
-            step_iterator_keep = _step_iterator(dims_keep, ssys_step_keep)
-            step_iterator_rm = _step_iterator(dims_rm, ssys_step_rm)
-            step_iterator_rm .-= 1
+            step_iterator_keep = _step_iterator(dims_keep, ssys_step[keep])
+            step_iterator_remove = _step_iterator(dims_remove, ssys_step[remove])
+            step_iterator_remove .-= 1
 
             view_k_idx = similar(step_iterator_keep)
-            for k ∈ step_iterator_rm
+            for k ∈ step_iterator_remove
                 view_k_idx .= k .+ step_iterator_keep
                 for j ∈ 1:dY, i ∈ 1:$limit
                     Y[i, j] += X[view_k_idx[i], view_k_idx[j]]
@@ -214,8 +172,8 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
             transp_size = prod(dims_transp)
             prod(dims_keep) > prod(dims_transp) && return partial_transpose(transpose(X), keep, dims)
 
-            X_size = size(X, 1)                            # Dimension of the final output Y
-            Y = similar(X, X_size, X_size)                    # Final output Y
+            X_size = size(X, 1)
+            Y = similar(X, X_size, X_size)                 # hack to unwrap multiple layers
 
             perm = vcat(keep, transp)
             dims_perm = vcat(dims_keep, dims_transp)
@@ -349,7 +307,7 @@ If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """ trace_replace(X::AbstractMatrix, remove::AbstractVector, dims::AbstractVector = _equal_sizes(X))
 
 for (T, limit, wrapper) ∈
-    [(:AbstractMatrix, :dpt, :identity), (:(Hermitian), :j, :(Hermitian)), (:(Symmetric), :j, :(Symmetric))]
+    [(:AbstractMatrix, :dim_ptX, :identity), (:(Hermitian), :j, :(Hermitian)), (:(Symmetric), :j, :(Symmetric))]
     @eval begin
         function trace_replace(
             X::$T,
@@ -360,25 +318,20 @@ for (T, limit, wrapper) ∈
             length(replace) == length(dims) && return $wrapper(Matrix(I * tr(X) / size(X, 1), size(X)))
 
             nsys = length(dims)
-            nsys_rp = length(replace)
-            nsys_kept = nsys - nsys_rp
-
             keep = _subsystems_complement(replace, nsys)
             ssys_step = _step_sizes_subsystems(dims)
 
             dims_keep = dims[keep] # The tensor dimensions of Y
-            dims_rp = dims[replace] # The tensor dimensions of the traced out systems
-            ssys_step_keep = ssys_step[keep]
-            ssys_step_rp = ssys_step[replace]
+            dims_replace = dims[replace] # The tensor dimensions of the traced out systems
 
-            step_iterator_keep = _step_iterator(dims_keep, ssys_step_keep)
-            step_iterator_rp = _step_iterator(dims_rp, ssys_step_rp)
-            step_iterator_rp .-= 1
+            step_iterator_keep = _step_iterator(dims_keep, ssys_step[keep])
+            step_iterator_replace = _step_iterator(dims_replace, ssys_step[replace])
+            step_iterator_replace .-= 1
 
             #Take the partial trace
-            dpt = prod(dims_keep)
-            pt = partial_trace(X, replace, dims)
-            parent(pt) ./= prod(dims_rp) # normalize for trace preservation
+            dim_ptX = prod(dims_keep)
+            ptX = parent(partial_trace(X, replace, dims)) #take the parent for efficiency
+            ptX ./= prod(dims_replace) # normalize for trace preservation
 
             #Add the partial trace
             Y = Matrix{typeof(1 * X[1])}(undef, size(X)) #hack for JuMP variables
@@ -386,10 +339,10 @@ for (T, limit, wrapper) ∈
                 Y[i] = 0
             end
             view_k_idx = similar(step_iterator_keep)
-            for k ∈ step_iterator_rp
+            for k ∈ step_iterator_replace
                 view_k_idx .= k .+ step_iterator_keep
-                for j ∈ 1:dpt, i ∈ 1:$limit
-                    Y[view_k_idx[i], view_k_idx[j]] += pt[i, j]
+                for j ∈ 1:dim_ptX, i ∈ 1:$limit
+                    Y[view_k_idx[i], view_k_idx[j]] += ptX[i, j]
                 end
             end
             return $wrapper(Y)
@@ -406,147 +359,3 @@ If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """
 trace_replace(X::AbstractMatrix, remove::Integer, dims::AbstractVector{<:Integer} = _equal_sizes(X)) =
     trace_replace(X, [remove], dims)
-
-"""
-apply_to_subsystem(
-op::AbstractMatrix,
-ρ::AbstractMatrix,
-ssys::AbstractVector,
-dims::AbstractVector = _equal_sizes(ρ)
-Apply the operator `op` on the subsytems of `ρ` identified by `ssys`
-(op ⊗ I) * ρ * (op ⊗ I)†
-If the argument `dims` is omitted two equally-sized subsystems are assumed.
-"""
-function apply_to_subsystem(
-    op::AbstractMatrix,
-    ρ::AbstractMatrix,
-    ssys::AbstractVector{<:Integer},
-    dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
-)
-    @assert !isempty(ssys)
-    @assert prod(dims) == size(ρ)[1] "dimensions do not match with ρ"
-    @assert prod(dims[ssys]) == size(op)[1] "dimensions and ssys do not match with matrix op"
-
-    nsys = length(dims)
-    keep = _subsystems_complement(ssys, nsys)
-
-    op_size = size(op, 1)
-    ρ_size = size(ρ, 1)
-
-    dims_keep = dims[keep]
-    dims_op = dims[ssys]
-
-    perm = vcat(keep, ssys)
-    dims_perm = vcat(dims_keep, dims_op)
-    p = sortperm(perm)
-    inv_perm = collect(1:nsys)[p]
-    ρ_perm = permute_systems(ρ, perm, dims)
-
-    #sparse optimization
-    if SA.issparse(ρ)
-        op_perm = permute_systems(kron(I(prod(dims_keep)), SA.sparse(op)), inv_perm, dims_perm)
-        return op_perm * ρ * op_perm'
-    end
-
-    Y = Matrix{typeof(1 * ρ[1])}(undef, size(ρ)) #hack for JuMP variables
-
-    if eltype(ρ) <: JuMP.AbstractJuMPScalar
-        for j ∈ 1:op_size:ρ_size-1, i ∈ 1:op_size:ρ_size-1
-            @views Y[i:i+op_size-1, j:j+op_size-1] .= op * ρ_perm[i:i+op_size-1, j:j+op_size-1] * op'
-        end
-    else
-        # interm = similar(op)
-        for j ∈ 1:op_size:ρ_size-1, i ∈ 1:op_size:ρ_size-1
-            Y[i:i+op_size-1, j:j+op_size-1] .= op * ρ_perm[i:i+op_size-1, j:j+op_size-1] * op'
-            # mul!(interm, op, ρ_perm[i:i+op_size-1, j:j+op_size-1])
-            # mul!(Y[i:i+op_size-1, j:j+op_size-1], interm, op')
-        end
-    end
-    return permute_systems(Y, inv_perm, dims_perm)
-end
-
-export apply_to_subsystem
-
-"""
-apply_to_subsystem(
-op::AbstractMatrix,
-ρ::AbstractMatrix,
-ssys::Integer,
-dims::AbstractVector = _equal_sizes(ρ)
-Apply the operator `op` on the subsytems of `ρ` identified by `ssys`
-(op ⊗ I) * ρ * (op ⊗ I)†
-If the argument `dims` is omitted two equally-sized subsystems are assumed.
-"""
-apply_to_subsystem(
-    op::AbstractMatrix,
-    ρ::AbstractMatrix,
-    ssys::Integer,
-    dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
-) = apply_to_subsystem(op, ρ, [ssys], dims)
-
-"""
-apply_to_subsystem(
-op::AbstractMatrix,
-ψ::AbstractVector,
-ssys::AbstractVector,
-dims::AbstractVector = _equal_sizes(ρ)
-Apply the operator `op` on the subsytems of `ρ` identified by `ssys`
-(op ⊗ I) * ψ
-If the argument `dims` is omitted two equally-sized subsystems are assumed.
-"""
-function apply_to_subsystem(
-    op::AbstractMatrix,
-    ψ::AbstractVector,
-    ssys::AbstractVector{<:Integer},
-    dims::AbstractVector{<:Integer} = _equal_sizes(ψ)
-)
-    @assert !isempty(ssys)
-    @assert prod(dims) == size(ψ)[1] "dimensions do not match with ψ"
-    @assert prod(dims[ssys]) == size(op)[1] "dimensions and ssys do not match with matrix op"
-
-    nsys = length(dims)
-    keep = _subsystems_complement(ssys, nsys)
-
-    op_size = size(op, 1)
-    ψ_size = size(ψ, 1)
-
-    dims_keep = dims[keep]
-    dims_op = dims[ssys]
-
-    perm = vcat(keep, ssys)
-    dims_perm = vcat(dims_keep, dims_op)
-    p = sortperm(perm)
-    inv_perm = collect(1:nsys)[p]
-    ψ_perm = permute_systems(ψ, perm, dims)
-
-    Y = Vector{typeof(1 * ψ[1])}(undef, length(ψ)) #hack for JuMP variables
-
-    if eltype(ψ) <: JuMP.AbstractJuMPScalar
-        for i ∈ 1:op_size:ψ_size-1
-            @views Y[i:i+op_size-1] .= op * ψ_perm[i:i+op_size-1]
-        end
-    else
-        for i ∈ 1:op_size:ψ_size-1
-            Y[i:i+op_size-1] .= op * ψ_perm[i:i+op_size-1]
-            # mul!(Y[i:i+op_size-1], op, ψ_perm[i:i+op_size-1])
-        end
-    end
-    return permute_systems(Y, inv_perm, dims_perm)
-end
-
-"""
-apply_to_subsystem(
-op::AbstractMatrix,
-ψ::AbstractVector,
-ssys::Integer,
-dims::AbstractVector = _equal_sizes(ρ)
-Apply the operator `op` on the subsytems of `ρ` identified by `ssys`
-(op ⊗ I) * ψ
-If the argument `dims` is omitted two equally-sized subsystems are assumed.
-"""
-apply_to_subsystem(
-    op::AbstractMatrix,
-    ψ::AbstractVector,
-    ssys::Integer,
-    dims::AbstractVector{<:Integer} = _equal_sizes(ψ)
-) = apply_to_subsystem(op, ψ, [ssys], dims)
