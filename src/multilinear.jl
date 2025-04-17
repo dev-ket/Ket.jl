@@ -55,7 +55,7 @@ step_sizes[j] is the step in standard index to go from tensor index
 """
 function _step_sizes_subsystems(dims::AbstractVector{<:Integer})
     isempty(dims) && return eltype(dims)[]
-    step_sizes = Vector{eltype(dims)}(undef, length(dims))
+    step_sizes = similar(dims)
     _step_sizes_subsystems!(step_sizes, dims)
     return step_sizes
 end
