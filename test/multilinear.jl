@@ -1,4 +1,109 @@
 @testset "Multilinear algebra   " begin
+    @testset "Apply to subsystem      " begin
+        @testset "Square matrices       " begin
+            model = JuMP.Model()
+            H = [1 1; 1 -1]
+            JuMP.@variable(model, ρ[1:4, 1:4], Hermitian)
+            res = Array{eltype(ρ)}(undef, 4, 4)
+            res[1:2, 1:2] = H * ρ[1:2, 1:2] * H'
+            res[1:2, 3:4] = H * ρ[1:2, 3:4] * H'
+            res[3:4, 1:2] = H * ρ[3:4, 1:2] * H'
+            res[3:4, 3:4] = H * ρ[3:4, 3:4] * H'
+            @test apply_to_subsystem(H, ρ, 2, [2, 2]) == res
+            d1, d2, d3 = 2, 2, 3
+            for R ∈ (Float64, Double64, Float128, BigFloat), T ∈ (R, Complex{R})
+                a = randn(T, d1, d1)
+                b = randn(T, d2, d2)
+                c = randn(T, d3, d3)
+                ab = kron(a, b)
+                ac = kron(a, c)
+                bc = kron(b, c)
+                abc = kron(ab, c)
+                I2 = Matrix(one(T) * I, (2, 2))
+                I3 = Matrix(one(T) * I, (3, 3))
+                I4 = Matrix(one(T) * I, (4, 4))
+                I6 = Matrix(one(T) * I, (6, 6))
+                @test apply_to_subsystem(a, ab, 1) ≈ kron(a, I2) * ab * kron(a, I2)'
+                @test apply_to_subsystem(a, ab, 2) ≈ kron(I2, a) * ab * kron(I2, a)'
+                @test apply_to_subsystem(a, abc, 1, [2, 2, 3]) ≈ kron(a, I6) * abc * kron(a, I6)'
+                @test apply_to_subsystem(a, abc, 2, [2, 2, 3]) ≈ kron(I2, a, I3) * abc * kron(I2, a, I3)'
+                @test apply_to_subsystem(c, abc, 3, [2, 2, 3]) ≈ kron(I4, c) * abc * kron(I4, c)'
+                @test apply_to_subsystem(ab, ab, [1, 2]) ≈ ab * ab * ab'
+                @test apply_to_subsystem(ab, ab, [2, 1]) ≈
+                      permute_systems(ab, [2, 1], [2, 2]) * ab * permute_systems(ab, [2, 1], [2, 2])'
+                @test apply_to_subsystem(ac, abc, [2, 3], [2, 2, 3]) ≈ kron(I2, ac) * abc * kron(I2, ac)'
+                @test apply_to_subsystem(bc, abc, [1, 3], [2, 2, 3]) ≈
+                      permute_systems(kron(I2, bc), [2, 1, 3], [2, 2, 3]) *
+                      abc *
+                      permute_systems(kron(I2, bc), [2, 1, 3], [2, 2, 3])'
+                @test apply_to_subsystem(abc, abc, [2, 1, 3], [2, 2, 3]) ≈
+                      permute_systems(abc, [2, 1, 3], [2, 2, 3]) * abc * permute_systems(abc, [2, 1, 3], [2, 2, 3])'
+
+                #sparse arrays
+                d = 3^4
+                SparseM = SparseArrays.spdiagm(-1 => randn(T, d - 1), 1 => randn(T, d - 1))
+                StdM = Matrix(SparseM)
+                op1 = randn(T, 3^2, 3^2)
+                op2 = randn(T, d, d)
+                @test apply_to_subsystem(op1, SparseM, [3, 1], [3, 3, 3, 3]) ≈
+                      apply_to_subsystem(op1, StdM, [3, 1], [3, 3, 3, 3])
+                @test apply_to_subsystem(op2, SparseM, [3, 1, 4, 2], [3, 3, 3, 3]) ≈
+                      apply_to_subsystem(op2, StdM, [3, 1, 4, 2], [3, 3, 3, 3])
+            end
+            for wrapper ∈ (Symmetric, Hermitian)
+                a = randn(ComplexF64, d1, d1)
+                b = randn(ComplexF64, d1 * d3, d1 * d3)
+                M = wrapper(randn(ComplexF64, (d1 * d2 * d3, d1 * d2 * d3)))
+                x = Matrix(M)
+                @test apply_to_subsystem(a, M, 1, [2, 2, 3]) ≈ apply_to_subsystem(a, x, 1, [2, 2, 3])
+                @test apply_to_subsystem(b, M, [1, 3], [2, 2, 3]) ≈ apply_to_subsystem(b, x, [1, 3], [2, 2, 3])
+            end
+        end
+        @testset "Vectors       " begin
+            # model = JuMP.Model()
+            # H = [1 1; 1 -1]
+            # JuMP.@variable(model, ρ[1:4])
+            # res = Vector{eltype(ρ)}(undef, 4)
+            # res[1:2, 1:2] = H * ρ[1:2, 1:2]
+            # res[1:2, 3:4] = H * ρ[1:2, 3:4]
+            # res[3:4, 1:2] = H * ρ[3:4, 1:2]
+            # res[3:4, 3:4] = H * ρ[3:4, 3:4]
+            # @test apply_to_subsystem(H, ρ, 2, [2, 2]) == res
+            d1, d2, d3 = 2, 2, 3
+            for R ∈ (Float64, Double64, Float128, BigFloat), T ∈ (R, Complex{R})
+                a = randn(T, d1, d1)
+                b = randn(T, d2, d2)
+                c = randn(T, d3, d3)
+                v1 = randn(T, d1)
+                v2 = randn(T, d2)
+                v3 = randn(T, d3)
+                ab = kron(a, b)
+                ac = kron(a, c)
+                bc = kron(b, c)
+                abc = kron(ab, c)
+                v12 = kron(v1, v2)
+                v13 = kron(v1, v3)
+                v23 = kron(v2, v3)
+                v123 = kron(v1, v2, v3)
+                I2 = Matrix(one(T) * I, (2, 2))
+                I3 = Matrix(one(T) * I, (3, 3))
+                I4 = Matrix(one(T) * I, (4, 4))
+                I6 = Matrix(one(T) * I, (6, 6))
+                @test apply_to_subsystem(a, v12, 1) ≈ kron(a, I2) * v12
+                @test apply_to_subsystem(a, v12, 2) ≈ kron(I2, a) * v12
+                @test apply_to_subsystem(a, v123, 1, [2, 2, 3]) ≈ kron(a, I6) * v123
+                @test apply_to_subsystem(a, v123, 2, [2, 2, 3]) ≈ kron(I2, a, I3) * v123
+                @test apply_to_subsystem(c, v123, 3, [2, 2, 3]) ≈ kron(I4, c) * v123
+                @test apply_to_subsystem(ab, v12, [1, 2]) ≈ ab * v12
+                @test apply_to_subsystem(ab, v12, [2, 1]) ≈ permute_systems(ab, [2, 1], [2, 2]) * v12
+                @test apply_to_subsystem(ac, v123, [2, 3], [2, 2, 3]) ≈ kron(I2, ac) * v123
+                @test apply_to_subsystem(bc, v123, [1, 3], [2, 2, 3]) ≈
+                      permute_systems(kron(I2, bc), [2, 1, 3], [2, 2, 3]) * v123
+                @test apply_to_subsystem(abc, v123, [2, 1, 3], [2, 2, 3]) ≈
+                      permute_systems(abc, [2, 1, 3], [2, 2, 3]) * v123
+            end
+        end
+    end
     @testset "Partial trace      " begin
         model = JuMP.Model()
         JuMP.@variable(model, ρ[1:4, 1:4], Symmetric)

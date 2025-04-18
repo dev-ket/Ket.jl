@@ -31,6 +31,7 @@ partial_transpose
 permute_systems
 permutation_matrix
 trace_replace
+apply_to_subsystem
 ```
 
 
