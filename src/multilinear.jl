@@ -396,13 +396,17 @@ function apply_to_subsystem(
     inv_perm = collect(1:nsys)[p]
     ρ_perm = permute_systems(ρ, perm, dims)
 
+    Y = Matrix{typeof(1 * ρ[1])}(undef, size(ρ)) #hack for JuMP variables
+
     #sparse optimization
     if SA.issparse(ρ)
         op_perm = permute_systems(kron(I(prod(dims_keep)), SA.sparse(op)), inv_perm, dims_perm)
-        return op_perm * ρ * op_perm'
-    end
+        interm = similar(op_perm)
 
-    Y = Matrix{typeof(1 * ρ[1])}(undef, size(ρ)) #hack for JuMP variables
+        @views mul!(interm, op_perm, ρ)
+        @views mul!(Y, interm, op_perm')
+        return Y
+    end
 
     if eltype(ρ) <: JuMP.AbstractJuMPScalar
         for j ∈ 1:op_size:ρ_size-1, i ∈ 1:op_size:ρ_size-1
