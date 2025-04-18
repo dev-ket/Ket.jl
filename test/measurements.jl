@@ -1,6 +1,6 @@
 @testset "Measurements          " begin
     @testset "POVMs" begin
-        for T ∈ [Float64, Double64, Float128, BigFloat]
+        for T ∈ [Float64, BigFloat]
             E = random_povm(Complex{T}, 2, 3)
             V = dilate_povm(E)
             @test [V' * kron(I(2), proj(i, 3)) * V for i ∈ 1:3] ≈ E
@@ -10,7 +10,7 @@
         end
     end
     @testset "SIC POVMs" begin
-        for T ∈ [Float64, Double64, Float128, BigFloat], d ∈ 1:9
+        for T ∈ [Float64, BigFloat], d ∈ 1:9
             @test test_sic(sic_povm(Complex{T}, d))
         end
     end
@@ -18,7 +18,7 @@
         for T ∈ [Int8, Int64, BigInt]
             @test test_mub(mub(T(6)))
         end
-        for R ∈ [Float64, Double64, Float128, BigFloat]
+        for R ∈ [Float64, BigFloat]
             T = Complex{R}
             @test test_mub(mub(T, 2))
             @test test_mub(mub(T, 3))

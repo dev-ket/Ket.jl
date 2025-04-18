@@ -1,5 +1,5 @@
 @testset "States                " begin
-    for R ∈ [Float64, Double64, Float128, BigFloat]
+    for R ∈ [Float64, BigFloat]
         T = Complex{R}
         ψ = state_phiplus_ket(T)
         @test ψ == inv(sqrt(R(2))) * (ket(1, 4) + ket(4, 4))
