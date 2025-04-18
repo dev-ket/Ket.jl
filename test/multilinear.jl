@@ -176,6 +176,14 @@
             0 tr(ρ[3:4, 1:2])./2 0 tr(ρ[3:4, 3:4])./2
         ]
         @test trace_replace(ρ, 2, [2, 2]) == trrp
+        a = ones(Int, 4, 4); a[1] = 2
+        trrp = [
+            3/2 0 1 0
+            0 3/2 0 1
+            1 0 1 0
+            0 1 0 1
+        ]
+        @test trace_replace(a, 2) == trrp
         d1, d2, d3 = 2, 2, 3
         for R ∈ (Float64, Double64, Float128, BigFloat), T ∈ (R, Complex{R})
             a = randn(T, d1, d1)
