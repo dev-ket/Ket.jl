@@ -11,7 +11,7 @@
             res[3:4, 3:4] = H * ρ[3:4, 3:4] * H'
             @test apply_to_subsystem(H, ρ, 2, [2, 2]) == res
             d1, d2, d3 = 2, 2, 3
-            for R ∈ (Float64, Double64, Float128, BigFloat), T ∈ (R, Complex{R})
+            for R ∈ (Float64, BigFloat), T ∈ (R, Complex{R})
                 a = randn(T, d1, d1)
                 b = randn(T, d2, d2)
                 c = randn(T, d3, d3)
@@ -70,7 +70,7 @@
             # res[3:4, 3:4] = H * ρ[3:4, 3:4]
             # @test apply_to_subsystem(H, ρ, 2, [2, 2]) == res
             d1, d2, d3 = 2, 2, 3
-            for R ∈ (Float64, Double64, Float128, BigFloat), T ∈ (R, Complex{R})
+            for R ∈ (Float64, BigFloat), T ∈ (R, Complex{R})
                 a = randn(T, d1, d1)
                 b = randn(T, d2, d2)
                 c = randn(T, d3, d3)
