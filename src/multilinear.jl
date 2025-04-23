@@ -332,10 +332,9 @@ for (T, limit, wrapper) ∈
             #Take the partial trace
             dim_ptX = prod(dims_keep)
             ptX = parent(partial_trace(X, replace, dims)) #take the parent for efficiency
-            ptX ./= prod(dims_replace) # normalize for trace preservation
 
             #Add the partial trace
-            Y = Matrix{typeof(1 * X[1])}(undef, size(X)) #hack for JuMP variables
+            Y = Matrix{typeof(1.0 * X[1])}(undef, size(X)) #hack for JuMP variables
             for i ∈ eachindex(Y)
                 Y[i] = 0
             end
@@ -346,6 +345,7 @@ for (T, limit, wrapper) ∈
                     Y[view_k_idx[i], view_k_idx[j]] += ptX[i, j]
                 end
             end
+            Y ./= prod(dims_replace) # normalize for trace preservation
             return $wrapper(Y)
         end
     end

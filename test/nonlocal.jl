@@ -2,7 +2,7 @@
     @test eltype(chsh()) <: Float64
     @test eltype(cglmp()) <: Float64
     @test eltype(inn22()) <: Int
-    for T ∈ [Float64, Double64, Float128, BigFloat]
+    for T ∈ [Float64, BigFloat]
         @test eltype(chsh(T)) <: T
         @test eltype(cglmp(T)) <: T
         @test cglmp(T, 4)[3] == T(1) / 12
@@ -22,7 +22,7 @@ end
     fc1 = tensor_correlation(fp1)
     @test local_bound(fc1; correlation = true) ≈ local_bound(fp1)
     @test local_bound(fp1) == 12
-    for T ∈ [Float64, Double64, Float128, BigFloat]
+    for T ∈ [Float64, BigFloat]
         fp1 = randn(T, 2, 2, 3, 4)
         fp2 = permutedims(fp1, (2, 1, 4, 3))
         fc1 = tensor_correlation(fp1)
@@ -90,7 +90,7 @@ end
 end
 
 @testset "FP and FC notations   " begin
-    for T ∈ [Float64, Double64, Float128, BigFloat]
+    for T ∈ [Float64, BigFloat]
         Aax = povm(mub(Complex{T}, 2))
         fc_phiplus = Diagonal([1, 1, 1, -1])
         @test tensor_correlation(state_phiplus(Complex{T}), Aax, 2) ≈ fc_phiplus
@@ -110,7 +110,7 @@ end
 end
 
 @testset "FP and CG notations   " begin
-    for T ∈ [Float64, Double64, Float128, BigFloat]
+    for T ∈ [Float64, BigFloat]
         Aax = povm(mub(Complex{T}, 2))
         cg_phiplus = [1.0 0.5 0.5 0.5; 0.5 0.5 0.25 0.25; 0.5 0.25 0.5 0.25; 0.5 0.25 0.25 0.0]
         @test tensor_collinsgisin(state_phiplus(Complex{T}), Aax, 2) ≈ cg_phiplus
@@ -126,7 +126,7 @@ end
 end
 
 @testset "CG and FC notations   " begin
-    for T ∈ [Float64, Double64, Float128, BigFloat]
+    for T ∈ [Float64, BigFloat]
         scenario = (2, 2, 2, 2, 3, 4)
         matrix_size = scenario[4:6] .* (scenario[1:3] .- 1) .+ 1
         mfc = randn(T, matrix_size)

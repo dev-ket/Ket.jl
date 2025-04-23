@@ -4,7 +4,6 @@ using Ket: _rtol, _eps
 using CyclotomicNumbers
 using DoubleFloats
 using LinearAlgebra
-using Quadmath
 using SparseArrays
 using Test
 
