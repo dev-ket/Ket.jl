@@ -364,87 +364,6 @@ trace_replace(X::AbstractMatrix, remove::Integer, dims::AbstractVector{<:Integer
 """
 apply_to_subsystem(
 op::AbstractMatrix,
-ρ::AbstractMatrix,
-ssys::AbstractVector,
-dims::AbstractVector = _equal_sizes(ρ)
-Apply the operator `op` on the subsytems of `ρ` identified by `ssys`
-(op ⊗ I) * ρ * (op ⊗ I)†
-If the argument `dims` is omitted two equally-sized subsystems are assumed.
-"""
-function apply_to_subsystem(
-    op::AbstractMatrix,
-    ρ::AbstractMatrix,
-    ssys::AbstractVector{<:Integer},
-    dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
-)
-    @assert !isempty(ssys)
-    @assert prod(dims) == size(ρ)[1] "dimensions do not match with ρ"
-    @assert prod(dims[ssys]) == size(op)[1] "dimensions and ssys do not match with matrix op"
-
-    nsys = length(dims)
-    keep = _subsystems_complement(ssys, nsys)
-
-    op_size = size(op, 1)
-    ρ_size = size(ρ, 1)
-
-    dims_keep = dims[keep]
-    dims_op = dims[ssys]
-
-    perm = vcat(keep, ssys)
-    dims_perm = vcat(dims_keep, dims_op)
-    p = sortperm(perm)
-    inv_perm = collect(1:nsys)[p]
-    ρ_perm = permute_systems(ρ, perm, dims)
-
-    Y = Matrix{typeof(1 * ρ[1])}(undef, size(ρ)) #hack for JuMP variables
-
-    #sparse optimization
-    if SA.issparse(ρ)
-        op_perm = permute_systems(kron(I(prod(dims_keep)), SA.sparse(op)), inv_perm, dims_perm)
-        interm = similar(op_perm)
-
-        @views mul!(interm, op_perm, ρ)
-        @views mul!(Y, interm, op_perm')
-        return Y
-    end
-
-    if eltype(ρ) <: JuMP.AbstractJuMPScalar
-        for j ∈ 1:op_size:ρ_size-1, i ∈ 1:op_size:ρ_size-1
-            @views Y[i:i+op_size-1, j:j+op_size-1] .= op * ρ_perm[i:i+op_size-1, j:j+op_size-1] * op'
-        end
-    else
-        interm = similar(op)
-        for j ∈ 1:op_size:ρ_size-1, i ∈ 1:op_size:ρ_size-1
-            # @views Y[i:i+op_size-1, j:j+op_size-1] .= op * ρ_perm[i:i+op_size-1, j:j+op_size-1] * op'
-            @views mul!(interm, op, ρ_perm[i:i+op_size-1, j:j+op_size-1])
-            @views mul!(Y[i:i+op_size-1, j:j+op_size-1], interm, op')
-        end
-    end
-    return permute_systems(Y, inv_perm, dims_perm)
-end
-
-export apply_to_subsystem
-
-"""
-apply_to_subsystem(
-op::AbstractMatrix,
-ρ::AbstractMatrix,
-ssys::Integer,
-dims::AbstractVector = _equal_sizes(ρ)
-Apply the operator `op` on the subsytems of `ρ` identified by `ssys`
-(op ⊗ I) * ρ * (op ⊗ I)†
-If the argument `dims` is omitted two equally-sized subsystems are assumed.
-"""
-apply_to_subsystem(
-    op::AbstractMatrix,
-    ρ::AbstractMatrix,
-    ssys::Integer,
-    dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
-) = apply_to_subsystem(op, ρ, [ssys], dims)
-
-"""
-apply_to_subsystem(
-op::AbstractMatrix,
 ψ::AbstractVector,
 ssys::AbstractVector,
 dims::AbstractVector = _equal_sizes(ρ)
@@ -459,8 +378,8 @@ function apply_to_subsystem(
     dims::AbstractVector{<:Integer} = _equal_sizes(ψ)
 )
     @assert !isempty(ssys)
-    @assert prod(dims) == size(ψ)[1] "dimensions do not match with ψ"
-    @assert prod(dims[ssys]) == size(op)[1] "dimensions and ssys do not match with matrix op"
+    @assert prod(dims) == size(ψ, 1) "dimensions do not match with ψ"
+    @assert prod(dims[ssys]) == size(op, 1) "dimensions and ssys do not match with matrix op"
 
     nsys = length(dims)
     keep = _subsystems_complement(ssys, nsys)
@@ -492,6 +411,8 @@ function apply_to_subsystem(
     return permute_systems(Y, inv_perm, dims_perm)
 end
 
+export apply_to_subsystem
+
 """
 apply_to_subsystem(
 op::AbstractMatrix,
@@ -508,3 +429,201 @@ apply_to_subsystem(
     ssys::Integer,
     dims::AbstractVector{<:Integer} = _equal_sizes(ψ)
 ) = apply_to_subsystem(op, ψ, [ssys], dims)
+
+"""
+apply_to_subsystem(
+kraus::AbstractVector{<:AbstractMatrix},
+ρ::AbstractMatrix,
+ssys::AbstractVector,
+dims::AbstractVector = _equal_sizes(ρ)
+output_dims::AbstractVector = dims[ssys]
+Apply the operators `kraus` on the subsytems of `ρ` identified by `ssys`
+∑(Kᵢ ⊗ I) * ρ * (Kᵢ ⊗ I)†
+For each input subsystem `i` of size `dims[ssys[i]]` they are mapped to a subsystem of size `output_dims[i]`
+If the argument `dims` is omitted two equally-sized subsystems are assumed.
+"""
+function apply_to_subsystem(
+    kraus::AbstractVector{<:AbstractMatrix},
+    ρ::AbstractMatrix,
+    ssys::AbstractVector{<:Integer},
+    dims::AbstractVector{<:Integer} = _equal_sizes(ρ),
+    output_dims::AbstractVector{<:Integer} = dims[ssys]
+)
+    @assert !isempty(ssys)
+
+    nsys = length(dims)
+    keep = _subsystems_complement(ssys, nsys)
+
+    dims_keep = dims[keep]
+    input_dims = dims[ssys]
+
+    @assert length(input_dims) == length(output_dims) "Number of input and output subsystem don't match ; use function apply_to_subsystem_non_contiguous"
+
+    input_size = prod(input_dims) #input size of Kraus
+    output_size = prod(output_dims) #output size of Kraus
+    ρ_size = size(ρ, 1)
+
+    @assert prod(dims) == ρ_size "dimensions do not match with ρ"
+    @assert all([size(k, 2) == input_size for k ∈ kraus]) "dimensions do not match with kraus operators"
+    @assert all([size(k, 1) == output_size for k ∈ kraus]) "dimensions do not match with kraus operators"
+
+    perm = vcat(keep, ssys)
+    p = sortperm(perm)
+    inv_perm = collect(1:nsys)[p]
+    dims_perm_output = vcat(dims_keep, output_dims) # The dims of the subsystem when applying the inverse permutation
+
+    Y = apply_to_subsystem_non_contiguous(kraus, ρ, ssys, dims)
+    return permute_systems(Y, inv_perm, dims_perm_output)
+end
+
+"""
+apply_to_subsystem(
+kraus::AbstractVector{<:AbstractMatrix},
+ρ::AbstractMatrix,
+ssys::Integer,
+dims::AbstractVector = _equal_sizes(ρ)
+output_dims::Integer = dims[ssys]
+Apply the operators `kraus` on the subsytem of `ρ` identified by `ssys`
+∑(Kᵢ ⊗ I) * ρ * (Kᵢ ⊗ I)†
+The subsystem identified by `ssys` of size `dims[ssys]` is mapped to a subsystem of size `output_dims[ssys]`
+If the argument `dims` is omitted two equally-sized subsystems are assumed.
+"""
+function apply_to_subsystem(
+    kraus::AbstractVector{<:AbstractMatrix},
+    ρ::AbstractMatrix,
+    ssys::Integer,
+    dims::AbstractVector{<:Integer} = _equal_sizes(ρ),
+    output_dims::Integer = dims[ssys]
+)
+    apply_to_subsystem(kraus, ρ, [ssys], dims, [output_dims])
+end
+
+"""
+apply_to_subsystem_non_contiguous(
+kraus::AbstractVector{<:AbstractMatrix},
+ρ::AbstractMatrix,
+ssys::AbstractVector,
+dims::AbstractVector = _equal_sizes(ρ)
+Apply the operators `kraus` on the subsytems of `ρ` identified by `ssys`
+∑(Kᵢ ⊗ I) * ρ * (Kᵢ ⊗ I)†
+Returns a 2 subsystems state where the 2 second subsystem represents the output space of the Kraus operators.
+"""
+function apply_to_subsystem_non_contiguous(
+    kraus::AbstractVector{<:AbstractMatrix},
+    ρ::AbstractMatrix,
+    ssys::AbstractVector{<:Integer},
+    dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
+)
+    @assert !isempty(ssys)
+
+    nsys = length(dims)
+    keep = _subsystems_complement(ssys, nsys)
+
+    dims_keep = dims[keep]
+    input_dims = dims[ssys]
+
+    input_size = prod(input_dims) #input size of Kraus
+    output_size = size(kraus[1], 1) #output size of Kraus
+    ρ_size = size(ρ, 1)
+    Y_size = output_size * prod(dims_keep)
+
+    @assert prod(dims) == ρ_size "dimensions do not match with ρ"
+    @assert all([size(k, 2) == input_size for k ∈ kraus]) "dimensions do not match with kraus operators"
+    @assert all([size(k, 1) == output_size for k ∈ kraus]) "dimensions do not match with kraus operators"
+
+    perm = vcat(keep, ssys)
+    ρ_perm = permute_systems(ρ, perm, dims)
+
+    Y = Matrix{typeof(1 * ρ[1])}(undef, Y_size, Y_size) #hack for JuMP variables
+    for i ∈ eachindex(Y) # Init with 0s
+        Y[i] = 0
+    end
+
+    if eltype(ρ) <: JuMP.AbstractJuMPScalar
+        for (j_in, j_out) ∈ zip(1:input_size:ρ_size-1, 1:output_size:Y_size-1),
+            (i_in, i_out) ∈ zip(1:input_size:ρ_size-1, 1:output_size:Y_size-1)
+
+            for kraus_op ∈ kraus
+                @views Y[i_out:i_out+output_size-1, j_out:j_out+output_size-1] .+=
+                    kraus_op * ρ_perm[i_in:i_in+input_size-1, j_in:j_in+input_size-1] * kraus_op'
+            end
+        end
+    else
+        interm = Matrix{eltype(kraus[1])}(undef, size(kraus[1]))
+        for (j_in, j_out) ∈ zip(1:input_size:ρ_size-1, 1:output_size:Y_size-1),
+            (i_in, i_out) ∈ zip(1:input_size:ρ_size-1, 1:output_size:Y_size-1)
+
+            for kraus_op ∈ kraus
+                @views mul!(interm, kraus_op, ρ_perm[i_in:i_in+input_size-1, j_in:j_in+input_size-1])
+                @views Y[i_out:i_out+output_size-1, j_out:j_out+output_size-1] .+= interm * kraus_op'
+            end
+        end
+    end
+    return Y
+end
+export apply_to_subsystem_non_contiguous
+
+"""
+apply_to_subsystem_non_contiguous(
+kraus::AbstractVector{<:AbstractMatrix},
+ρ::AbstractMatrix,
+ssys::AbstractVector,
+dims::AbstractVector = _equal_sizes(ρ)
+Apply the operators `kraus` on the subsytems of `ρ` identified by `ssys`
+∑(Kᵢ ⊗ I) * ρ * (Kᵢ ⊗ I)†
+Returns a 2 subsystems state where the 2 second subsystem represents the output space of the Kraus operators.
+"""
+function apply_to_subsystem_non_contiguous(
+    kraus::AbstractVector{<:SA.AbstractSparseArray},
+    ρ::SA.AbstractSparseArray,
+    ssys::AbstractVector{<:Integer},
+    dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
+)
+    @assert !isempty(ssys)
+
+    nsys = length(dims)
+    keep = _subsystems_complement(ssys, nsys)
+
+    dims_keep = dims[keep]
+    input_dims = dims[ssys]
+
+    input_size = prod(input_dims) #input size of Kraus
+    output_size = size(kraus[1], 1) #output size of Kraus
+    kept_size = prod(dims_keep)
+    ρ_size = size(ρ, 1)
+    Y_size = output_size * prod(dims_keep)
+
+    @assert prod(dims) == ρ_size "dimensions do not match with ρ"
+    @assert all([size(k, 2) == input_size for k ∈ kraus]) "dimensions do not match with kraus operators"
+    @assert all([size(k, 1) == output_size for k ∈ kraus]) "dimensions do not match with kraus operators"
+
+    perm = vcat(keep, ssys)
+    ρ_perm = permute_systems(ρ, perm, dims)
+    Y = zeros(eltype(ρ), Y_size, Y_size)
+    interm = similar(ρ, output_size * kept_size, input_size * kept_size)
+    for k ∈ kraus
+        k_kron = kron(I(prod(dims_keep)), k)
+        @views mul!(interm, k_kron, ρ_perm)
+        Y .+= interm * k_kron'
+    end
+    return SA.sparse(Y)
+end
+
+"""
+apply_to_subsystem_non_contiguous(
+kraus::AbstractVector{<:AbstractMatrix},
+ρ::AbstractMatrix,
+ssys::AbstractVector,
+dims::AbstractVector = _equal_sizes(ρ)
+Apply the operators `kraus` on the subsytems of `ρ` identified by `ssys`
+∑(Kᵢ ⊗ I) * ρ * (Kᵢ ⊗ I)†
+Returns a 2 subsystems state where the second subsystem represents the output space of the Kraus operators.
+"""
+function apply_to_subsystem_non_contiguous(
+    kraus::AbstractVector{<:AbstractMatrix},
+    ρ::AbstractMatrix,
+    ssys::Integer,
+    dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
+)
+    apply_to_subsystem_non_contiguous(kraus, ρ, [ssys], dims)
+end
