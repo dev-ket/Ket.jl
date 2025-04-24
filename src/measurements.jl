@@ -895,3 +895,40 @@ function _fiducial_WH(::Type{T}, d::Integer) where {T}
 end
 
 _fiducial_WH(d::Integer) = _fiducial_WH(ComplexF64, d)
+
+
+function unambigious_state_discrimination(ρ::Vector{<:AbstractMatrix},q::Vector{<:Any} = Float64[])
+    model = JuMP.Model(() -> Hypatia.Optimizer(verbose = false))
+    N = length(ρ)
+    d = maximum(size(ρ[1]))
+    JuMP.set_silent(model)
+
+    if  ~isempty(q)
+        @assert length(q) == length(ρ) 
+        @assert isapprox(sum(q), 1.0; atol=eps(Float32))
+    else
+        q = fill(1/length(ρ),length(ρ))
+    end
+
+    E = [JuMP.@variable(model, [1:d, 1:d] in JuMP.HermitianPSDCone()) for i in 1:N+1]
+    for i in 1:N
+        for a in 1:N
+            if a ≠ i
+                println(i)
+                println(a)
+                JuMP.@constraint(model, q[i] * tr(E[a] * ρ[i]) == 0)
+            end
+        end
+    end
+    JuMP.@constraint(model, sum(E) == I)
+    JuMP.@objective(
+        model,
+        Max,
+        sum([q[i]*real(tr(E[i]*ρ[i])) for i in 1:N])
+    )
+    JuMP.optimize!(model)
+    JuMP.assert_is_solved_and_feasible(model)
+    println(JuMP.objective_value(model))
+    return JuMP.objective_value(model), [JuMP.value.(e) for e in E]
+end
+export unambigious_state_discrimination
