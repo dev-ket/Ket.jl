@@ -32,4 +32,12 @@
         end
         @test test_mub(mub(Cyc{Rational{BigInt}}, 5, 5, 7)) # can access beyond the number of combinations
     end
+    @testset "Unambigious State Discrimination" begin
+        for N ∈ 2:5
+            ρ = [random_state(N) for i in 1:N]
+            @test unambigious_state_discrimination(ρ)[N+1] ≈ I atol=1e-6
+            ρ2 = [random_state(N,N-1) for i in 1:N]
+            @test test_povm(unambigious_state_discrimination(ρ2))
+        end
+    end
 end

@@ -896,9 +896,18 @@ end
 
 _fiducial_WH(d::Integer) = _fiducial_WH(ComplexF64, d)
 
+"""
+    unambigious_state_discrimination(p[,q=[]])
 
-function unambigious_state_discrimination(ρ::Vector{<:AbstractMatrix},q::Vector{<:Any} = Float64[])
-    model = JuMP.Model(() -> Hypatia.Optimizer(verbose = false))
+Return a positive operator-valued measure (POVM) ``{E_i}_{i=1}^N+1`` such that if we observe``E_i`` we are certain to be in state ``ρ_i``.
+``E_N+1`` is the failure state which does not correspond to any state ``ρ_i``
+
+# Arguments
+- ρ: list of state to be discriminated
+- q: (optional) list of probabilities associated with the state ρ, if not provided, uniform probability is assumed
+"""
+function unambigious_state_discrimination(ρ::Vector{<:AbstractMatrix{T}},q::Vector{<:Any} = Float64[];verbose = false, solver = Hypatia.Optimizer{_solver_type(T)}) where {T}
+    model = JuMP.GenericModel{_solver_type(T)}()
     N = length(ρ)
     d = maximum(size(ρ[1]))
     JuMP.set_silent(model)
@@ -914,8 +923,6 @@ function unambigious_state_discrimination(ρ::Vector{<:AbstractMatrix},q::Vector
     for i in 1:N
         for a in 1:N
             if a ≠ i
-                println(i)
-                println(a)
                 JuMP.@constraint(model, q[i] * tr(E[a] * ρ[i]) == 0)
             end
         end
@@ -926,9 +933,14 @@ function unambigious_state_discrimination(ρ::Vector{<:AbstractMatrix},q::Vector
         Max,
         sum([q[i]*real(tr(E[i]*ρ[i])) for i in 1:N])
     )
+
+
+    JuMP.set_optimizer(model, solver)
+    !verbose && JuMP.set_silent(model)
     JuMP.optimize!(model)
-    JuMP.assert_is_solved_and_feasible(model)
+    JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
     println(JuMP.objective_value(model))
-    return JuMP.objective_value(model), [JuMP.value.(e) for e in E]
+    println(JuMP.dual_status(model))
+    return [JuMP.value.(e) for e in E]
 end
 export unambigious_state_discrimination
