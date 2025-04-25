@@ -939,8 +939,6 @@ function unambigious_state_discrimination(ρ::Vector{<:AbstractMatrix{T}},q::Vec
     !verbose && JuMP.set_silent(model)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
-    println(JuMP.objective_value(model))
-    println(JuMP.dual_status(model))
     return [JuMP.value.(e) for e in E]
 end
 export unambigious_state_discrimination
