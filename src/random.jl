@@ -18,9 +18,9 @@ Reference: Życzkowski and Sommers, [arXiv:quant-ph/0012101](https://arxiv.org/a
 """
 function random_state(::Type{T}, d::Integer, k::Integer = d) where {T}
     x = _randn(T, d, k)
-    y = x * x'
-    y ./= tr(y)
-    return Hermitian(y)
+    ρ = x * x'
+    ρ ./= tr(ρ)
+    return Hermitian(ρ)
 end
 random_state(d::Integer, k::Integer = d) = random_state(ComplexF64, d, k)
 export random_state
@@ -33,30 +33,67 @@ Produces a Haar-random quantum state vector in dimension `d`.
 Reference: Życzkowski and Sommers, [arXiv:quant-ph/0012101](https://arxiv.org/abs/quant-ph/0012101)
 """
 function random_state_ket(::Type{T}, d::Integer) where {T}
-    psi = _randn(T, d)
-    normalize!(psi)
-    return psi
+    ψ = _randn(T, d)
+    normalize!(ψ)
+    return ψ
 end
 random_state_ket(d::Integer) = random_state_ket(ComplexF64, d)
 export random_state_ket
 
-#dedicated type for using producing random unitaries using Stewart's algorithm
-import Base.size
-import LinearAlgebra.lmul!
-import LinearAlgebra.rmul!
-struct StewartQ{T,S<:LinearAlgebra.QRPackedQ{T},C<:Vector{T}} <: LinearAlgebra.AbstractQ{T}
-    q::S
-    signs::C
+#computes a Householder reflector with non-negative diagonal element
+#according to the algorithm from http://www.netlib.org/lapack/lawnspdf/lawn203.pdf
+#thanks to Seth Axen for the 3 functions below
+#original source: https://gist.github.com/sethaxen/4d5a6d22e56794a90ece6224b8100f08
+function _reflector!(v::AbstractVector)
+    α = v[1]
+    @views x = v[2:end]
+    xnorm = norm(x)
+    if iszero(xnorm) && isreal(α)
+        τ = real(α) > 0 ? zero(α) : oftype(α, 2)
+        β = abs(real(α))
+        return τ
+    end
+    β = -copysign(hypot(α, xnorm), real(α))
+    β, α, xnorm = _possibly_rescale!(β, α, x, xnorm)
+    if β ≥ 0
+        η = α - β
+    else
+        β = -β
+        γ = real(α) + β
+        if α isa Real
+            η = -xnorm * (xnorm / γ)
+        else
+            imα = α - real(α)
+            abs_imα = abs(imα)
+            δ = -(abs_imα * (abs_imα / γ) + xnorm * (xnorm / γ))
+            η = δ + imα
+        end
+    end
+    v[1] = β
+    x ./= η
+    τ = -η / β
+    return τ
 end
-size(Q::StewartQ, dim::Integer) = size(Q.q, dim)
-size(Q::StewartQ) = size(Q.q)
 
-lmul!(A::StewartQ, B::AbstractVecOrMat) = lmul!(A.q, lmul!(LinearAlgebra.Diagonal(A.signs), B))
-lmul!(adjA::LinearAlgebra.AdjointQ{<:Any,<:StewartQ}, B::AbstractVecOrMat) =
-    lmul!(LinearAlgebra.Diagonal(adjA.Q.signs), lmul!(adjA.Q.q', B))
-rmul!(A::AbstractVecOrMat, B::StewartQ) = rmul!(rmul!(A, B.q), LinearAlgebra.Diagonal(B.signs))
-rmul!(A::AbstractVecOrMat, adjB::LinearAlgebra.AdjointQ{<:Any,<:StewartQ}) =
-    rmul!(rmul!(A, LinearAlgebra.Diagonal(adjB.Q.signs)), adjB.Q.q')
+_get_log2_safmin(::Type{T}) where {T<:Real} = exponent(floatmin(T) / eps(T))
+
+function _possibly_rescale!(β, α, x, xnorm)
+    T = float(real(eltype(x)))
+    safmin_exponent = _get_log2_safmin(T)
+    safmin = exp2(T(safmin_exponent))
+    invsafmin = exp2(-T(safmin_exponent))
+    if abs(β) ≥ safmin
+        return β, α, xnorm
+    end
+    while abs(β) < safmin
+        rmul!(x, invsafmin)
+        β *= invsafmin
+        α *= invsafmin
+    end
+    xnorm = norm(x)
+    β = -copysign(hypot(α, xnorm), real(α))
+    return β, α, xnorm
+end
 
 """
     random_unitary([T=ComplexF64,] d::Integer)
@@ -64,7 +101,8 @@ rmul!(A::AbstractVecOrMat, adjB::LinearAlgebra.AdjointQ{<:Any,<:StewartQ}) =
 Produces a Haar-random unitary matrix in dimension `d`.
 If `T` is a real type the output is instead a Haar-random (real) orthogonal matrix.
 
-Reference: Gilbert W. Stewart, [doi:10.1137/0717034](https://doi.org/10.1137/0717034)
+References: Gilbert W. Stewart, [doi:10.1137/0717034](https://doi.org/10.1137/0717034)
+            Demmel et al., [lawn203](http://www.netlib.org/lapack/lawnspdf/lawn203.pdf)
 """
 function random_unitary(::Type{T}, d::Integer) where {T<:Number}
     z = Matrix{T}(undef, d, d)
@@ -73,12 +111,11 @@ function random_unitary(::Type{T}, d::Integer) where {T<:Number}
     end
     τ = Vector{T}(undef, d)
     s = Vector{T}(undef, d)
-    @inbounds for k ∈ 1:d #this is a partial QR decomposition where we don't apply the reflection to the rest of the matrix
-        @views x = z[k:d, k]
-        τ[k] = LinearAlgebra.reflector!(x)
-        s[k] = sign(real(x[1]))
+    @inbounds for j ∈ 1:d #this is a partial QR decomposition where we don't apply the reflection to the rest of the matrix
+        @views x = z[j:d, j]
+        τ[j] = _reflector!(x)
     end
-    return StewartQ(LinearAlgebra.QRPackedQ(z, τ), s)
+    return LinearAlgebra.QRPackedQ(z, τ)
 end
 random_unitary(d::Integer) = random_unitary(ComplexF64, d)
 export random_unitary
@@ -88,7 +125,8 @@ export random_unitary
 
 Produces a Haar-random isometry with `d` rows and `k` columns.
 
-Reference: Gilbert W. Stewart, [doi:10.1137/0717034](https://doi.org/10.1137/0717034)
+References: Gilbert W. Stewart, [doi:10.1137/0717034](https://doi.org/10.1137/0717034)
+            Demmel et al., [lawn203](http://www.netlib.org/lapack/lawnspdf/lawn203.pdf)
 """
 function random_isometry(::Type{T}, d::Integer, k::Integer) where {T<:Number}
     z = Matrix{T}(undef, d, k)
@@ -99,10 +137,9 @@ function random_isometry(::Type{T}, d::Integer, k::Integer) where {T<:Number}
     s = Vector{T}(undef, k)
     @inbounds for j ∈ 1:k #this is a partial QR decomposition where we don't apply the reflection to the rest of the matrix
         @views x = z[j:d, j]
-        τ[j] = LinearAlgebra.reflector!(x)
-        s[j] = sign(real(x[1]))
+        τ[j] = _reflector!(x)
     end
-    return Matrix(LinearAlgebra.QRPackedQ(z, τ)) * Diagonal(s)
+    return Matrix(LinearAlgebra.QRPackedQ(z, τ))
 end
 #rather inefficient but until https://github.com/JuliaLang/LinearAlgebra.jl/issues/1172
 #is solved this is the best we can do
