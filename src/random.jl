@@ -104,31 +104,11 @@ If `T` is a real type the output is instead a Haar-random (real) orthogonal matr
 References: Gilbert W. Stewart, [doi:10.1137/0717034](https://doi.org/10.1137/0717034)
             Demmel et al., [lawn203](http://www.netlib.org/lapack/lawnspdf/lawn203.pdf)
 """
-function random_unitary(::Type{T}, d::Integer) where {T<:Number}
-    z = Matrix{T}(undef, d, d)
-    @inbounds for j ∈ 1:d, i ∈ j:d
-        z[i, j] = _randn(T)
-    end
-    τ = Vector{T}(undef, d)
-    s = Vector{T}(undef, d)
-    @inbounds for j ∈ 1:d #this is a partial QR decomposition where we don't apply the reflection to the rest of the matrix
-        @views x = z[j:d, j]
-        τ[j] = _reflector!(x)
-    end
-    return LinearAlgebra.QRPackedQ(z, τ)
-end
+random_unitary(::Type{T}, d::Integer) where {T<:Number} = _random_isometry(T, d, d)
 random_unitary(d::Integer) = random_unitary(ComplexF64, d)
 export random_unitary
 
-"""
-    random_isometry([T=ComplexF64,] d::Integer, k::Integer)
-
-Produces a Haar-random isometry with `d` rows and `k` columns.
-
-References: Gilbert W. Stewart, [doi:10.1137/0717034](https://doi.org/10.1137/0717034)
-            Demmel et al., [lawn203](http://www.netlib.org/lapack/lawnspdf/lawn203.pdf)
-"""
-function random_isometry(::Type{T}, d::Integer, k::Integer) where {T<:Number}
+function _random_isometry(::Type{T}, d::Integer, k::Integer) where {T<:Number}
     z = Matrix{T}(undef, d, k)
     @inbounds for j ∈ 1:k, i ∈ j:d
         z[i, j] = _randn(T)
@@ -139,8 +119,18 @@ function random_isometry(::Type{T}, d::Integer, k::Integer) where {T<:Number}
         @views x = z[j:d, j]
         τ[j] = _reflector!(x)
     end
-    return Matrix(LinearAlgebra.QRPackedQ(z, τ))
+    return LinearAlgebra.QRPackedQ(z, τ)
 end
+
+"""
+    random_isometry([T=ComplexF64,] d::Integer, k::Integer)
+
+Produces a Haar-random isometry with `d` rows and `k` columns.
+
+References: Gilbert W. Stewart, [doi:10.1137/0717034](https://doi.org/10.1137/0717034)
+            Demmel et al., [lawn203](http://www.netlib.org/lapack/lawnspdf/lawn203.pdf)
+"""
+random_isometry(::Type{T}, d::Integer, k::Integer) where {T<:Number} = Matrix(_random_isometry(T, d, k))
 #rather inefficient but until https://github.com/JuliaLang/LinearAlgebra.jl/issues/1172
 #is solved this is the best we can do
 random_isometry(d::Integer, k::Integer) = random_isometry(ComplexF64, d, k)
