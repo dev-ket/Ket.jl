@@ -37,8 +37,8 @@ trace_replace
 ## Channels
 
 ```@docs
-applykraus
-applykraus!
+applymap
+applymap!
 choi
 channel_bit_flip
 channel_phase_damping
