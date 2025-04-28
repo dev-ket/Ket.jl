@@ -190,3 +190,57 @@ function diamond_norm(K::Vector{<:AbstractMatrix})
     dual_to_id = sum(Hermitian(Ki' * Ki) for Ki ∈ K)
     return opnorm(dual_to_id)
 end
+
+# Construct the Choi operator of an Amplitude Damping channel 
+function channel_discrimination()
+    γ=67/100
+    # Write a Cell with the Kraus operators
+    # Since this map is Completely positive, left and right Choi operators are the same.
+    K0=[1 0; 0 sqrt(1-γ)]
+    K1 = [0 sqrt(γ); 0 0]
+    # Declare the Channels which will be used
+    C1= choi([K0,K1]);
+
+    # Construct the Choi operator of an Bit Flip channel 
+    η=87/100
+    K0=sqrt(η)* I(2)
+    K1=sqrt(1-η)*[0 1; 1 0]
+
+    C2 = choi([K0,K1])
+
+    C = Array{ComplexF64}(undef, 4, 4, 2)  # Création d’un tableau 3D vide (2×2×2)
+
+    C[:, :, 1] = C1
+    C[:, :, 2] = C2
+
+    N=size(C,3); #Obtain the number of channels N
+    k=2; #Set the number of uses k equals 2
+
+    d=Int(sqrt(size(C[:,:,1],1)));
+    dIn=d;
+    dOut=d;
+    DIM=[d,d,d,d];
+    p_i=ones(1,N)/N;
+    println(d ," ", p_i)
+
+    model = JuMP.Model(() -> Hypatia.Optimizer(verbose = false))
+    T = [JuMP.@variable(model, [1:Int(dIn^(2*k)), 1:Int(dOut^(2*k))] in JuMP.HermitianPSDCone()) for i in 1:N]
+    JuMP.@constraint(model, partial_trace(sum(T), [1]) == I)
+    JuMP.@constraint(model, trace_replace(sum(T), [2,4],DIM) == sum(T))
+    JuMP.@constraint(model, tr((sum(T))) == dOut ^2)
+
+    JuMP.@objective(
+        model,
+        Max,
+        sum([real(LinearAlgebra.tr(p_i[i]* T[i] * kron(fill(C[:,:,i],k)...))) for i in 1:N])
+    )
+
+    JuMP.optimize!(model)
+    JuMP.assert_is_solved_and_feasible(model)
+    JuMP.solution_summary(model)
+
+    Tsolution = [JuMP.value.(t) for t in T]
+    println(JuMP.objective_value(model))
+    return Tsolution
+end
+export channel_discrimination

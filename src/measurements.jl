@@ -897,7 +897,82 @@ end
 _fiducial_WH(d::Integer) = _fiducial_WH(ComplexF64, d)
 
 """
-    unambigious_state_discrimination(p[,q=[]])
+    min_error_povm(
+        ρ::Vector{<:AbstractMatrix{T}},
+        q::Vector{<:Any} = Float64[];
+        verbose = false,
+        dualize = false,
+        solver = Hypatia.Optimizer{_solver_type(T)})
+
+Return a positive operator-valued measure (POVM) ``{E_i}_{i=1}^N`` and probability P such that if we observe ``E_i`` with average probability P we are in state ``ρ_i``
+
+# Arguments
+- ρ: list of state to be discriminated
+- q: (optional) list of probabilities associated with the state ρ, if not provided, uniform probability is assumed
+- primal: (optional) if false, compute the dual of the optimization problem, default: True
+"""
+function min_error_povm(
+    ρ::Vector{<:AbstractMatrix{T}},
+    q::Vector{<:Any} = Float64[];
+    verbose = false,
+    dualize = false,
+    solver = Hypatia.Optimizer{_solver_type(T)}) where {T}
+
+    model = JuMP.GenericModel{_solver_type(T)}()    
+    N = length(ρ)
+    d = maximum(size(ρ[1]))
+
+    if ~isempty(q)
+        @assert length(q) == length(ρ) 
+        @assert isapprox(sum(q), 1.0; atol=eps(Float32))
+    else
+        q = fill(1/length(ρ),length(ρ))
+    end
+
+    E = [JuMP.@variable(model, [1:d, 1:d] in JuMP.HermitianPSDCone()) for i in 1:N]
+    JuMP.@constraint(model, sum(E) == LinearAlgebra.I)
+
+    JuMP.@objective(
+        model,
+        Max,
+        sum(q[i] * real(LinearAlgebra.tr(ρ[i] * E[i])) for i in 1:N),
+    )
+
+    if dualize
+        JuMP.set_optimizer(model, Dualization.dual_optimizer(solver; coefficient_type = _solver_type(T)))
+    else
+        JuMP.set_optimizer(model, solver)
+    end
+    !verbose && JuMP.set_silent(model)
+    JuMP.optimize!(model)
+
+    JuMP.assert_is_solved_and_feasible(model)
+    return [JuMP.value.(e) for e in E], JuMP.objective_value(model)
+end
+export min_error_povm
+
+"""
+    pretty_good_povm([ρ])
+
+Return a positive operator-valued measure (POVM) ``{E_i}_{i=1}^N`` using the pretty good measurements method to discriminate between the states ρ
+
+Reference: (https://www.math.uwaterloo.ca/~wcleung/co781-presentation-PGM-Lavoie.pdf)
+"""
+function pretty_good_povm(ρ::Vector{<:AbstractMatrix{T}}) where {T}
+    M = sum(ρ)
+    M_inv_sqrt = sqrt(inv(M))
+    M_i = [M_inv_sqrt * ρi * M_inv_sqrt for ρi in ρ]
+    return M_i
+end
+export pretty_good_povm
+
+"""
+    unambiguous_povm(
+        ρ::Vector{<:AbstractMatrix{T}},
+        q::Vector{<:Any} = Float64[];
+        verbose = false,
+        dualize = false,
+        solver = Hypatia.Optimizer{_solver_type(T)})
 
 Return a positive operator-valued measure (POVM) ``{E_i}_{i=1}^N+1`` such that if we observe``E_i`` we are certain to be in state ``ρ_i``.
 ``E_N+1`` is the failure state which does not correspond to any state ``ρ_i``
@@ -906,11 +981,16 @@ Return a positive operator-valued measure (POVM) ``{E_i}_{i=1}^N+1`` such that i
 - ρ: list of state to be discriminated
 - q: (optional) list of probabilities associated with the state ρ, if not provided, uniform probability is assumed
 """
-function unambigious_state_discrimination(ρ::Vector{<:AbstractMatrix{T}},q::Vector{<:Any} = Float64[];verbose = false, solver = Hypatia.Optimizer{_solver_type(T)}) where {T}
+function unambiguous_povm(
+    ρ::Vector{<:AbstractMatrix{T}},
+    q::Vector{<:Any} = Float64[];
+    verbose = false,
+    dualize = false,
+    solver = Hypatia.Optimizer{_solver_type(T)}) where {T}
+
     model = JuMP.GenericModel{_solver_type(T)}()
     N = length(ρ)
     d = maximum(size(ρ[1]))
-    JuMP.set_silent(model)
 
     if  ~isempty(q)
         @assert length(q) == length(ρ) 
@@ -934,11 +1014,31 @@ function unambigious_state_discrimination(ρ::Vector{<:AbstractMatrix{T}},q::Vec
         sum([q[i]*real(tr(E[i]*ρ[i])) for i in 1:N])
     )
 
-
-    JuMP.set_optimizer(model, solver)
+    if dualize
+        JuMP.set_optimizer(model, Dualization.dual_optimizer(solver; coefficient_type = _solver_type(T)))
+    else
+        JuMP.set_optimizer(model, solver)
+    end
     !verbose && JuMP.set_silent(model)
     JuMP.optimize!(model)
-    JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
-    return [JuMP.value.(e) for e in E]
+
+    # sometimes the solver is not able to find the correct primal (dual) solution, try solving dual (primal) instead 
+    if  !JuMP.is_solved_and_feasible(model) 
+        if !dualize
+            JuMP.set_optimizer(model, Dualization.dual_optimizer(solver; coefficient_type = _solver_type(T)))
+        else
+            JuMP.set_optimizer(model, solver)
+        end
+        !verbose && JuMP.set_silent(model)
+        JuMP.optimize!(model)
+    end
+        
+    if !JuMP.is_solved_and_feasible(model)
+        failure_result = [zeros(ComplexF64, d, d) for _ in N]
+        push(failure_result, Matrix{ComplexF64}(I,d,d))
+        return failure_result
+    else
+        return [JuMP.value.(e) for e in E]
+    end
 end
-export unambigious_state_discrimination
+export unambiguous_povm

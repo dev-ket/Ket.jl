@@ -316,7 +316,7 @@ for (T, limit, wrapper) ∈
             dims::AbstractVector{<:Integer} = _equal_sizes(X)
         )
             isempty(replace) && return X
-            length(replace) == length(dims) && return $wrapper(Matrix(I * tr(X) / size(X, 1), size(X)))
+            length(replace) == length(dims) && return $wrapper(eltype(I * tr(X) / size(X, 1), size(X)))
 
             nsys = length(dims)
             keep = _subsystems_complement(replace, nsys)
