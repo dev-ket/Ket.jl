@@ -27,7 +27,7 @@ export applymap
 """
     applymap!(result::Matrix, K::Vector{<:AbstractMatrix}, M::AbstractMatrix, temp::Matrix)
 
-Applies the CP map given by the Kraus operators `K` to the matrix `M` without allocating. `result` and `temp` must be
+Applies the CP map given by the Kraus operators `K` to the matrix `M` without allocating or wrapping. `result` and `temp` must be
 matrices of size `dout × dout` and `dout × din`, where `dout, din == size(K[1])`.
 """
 function applymap!(result::Matrix, K::Vector{<:AbstractMatrix}, M::AbstractMatrix, temp::Matrix)
@@ -54,7 +54,9 @@ for (matrixtype, wrapper) ∈ ((:AbstractMatrix, :identity), (:Symmetric, :Symme
             dtotal = size(Φ, 1)
             dout = dtotal ÷ din
             @assert dtotal == din * dout
-            result = partial_trace(Φ * kron(transpose(M), I(dout)), 1, [din, dout])
+            TS = Base.promote_op(*, T, S)
+            result = Matrix{TS}(undef, dout, dout)
+            applymap!(result, Φ, M)
             if isa(M, Symmetric) && !(S <: Union{Real,JuMPReal})
                 return result
             elseif isa(M, Symmetric) && !(T <: Union{Real,JuMPReal})
@@ -62,6 +64,30 @@ for (matrixtype, wrapper) ∈ ((:AbstractMatrix, :identity), (:Symmetric, :Symme
             else
                 return $wrapper(result)
             end
+        end
+    end
+end
+
+@doc """
+     applymap!(result::Matrix, Φ::AbstractMatrix, M::AbstractMatrix)
+
+Applies the CP map given by the Choi-Jamiołkowski operator `Φ` to the matrix `M` without allocating or wrapping. In the symmetric or Hermitian cases only the upper triangular is computed. `result` must be a matrix of size `dout × dout`,  where `size(M, 1) * dout == size(Φ, 1)`.
+""" applymap!(result::Matrix, Φ::AbstractMatrix, M::AbstractMatrix)
+
+for (matrixtype, limit) ∈ ((:AbstractMatrix, :dout), (:Symmetric, :j), (:Hermitian, :j))
+    @eval begin
+        function applymap!(result::Matrix, Φ::AbstractMatrix, M::$matrixtype)
+            din = size(M, 1)
+            dtotal = size(Φ, 1)
+            dout = dtotal ÷ din
+            @assert dtotal == din * dout
+            @inbounds for j ∈ 1:dout, i ∈ 1:$limit
+                result[i, j] = 0
+                for l ∈ 1:din, k ∈ 1:din
+                    result[i, j] += M[k, l] * Φ[(k-1)*dout+i, (l-1)*dout+j]
+                end
+            end
+            return result
         end
     end
 end
