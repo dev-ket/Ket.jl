@@ -37,11 +37,12 @@
         @test min_error_povm([[1 0; 0 0],0.5 * [1 1; 1 1]])[2] ≈ (2+sqrt(2))/4 atol=1e-6 
         @test min_error_povm([[1 0; 0 0], [0 0; 0 1]])[2] ≈ 1.0 atol=1e-6
         @test min_error_povm([[1 0 0; 0 0 0; 0 0 0], [1 0 0; 0 1 0; 0 0 1],[0 0 0; 0 0 0; 0 0 1]])[2] ≈ 1.0 atol=1e-6
-        for N ∈ 2:5
-            for _ ∈ 1:15
-                ρ = [random_state(N) for i in 1:N]
-                @test test_povm(min_error_povm(ρ)[1])
-            end
+        for R ∈ (Float64, Double64, Float128, BigFloat), T ∈ (R, Complex{R})
+            N = 3
+            ρ = [random_state(T,N) for i in 1:N]
+            E = min_error_povm(ρ)[1]
+            @test sum(E) ≈ I atol=1e-5
+            @test all(ishermitian.(E))
         end
     end
 
@@ -50,18 +51,20 @@
         E = pretty_good_povm(ρ)
         @test tr(E[1]*ρ[1]) ≈ (2+sqrt(2))/4 atol=1e-6
 
-        for N ∈ 2:5
-            ρ = [random_state(N) for i in 1:N]
+        for R ∈ (Float64, Double64, Float128, BigFloat), T ∈ (R, Complex{R})
+            N = 3
+            ρ = [random_state(T,N) for i in 1:N]
             E = pretty_good_povm(ρ)
             @test sum(E) ≈ I
         end
     end
 
     @testset "Unambiguous State Discrimination" begin
-        for N ∈ 2:5
-            ρ = [random_state(N) for i in 1:N]
+        for R ∈ (Float64, Double64, Float128, BigFloat), T ∈ (R, Complex{R})
+            N = 3
+            ρ = [random_state(T,N) for i in 1:N]
             @test unambiguous_povm(ρ)[N+1] ≈ I atol=1e-5
-            ρ2 = [random_state(N,N-1) for i in 1:N]
+            ρ2 = [random_state(T,N,N-1) for i in 1:N]
             E = unambiguous_povm(ρ2)
             @test sum(E) ≈ I atol=1e-5
             @test all(ishermitian.(E))

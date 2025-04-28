@@ -909,7 +909,6 @@ Return a positive operator-valued measure (POVM) ``{E_i}_{i=1}^N`` and probabili
 # Arguments
 - ρ: list of state to be discriminated
 - q: (optional) list of probabilities associated with the state ρ, if not provided, uniform probability is assumed
-- primal: (optional) if false, compute the dual of the optimization problem, default: True
 """
 function min_error_povm(
     ρ::Vector{<:AbstractMatrix{T}},
