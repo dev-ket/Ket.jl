@@ -42,7 +42,7 @@ export random_state_ket
 
 #computes a Householder reflector with non-negative diagonal element
 #according to the algorithm from http://www.netlib.org/lapack/lawnspdf/lawn203.pdf
-#thanks to Seth Axen for the 3 functions below
+#thanks to Seth Axen for the 2 functions below
 #original source: https://gist.github.com/sethaxen/4d5a6d22e56794a90ece6224b8100f08
 function _reflector!(v::AbstractVector)
     α = v[1]
@@ -75,20 +75,17 @@ function _reflector!(v::AbstractVector)
     return τ
 end
 
-_get_log2_safmin(::Type{T}) where {T<:Real} = exponent(floatmin(T) / eps(T))
-
 function _possibly_rescale!(β, α, x, xnorm)
     T = float(real(eltype(x)))
-    safmin_exponent = _get_log2_safmin(T)
-    safmin = exp2(T(safmin_exponent))
-    invsafmin = exp2(-T(safmin_exponent))
-    if abs(β) ≥ safmin
+    safemin = floatmin(T) / eps(T)
+    invsafemin = inv(safemin)
+    if abs(β) ≥ safemin
         return β, α, xnorm
     end
-    while abs(β) < safmin
-        rmul!(x, invsafmin)
-        β *= invsafmin
-        α *= invsafmin
+    while abs(β) < safemin
+        rmul!(x, invsafemin)
+        β *= invsafemin
+        α *= invsafemin
     end
     xnorm = norm(x)
     β = -copysign(hypot(α, xnorm), real(α))
