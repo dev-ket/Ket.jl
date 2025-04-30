@@ -88,6 +88,8 @@ tensor_to_povm
 povm_to_tensor
 mub
 test_mub
+state_discrimination_min_error
+pretty_good_measurement
 ```
 
 ## Nonlocality

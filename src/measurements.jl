@@ -913,25 +913,26 @@ Return a POVM ``{E_i}_{=1}^N`` and probability P such that if we observe ``E_i``
 """
 function state_discrimination_min_error(
     ρ::Vector{<:AbstractMatrix{T}},
-    q::Vector{S} = fill(1/length(ρ),length(ρ));
+    q::Vector{<:AbstractFloat} = fill(real(T)(1)/length(ρ), length(ρ));
     verbose = false,
     dualize = false,
-    solver = Hypatia.Optimizer{_solver_type(T)}) where {T,S<:AbstractFloat}
+    solver = Hypatia.Optimizer{_solver_type(T)}) where {T}
 
     model = JuMP.GenericModel{_solver_type(T)}()    
     N = length(ρ)
     d = maximum(size(ρ[1]))
 
     @assert length(q) == length(ρ) 
-    @assert isapprox(sum(q), 1.0; atol=eps(S))
 
-    E = [JuMP.@variable(model, [1:d, 1:d] in JuMP.HermitianPSDCone()) for i in 1:N]
-    JuMP.@constraint(model, E[N] == I - sum(E[1:N-1]))
+    E = [JuMP.@variable(model, [1:d, 1:d] in JuMP.HermitianPSDCone()) for i in 1:N-1]
+    E_N = Hermitian(I - sum(E))
+    JuMP.@constraint(model, E_N in JuMP.HermitianPSDCone())
+    push!(E, E_N)
 
     JuMP.@objective(
         model,
         Max,
-        sum(q[i] * real(dot(ρ[i]',E[i])) for i in 1:N),
+        sum(q[i] * real(dot(ρ[i],E[i])) for i in 1:N),
     )
 
     if dualize
@@ -943,23 +944,23 @@ function state_discrimination_min_error(
     JuMP.optimize!(model)
 
     JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
-    return [JuMP.value.(e) for e in E], JuMP.objective_value(model)
+    return JuMP.objective_value(model), [Hermitian(JuMP.value.(e)) for e in E]
 end
 export state_discrimination_min_error
 
 """
-    pretty_good_povm(ρ::Vector{<:AbstractMatrix{T}}) where {T}
+    pretty_good_measurement(ρ::Vector{<:AbstractMatrix{T}}) where {T}
 
 Return a POVM `{E_i}_{i=1}^N` using the pretty good measurements method to discriminate between the states `ρ`
 
 Reference: (https://www.math.uwaterloo.ca/~wcleung/co781-presentation-PGM-Lavoie.pdf)
 """
-function pretty_good_povm(ρ::Vector{<:AbstractMatrix{T}}) where {T}
+function pretty_good_measurement(ρ::Vector{<:AbstractMatrix{T}}) where {T}
     n = length(ρ)
     d = maximum(size(ρ[1]))
 
     M = sum(ρ)
-    rootinvM = Hermitian(M)^-0.5
+    rootinvM = Matrix(Hermitian(M)^-0.5)
     E = [Matrix{T}(undef, d, d) for _ ∈ 1:n]
     temp = Matrix{T}(undef, d, d)
     for i ∈ 1:n
@@ -968,4 +969,4 @@ function pretty_good_povm(ρ::Vector{<:AbstractMatrix{T}}) where {T}
     end
     return Hermitian.(E)
 end
-export pretty_good_povm
+export pretty_good_measurement
