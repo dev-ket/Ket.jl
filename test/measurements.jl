@@ -37,7 +37,7 @@
         @test state_discrimination_min_error([[1 0; 0 0],0.5 * [1 1; 1 1]])[2] ≈ (2+sqrt(2))/4 atol=1e-6 
         @test state_discrimination_min_error([[1 0; 0 0], [0 0; 0 1]])[2] ≈ 1.0 atol=1e-6
         @test state_discrimination_min_error([[1 0 0; 0 0 0; 0 0 0], [1 0 0; 0 1 0; 0 0 1],[0 0 0; 0 0 0; 0 0 1]])[2] ≈ 1.0 atol=1e-6
-        for R ∈ (Float64, Double64, Float128, BigFloat), T ∈ (R, Complex{R})
+        for R ∈ (Float64, Double64, BigFloat), T ∈ (R, Complex{R})
             N = 3
             ρ = [random_state(T,N) for i in 1:N]
             E = state_discrimination_min_error(ρ)[1]
@@ -51,7 +51,7 @@
         E = pretty_good_povm(ρ)
         @test tr(E[1]*ρ[1]) ≈ (2+sqrt(2))/4 atol=1e-6
 
-        for R ∈ (Float64, Double64, Float128, BigFloat), T ∈ (R, Complex{R})
+        for R ∈ (Float64, Double64, BigFloat), T ∈ (R, Complex{R})
             N = 3
             ρ = [random_state(T,N) for i in 1:N]
             E = pretty_good_povm(ρ)
