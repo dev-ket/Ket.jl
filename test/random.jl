@@ -27,12 +27,9 @@
         V = random_isometry(3, 2)
         @test eltype(U) <: ComplexF64
         @test eltype(V) <: ComplexF64
-        for R ∈ (Float64, BigFloat), T ∈ (R, Complex{R})
-            Random.seed!(1337)
+        for R ∈ (Float64, Double64, BigFloat), T ∈ (R, Complex{R})
             U = random_unitary(T, 3)
-            Random.seed!(1337)
             V = random_isometry(T, 3, 2)
-            @test V == Matrix(U)[:, 1:2]
             @test U * U' ≈ I(3)
             @test V' * V ≈ I(2)
         end

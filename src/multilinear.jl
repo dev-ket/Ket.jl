@@ -125,7 +125,7 @@ for (T, limit, wrapper) ∈
             step_iterator_remove .-= 1
 
             view_k_idx = similar(step_iterator_keep)
-            for k ∈ step_iterator_remove
+            @inbounds for k ∈ step_iterator_remove
                 view_k_idx .= k .+ step_iterator_keep
                 for j ∈ 1:dY, i ∈ 1:$limit
                     Y[i, j] += X[view_k_idx[i], view_k_idx[j]]
@@ -149,7 +149,7 @@ partial_trace(X::AbstractMatrix, remove::Integer, dims::AbstractVector{<:Integer
 @doc """
     partial_transpose(X::AbstractMatrix, transp::AbstractVector, dims::AbstractVector = _equal_sizes(X))
 
-Takes the partial transpose of matrix `X` with subsystem dimensions `dims` on the subsystems in `transp`.
+Takes the partial transpose of matrix `X` with subsystem dimensions `dims` over the subsystems in `transp`.
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """ partial_transpose(X::AbstractMatrix, transp::AbstractVector, dims::AbstractVector = _equal_sizes(X))
 
@@ -183,7 +183,7 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
             inv_perm = collect(1:nsys)[p]
             X_perm = permute_systems(X, perm, dims)
 
-            for j ∈ 1:transp_size:X_size-1, i ∈ 1:transp_size:X_size-1
+            @inbounds for j ∈ 1:transp_size:X_size-1, i ∈ 1:transp_size:X_size-1
                 @views Y[i:i+transp_size-1, j:j+transp_size-1] .=
                     transpose(X_perm[i:i+transp_size-1, j:j+transp_size-1])
             end
@@ -196,7 +196,7 @@ export partial_transpose
 """
     partial_transpose(X::AbstractMatrix, transp::Integer, dims::AbstractVector = _equal_sizes(X))
 
-Takes the partial transpose of matrix `X` with subsystem dimensions `dims` on the subsystem `transp`.
+Takes the partial transpose of matrix `X` with subsystem dimensions `dims` over the subsystem `transp`.
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """
 partial_transpose(X::AbstractMatrix, transp::Integer, dims::AbstractVector{<:Integer} = _equal_sizes(X)) =
@@ -303,7 +303,8 @@ export permutation_matrix
 @doc """
     trace_replace(X::AbstractMatrix, remove::AbstractVector, dims::AbstractVector = _equal_sizes(X))
 
-Takes the partial trace of matrix `X` with subsystem dimensions `dims` and replace the removed subsystems by identity.
+Takes the partial trace of matrix `X` with subsystem dimensions `dims` over the subsystems in `remove`
+and replace them with normalized identity.
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """ trace_replace(X::AbstractMatrix, remove::AbstractVector, dims::AbstractVector = _equal_sizes(X))
 
@@ -339,7 +340,7 @@ for (T, limit, wrapper) ∈
                 Y[i] = 0
             end
             view_k_idx = similar(step_iterator_keep)
-            for k ∈ step_iterator_replace
+            @inbounds for k ∈ step_iterator_replace
                 view_k_idx .= k .+ step_iterator_keep
                 for j ∈ 1:dim_ptX, i ∈ 1:$limit
                     Y[view_k_idx[i], view_k_idx[j]] += ptX[i, j]
@@ -355,7 +356,8 @@ export trace_replace
 """
     trace_replace(X::AbstractMatrix, remove::Integer, dims::AbstractVector = _equal_sizes(X))
 
-Takes the partial trace of matrix `X` with subsystem dimensions `dims` and replace the removed subsystems by identity.
+Takes the partial trace of matrix `X` with subsystem dimensions `dims` over the subsystem `remove`
+and replace it with normalized identity.
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """
 trace_replace(X::AbstractMatrix, remove::Integer, dims::AbstractVector{<:Integer} = _equal_sizes(X)) =

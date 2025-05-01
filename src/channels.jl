@@ -1,34 +1,36 @@
-#extract from T the kind of float to be used in the conic solver
-_solver_type(::Type{T}) where {T<:AbstractFloat} = T
-_solver_type(::Type{Complex{T}}) where {T<:AbstractFloat} = T
-_solver_type(::Type{T}) where {T<:Number} = Float64
-
 @doc """
-    applykraus(K::Vector{<:AbstractMatrix}, M::AbstractMatrix)
+    applymap(K::Vector{<:AbstractMatrix}, M::AbstractMatrix)
 
 Applies the CP map given by the Kraus operators `K` to the matrix `M`.
-""" applykraus(K::Vector{<:AbstractMatrix{T}}, M::AbstractMatrix{S}) where {T,S}
+""" applymap(K::Vector{<:AbstractMatrix{T}}, M::AbstractMatrix{S}) where {T,S}
 
 for (matrixtype, wrapper) ∈ ((:AbstractMatrix, :identity), (:Symmetric, :Symmetric), (:Hermitian, :Hermitian))
     @eval begin
-        function applykraus(K::Vector{<:AbstractMatrix{T}}, M::$matrixtype{S}) where {T,S}
+        function applymap(K::Vector{<:AbstractMatrix{T}}, M::$matrixtype{S}) where {T,S}
             dout, din = size(K[1])
             TS = Base.promote_op(*, T, S)
             temp = Matrix{TS}(undef, dout, din)
             result = Matrix{TS}(undef, dout, dout)
-            return $wrapper(applykraus!(result, K, M, temp))
+            applymap!(result, K, M, temp)
+            if isa(M, Symmetric) && !(S <: Union{Real,JuMPReal})
+                return result
+            elseif isa(M, Symmetric) && !(T <: Real)
+                return Hermitian(result)
+            else
+                return $wrapper(result)
+            end
         end
     end
 end
-export applykraus
+export applymap
 
 """
-    applykraus!(result::Matrix, K::Vector{<:AbstractMatrix}, M::AbstractMatrix, temp::Matrix)
+    applymap!(result::Matrix, K::Vector{<:AbstractMatrix}, M::AbstractMatrix, temp::Matrix)
 
-Applies the CP map given by the Kraus operators `K` to the matrix `M` without allocating. `result` and `temp` must be
+Applies the CP map given by the Kraus operators `K` to the matrix `M` without allocating or wrapping. `result` and `temp` must be
 matrices of size `dout × dout` and `dout × din`, where `dout, din == size(K[1])`.
 """
-function applykraus!(result::Matrix, K::Vector{<:AbstractMatrix}, M::AbstractMatrix, temp::Matrix)
+function applymap!(result::Matrix, K::Vector{<:AbstractMatrix}, M::AbstractMatrix, temp::Matrix)
     mul!(temp, K[1], M)
     mul!(result, temp, K[1]')
     for i ∈ 2:length(K)
@@ -37,7 +39,58 @@ function applykraus!(result::Matrix, K::Vector{<:AbstractMatrix}, M::AbstractMat
     end
     return result
 end
-export applykraus!
+export applymap!
+
+@doc """
+    applymap(Φ::AbstractMatrix, M::AbstractMatrix)
+
+Applies the CP map given by the Choi-Jamiołkowski operator `Φ` to the matrix `M`.
+""" applymap(Φ::AbstractMatrix{T}, M::AbstractMatrix{S}) where {T,S}
+
+for (matrixtype, wrapper) ∈ ((:AbstractMatrix, :identity), (:Symmetric, :Symmetric), (:Hermitian, :Hermitian))
+    @eval begin
+        function applymap(Φ::AbstractMatrix{T}, M::$matrixtype{S}) where {T,S}
+            din = size(M, 1)
+            dtotal = size(Φ, 1)
+            dout = dtotal ÷ din
+            @assert dtotal == din * dout
+            TS = Base.promote_op(*, T, S)
+            result = Matrix{TS}(undef, dout, dout)
+            applymap!(result, Φ, M)
+            if isa(M, Symmetric) && !(S <: Union{Real,JuMPReal})
+                return result
+            elseif isa(M, Symmetric) && !(T <: Union{Real,JuMPReal})
+                return Hermitian(result)
+            else
+                return $wrapper(result)
+            end
+        end
+    end
+end
+
+@doc """
+     applymap!(result::Matrix, Φ::AbstractMatrix, M::AbstractMatrix)
+
+Applies the CP map given by the Choi-Jamiołkowski operator `Φ` to the matrix `M` without allocating or wrapping. In the symmetric or Hermitian cases only the upper triangular is computed. `result` must be a matrix of size `dout × dout`,  where `size(M, 1) * dout == size(Φ, 1)`.
+""" applymap!(result::Matrix, Φ::AbstractMatrix, M::AbstractMatrix)
+
+for (matrixtype, limit) ∈ ((:AbstractMatrix, :dout), (:Symmetric, :j), (:Hermitian, :j))
+    @eval begin
+        function applymap!(result::Matrix, Φ::AbstractMatrix, M::$matrixtype)
+            din = size(M, 1)
+            dtotal = size(Φ, 1)
+            dout = dtotal ÷ din
+            @assert dtotal == din * dout
+            @inbounds for j ∈ 1:dout, i ∈ 1:$limit
+                result[i, j] = 0
+                for l ∈ 1:din, k ∈ 1:din
+                    result[i, j] += M[k, l] * Φ[(k-1)*dout+i, (l-1)*dout+j]
+                end
+            end
+            return result
+        end
+    end
+end
 
 """
     channel_bit_flip(p::Real)
@@ -83,10 +136,10 @@ Return the Kraus operator representation of the depolarizing channel of dimensio
 function channel_depolarizing(v::Real, d::Integer = 2)
     K = [zeros(typeof(v), d, d) for _ ∈ 1:d^2+1]
     rootv = sqrt(v)
-    for i = 1:d
+    for i ∈ 1:d
         K[1][i, i] = rootv
     end
-    rootvd = sqrt((1-v)/d)
+    rootvd = sqrt((1 - v) / d)
     for j ∈ 1:d, i ∈ 1:d
         K[i+(j-1)*d+1][i, j] = rootvd
     end
@@ -157,7 +210,12 @@ Computes the diamond norm of the supermap `J` given in the Choi-Jamiołkowski re
 
 Reference: [Diamond norm](https://en.wikipedia.org/wiki/Diamond_norm)
 """
-function diamond_norm(J::AbstractMatrix{T}, dims::AbstractVecOrTuple; verbose = false, solver = Hypatia.Optimizer{_solver_type(T)}) where {T}
+function diamond_norm(
+    J::AbstractMatrix{T},
+    dims::AbstractVecOrTuple;
+    verbose = false,
+    solver = Hypatia.Optimizer{_solver_type(T)}
+) where {T}
     ishermitian(J) || throw(ArgumentError("Supermap needs to be Hermitian"))
 
     is_complex = T <: Complex

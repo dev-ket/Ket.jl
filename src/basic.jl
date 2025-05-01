@@ -208,12 +208,6 @@ function gellmann!(res::AbstractMatrix{T}, i::Integer, j::Integer, d::Integer = 
 end
 export gellmann!
 
-_rtol(::Type{T}) where {T<:Number} = Base.rtoldefault(real(T))
-
-_eps(::Type{T}) where {T<:Number} = _realeps(real(T))
-_realeps(::Type{T}) where {T<:AbstractFloat} = eps(T)
-_realeps(::Type{<:Real}) = 0
-
 """
     cleanup!(M::AbstractArray{T}; tol = Base.rtoldefault(real(T)))
 

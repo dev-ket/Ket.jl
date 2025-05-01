@@ -39,8 +39,8 @@ apply_to_subsystem_non_contiguous
 ## Channels
 
 ```@docs
-applykraus
-applykraus!
+applymap
+applymap!
 choi
 channel_bit_flip
 channel_phase_damping
@@ -90,6 +90,8 @@ tensor_to_povm
 povm_to_tensor
 mub
 test_mub
+discrimination_min_error
+pretty_good_measurement
 ```
 
 ## Nonlocality

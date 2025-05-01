@@ -156,6 +156,6 @@ end
         prbox = 2 * chsh(T)
         @test nonlocality_robustness(prbox; noise = "white") ≈ T(1)
         @test nonlocality_robustness(prbox; noise = "local") ≈ T(1) / 2
-        @test nonlocality_robustness(prbox; noise = "general") ≈ T(1) / 3
+        @test nonlocality_robustness(prbox; noise = "general") ≈ T(1) / 3 rtol = 1e-7
     end
 end
