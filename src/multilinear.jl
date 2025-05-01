@@ -373,14 +373,12 @@ outssys_to_end::Bool = false
 Apply the operator `op` on the subsytems of `ρ` identified by `ssys`
 (op ⊗ I) * ψ
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
-if outssys_to_end is set to true, the output subsytems are mapped to the end of the resulting vector
 """
 function apply_to_subsystem(
     op::AbstractMatrix,
     ψ::AbstractVector,
     ssys::AbstractVector{<:Integer},
-    dims::AbstractVector{<:Integer} = _equal_sizes(ψ),
-    outssys_to_end::Bool = false
+    dims::AbstractVector{<:Integer} = _equal_sizes(ψ)
 )
     @assert !isempty(ssys)
     @assert prod(dims) == length(ψ) "dimensions do not match with ψ"
@@ -388,7 +386,7 @@ function apply_to_subsystem(
 
     square_op = size(op, 1) == size(op, 2)
     ctg_ssys = length(ssys) == ssys[end] - ssys[1] + 1 && ssys == ssys[1]:ssys[end]
-    @assert outssys_to_end || ctg_ssys || square_op "cannot keep output subsytems where they are"
+    @assert ctg_ssys || square_op "Operator needs to be square or ssys need to be contiguous and ordered"
 
     nsys = length(dims)
     keep = _subsystems_complement(ssys, nsys)
@@ -415,14 +413,11 @@ function apply_to_subsystem(
             @views mul!(Y[i_out:i_out+output_size-1], op, ψ_perm[i_in:i_in+input_size-1])
         end
     end
-    if outssys_to_end
-        return Y
-    else
-        inv_perm = sortperm(perm)
-        output_dims = ctg_ssys ? vcat(ones(eltype(dims), length(ssys) - 1), [output_size]) : dims[ssys] # either contiguous ssys or square operators
-        dims_perm_output = vcat(dims_keep, output_dims) # The dims of the subsystem when applying the inverse permutation
-        return permute_systems(Y, inv_perm, dims_perm_output)
-    end
+
+    inv_perm = sortperm(perm)
+    output_dims = ctg_ssys ? vcat(ones(eltype(dims), length(ssys) - 1), [output_size]) : dims[ssys] # either contiguous ssys or square operators
+    dims_perm_output = vcat(dims_keep, output_dims) # The dims of the subsystem when applying the inverse permutation
+    return permute_systems(Y, inv_perm, dims_perm_output)
 end
 
 export apply_to_subsystem
@@ -436,15 +431,13 @@ dims::AbstractVector = _equal_sizes(ρ)
 Apply the operator `op` on the subsytems of `ρ` identified by `ssys`
 (op ⊗ I) * ψ
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
-if outssys_to_end is set to true, the output subsytems are mapped to the end of the resulting vector
 """
 apply_to_subsystem(
     op::AbstractMatrix,
     ψ::AbstractVector,
     ssys::Integer,
-    dims::AbstractVector{<:Integer} = _equal_sizes(ψ),
-    outssys_to_end::Bool = false
-) = apply_to_subsystem(op, ψ, [ssys], dims, outssys_to_end)
+    dims::AbstractVector{<:Integer} = _equal_sizes(ψ)
+) = apply_to_subsystem(op, ψ, [ssys], dims)
 
 """
 apply_to_subsystem(
@@ -468,7 +461,7 @@ function apply_to_subsystem(
     @assert !isempty(ssys)
     square_kraus_ops = all([size(k, 1) == size(k, 2) for k ∈ kraus])
     ctg_ssys = length(ssys) == ssys[end] - ssys[1] + 1 && ssys == ssys[1]:ssys[end]
-    @assert outssys_to_end || ctg_ssys || square_kraus_ops "cannot keep output subsytems where they are"
+    @assert ctg_ssys || square_kraus_ops "Kraus operators need to be square or ssys need to be contiguous and ordered"
 
     nsys = length(dims)
     keep = _subsystems_complement(ssys, nsys)
@@ -515,14 +508,10 @@ function apply_to_subsystem(
         end
     end
 
-    if outssys_to_end
-        return Y
-    else
-        inv_perm = sortperm(perm)
-        output_dims = ctg_ssys ? vcat(ones(eltype(dims), length(ssys) - 1), [output_size]) : dims[ssys] # either contiguous ssys or square operators
-        dims_perm_output = vcat(dims_keep, output_dims) # The dims of the subsystem when applying the inverse permutation
-        return permute_systems(Y, inv_perm, dims_perm_output)
-    end
+    inv_perm = sortperm(perm)
+    output_dims = ctg_ssys ? vcat(ones(eltype(dims), length(ssys) - 1), [output_size]) : dims[ssys] # either contiguous ssys or square operators
+    dims_perm_output = vcat(dims_keep, output_dims) # The dims of the subsystem when applying the inverse permutation
+    return permute_systems(Y, inv_perm, dims_perm_output)
 end
 
 """
@@ -535,19 +524,17 @@ outssys_to_end::Bool = false
 Apply the operators `kraus` on the subsytems of `ρ` identified by `ssys`
 ∑(Kᵢ ⊗ I) * ρ * (Kᵢ ⊗ I)†
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
-if outssys_to_end is set to true, the output subsytems are mapped to the end of the resulting matrix
 """
 function apply_to_subsystem(
     kraus::AbstractVector{<:SA.AbstractSparseArray},
     ρ::SA.AbstractSparseArray,
     ssys::AbstractVector{<:Integer},
-    dims::AbstractVector{<:Integer} = _equal_sizes(ρ),
-    outssys_to_end::Bool = false
+    dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
 )
     @assert !isempty(ssys)
     square_kraus_ops = all([size(k, 1) == size(k, 2) for k ∈ kraus])
     ctg_ssys = length(ssys) == ssys[end] - ssys[1] + 1 && ssys == ssys[1]:ssys[end]
-    @assert outssys_to_end || ctg_ssys || square_kraus_ops "cannot keep output subsytems where they are"
+    @assert ctg_ssys || square_kraus_ops "Kraus operators need to be square or ssys need to be contiguous and ordered"
 
     nsys = length(dims)
     keep = _subsystems_complement(ssys, nsys)
@@ -581,14 +568,11 @@ function apply_to_subsystem(
     end
 
     Y = SA.sparse(Y)
-    if outssys_to_end
-        return Y
-    else
-        inv_perm = sortperm(perm)
-        output_dims = ctg_ssys ? vcat(ones(eltype(dims), length(ssys) - 1), [output_size]) : dims[ssys] # either contiguous ssys or square operators
-        dims_perm_output = vcat(dims_keep, output_dims) # The dims of the subsystem when applying the inverse permutation
-        return permute_systems(Y, inv_perm, dims_perm_output)
-    end
+
+    inv_perm = sortperm(perm)
+    output_dims = ctg_ssys ? vcat(ones(eltype(dims), length(ssys) - 1), [output_size]) : dims[ssys] # either contiguous ssys or square operators
+    dims_perm_output = vcat(dims_keep, output_dims) # The dims of the subsystem when applying the inverse permutation
+    return permute_systems(Y, inv_perm, dims_perm_output)
 end
 """
 apply_to_subsystem(
@@ -600,14 +584,12 @@ outssys_to_end::Bool = false
 Apply the operators `kraus` on the subsytem of `ρ` identified by `ssys`
 ∑(Kᵢ ⊗ I) * ρ * (Kᵢ ⊗ I)†
 The subsystem identified by `ssys` of size `dims[ssys]` is mapped to a subsystem of size `output_dims[ssys]`
-if outssys_to_end is set to true, the output subsytems are mapped to the end of the resulting matrix
 """
 function apply_to_subsystem(
     kraus::AbstractVector{<:AbstractMatrix},
     ρ::AbstractMatrix,
     ssys::Integer,
-    dims::AbstractVector{<:Integer} = _equal_sizes(ρ),
-    outssys_to_end::Bool = false
+    dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
 )
-    apply_to_subsystem(kraus, ρ, [ssys], dims, outssys_to_end)
+    apply_to_subsystem(kraus, ρ, [ssys], dims)
 end

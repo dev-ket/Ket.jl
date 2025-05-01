@@ -64,8 +64,7 @@
                 @test apply_to_subsystem(a, v2, 1, [2]) ≈ a * v2
                 @test apply_to_subsystem(a, v4, 2, [2, 2]) ≈ kron(I2, a) * v4
                 @test apply_to_subsystem(b, v6, 2, [2, 3]) ≈ kron(I2, b) * v6
-                @test apply_to_subsystem(c, v12, [1, 3], [2, 2, 3], true) ≈
-                      kron(I2, c) * permute_systems(v12, [2, 1, 3], [2, 2, 3])
+                @test apply_to_subsystem(c, v12, [2, 3], [2, 2, 3]) ≈ kron(I2, c) * v12
                 @test apply_to_subsystem(d, v16, [2, 3], [2, 2, 2, 2]) ≈ kron(I2, d, I2) * v16
             end
         end
@@ -168,21 +167,14 @@
                 @test apply_to_subsystem([k5], b, [1, 2], [3, 3, 3]) ≈ kron(k5, I3) * b * kron(k5, I3)'
                 @test apply_to_subsystem([k6], a, [2, 3], [2, 2, 2]) ≈ kron(I2, k6) * a * kron(I2, k6)'
 
-                @test apply_to_subsystem([k5], b, [1, 2], [3, 3, 3], true) ≈
-                      permute_systems(kron(k5, I3) * b * kron(k5, I3)', [3, 1, 2], [2, 2, 3])
-                @test apply_to_subsystem([k6], a, [1, 3], [2, 2, 2], true) ≈
-                      kron(I2, k6) * permute_systems(a, [2, 1, 3], [2, 2, 2]) * kron(I2, k6)'
-
                 #sparse arrays
                 d = 3^4
                 SparseM = SparseArrays.spdiagm(-1 => randn(T, d - 1), 1 => randn(T, d - 1))
                 StdM = Matrix(SparseM)
                 k1 = sparse(randn(T, 2^2, 3^2))
                 k2 = sparse(randn(T, 2^2, 3^2))
-                @test apply_to_subsystem([k1, k2], SparseM, [2, 3], [3, 3, 3, 3], false) ≈
-                      apply_to_subsystem([k1, k2], StdM, [2, 3], [3, 3, 3, 3], false)
-                @test apply_to_subsystem([k1, k2], SparseM, [2, 3], [3, 3, 3, 3], true) ≈
-                      apply_to_subsystem([k1, k2], StdM, [2, 3], [3, 3, 3, 3], true)
+                @test apply_to_subsystem([k1, k2], SparseM, [2, 3], [3, 3, 3, 3]) ≈
+                      apply_to_subsystem([k1, k2], StdM, [2, 3], [3, 3, 3, 3])
             end
         end
     end
