@@ -179,8 +179,7 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
             perm = vcat(keep, transp)
             dims_perm = vcat(dims_keep, dims_transp)
 
-            p = sortperm(perm)
-            inv_perm = collect(1:nsys)[p]
+            inv_perm = sortperm(perm)
             X_perm = permute_systems(X, perm, dims)
 
             @inbounds for j ∈ 1:transp_size:X_size-1, i ∈ 1:transp_size:X_size-1
