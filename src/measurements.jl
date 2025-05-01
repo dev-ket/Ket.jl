@@ -851,7 +851,7 @@ function _fiducial_WH(::Type{T}, d::Integer) where {T}
                 ) * b2 +
                 (
                     (
-                            (R(1) / 540 * (-10 * a + 49) * r1 + R(1) / 180 * (-5 * a + 6)) * t^2 +
+                        (R(1) / 540 * (-10 * a + 49) * r1 + R(1) / 180 * (-5 * a + 6)) * t^2 +
                         (R(1) / 1080 * (a - 20) * r1 + R(1) / 360 * (2 * a + 3)) * t +
                         (R(1) / 2160 * (18 * a - 83) * r1 + R(1) / 240 * (3 * a - 4))
                     ) * b1 + (
@@ -926,16 +926,11 @@ function state_discrimination_min_error(
 
     @assert length(q) == length(ρ) 
 
-    if is_complex
-        E = [JuMP.@variable(model, [1:d, 1:d] in psd_cone) for i in 1:N-1]
-    else 
-        E = Matrix{JuMP.AffExpr}[JuMP.@variable(model, [1:d, 1:d] in psd_cone) for i in 1:N-1]
-    end
+    E = [1 * JuMP.@variable(model, [1:d, 1:d] in psd_cone) for i in 1:N-1]
 
     E_N = wrapper(I - sum(E))
     JuMP.@constraint(model, E_N in psd_cone)
     push!(E, E_N)
-
 
     JuMP.@objective(
         model,
