@@ -851,7 +851,7 @@ function _fiducial_WH(::Type{T}, d::Integer) where {T}
                 ) * b2 +
                 (
                     (
-                        (R(1) / 540 * (-10 * a + 49) * r1 + R(1) / 180 * (-5 * a + 6)) * t^2 +
+                            (R(1) / 540 * (-10 * a + 49) * r1 + R(1) / 180 * (-5 * a + 6)) * t^2 +
                         (R(1) / 1080 * (a - 20) * r1 + R(1) / 360 * (2 * a + 3)) * t +
                         (R(1) / 2160 * (18 * a - 83) * r1 + R(1) / 240 * (3 * a - 4))
                     ) * b1 + (
@@ -918,16 +918,24 @@ function state_discrimination_min_error(
     dualize = false,
     solver = Hypatia.Optimizer{_solver_type(T)}) where {T}
 
+    is_complex = T <: Complex
+    psd_cone, wrapper, hermitian_space = _sdp_parameters(is_complex)
     model = JuMP.GenericModel{_solver_type(T)}()    
     N = length(ρ)
     d = maximum(size(ρ[1]))
 
     @assert length(q) == length(ρ) 
 
-    E = [JuMP.@variable(model, [1:d, 1:d] in JuMP.HermitianPSDCone()) for i in 1:N-1]
-    E_N = Hermitian(I - sum(E))
-    JuMP.@constraint(model, E_N in JuMP.HermitianPSDCone())
+    if is_complex
+        E = [JuMP.@variable(model, [1:d, 1:d] in psd_cone) for i in 1:N-1]
+    else 
+        E = Matrix{JuMP.AffExpr}[JuMP.@variable(model, [1:d, 1:d] in psd_cone) for i in 1:N-1]
+    end
+
+    E_N = wrapper(I - sum(E))
+    JuMP.@constraint(model, E_N in psd_cone)
     push!(E, E_N)
+
 
     JuMP.@objective(
         model,
@@ -944,7 +952,7 @@ function state_discrimination_min_error(
     JuMP.optimize!(model)
 
     JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
-    return JuMP.objective_value(model), [Hermitian(JuMP.value.(e)) for e in E]
+    return JuMP.objective_value(model), [wrapper(JuMP.value.(e)) for e in E]
 end
 export state_discrimination_min_error
 
