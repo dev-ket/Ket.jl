@@ -32,7 +32,6 @@ permute_systems
 permutation_matrix
 trace_replace
 apply_to_subsystem
-apply_to_subsystem_non_contiguous
 ```
 
 
