@@ -239,7 +239,7 @@ end
         solver = Hypatia.Optimizer
     )
 
-Computes the minimum-error probability of discriminating a vector of states `ρ` with probabilities `q`, along with the optimal POVM. `q` is assumed uniform if ommitted.
+Computes the minimum-error probability of discriminating a vector of states `ρ` with probabilities `q`, along with the optimal POVM. `q` is assumed uniform if omitted.
 """
 function discrimination_min_error(
     ρ::Vector{<:AbstractMatrix{T}},
@@ -277,9 +277,9 @@ end
 export discrimination_min_error
 
 """
-    pretty_good_measurement(ρ::Vector{<:AbstractMatrix}, q::Vector{<:Real})
+    pretty_good_measurement(ρ::Vector{<:AbstractMatrix}, q::Vector{<:Real} = ones(length(ρ)))
 
-Computes the pretty good measurement POVM for discriminating a vector of states `ρ` with probabilities `q`.
+Computes the pretty good measurement POVM for discriminating a vector of states `ρ` with probabilities `q`. If `q` is omitted it is assumed uniform.
 
 Reference: Watrous, [Theory of Quantum Information Cp. 3](https://cs.uwaterloo.ca/~watrous/TQI/TQI.3.pdf)
 """
@@ -292,12 +292,9 @@ function pretty_good_measurement(ρ::Vector{<:AbstractMatrix{T}}, q::Vector{<:Re
     end
     M = sum(ρ)
     λ, temp = eigen(Hermitian(M))
-    for i ∈ 1:d
-        if λ[i] > _rtol(T)
-            @views temp[:, i] .*= λ[i]^-0.25
-        else
-            @views temp[:, i] .*= 0
-        end
+    map!(x -> x > _rtol(T) ? x^-0.25 : zero(x), λ, λ)
+    @inbounds for j ∈ 1:d, i ∈ 1:d
+        temp[i, j] *= λ[j]
     end
     rootinvM = temp * temp'
     E = [Matrix{T}(undef, d, d) for _ ∈ 1:n]
