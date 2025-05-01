@@ -51,6 +51,7 @@ include("norms.jl")
 include("parameterizations.jl")
 include("random.jl")
 include("seesaw.jl")
+include("sic-povm.jl")
 include("states.jl")
 include("tsirelson.jl")
 
