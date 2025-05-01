@@ -233,7 +233,7 @@ end
 """
     discrimination_min_error(
         ρ::Vector{<:AbstractMatrix},
-        q::Vector{<:AbstractFloat} = fill(1/length(ρ), length(ρ));
+        q::Vector{<:Real} = fill(1/length(ρ), length(ρ));
         verbose = false,
         dualize = false,
         solver = Hypatia.Optimizer
@@ -243,7 +243,7 @@ Computes the minimum-error probability of discriminating a vector of states `ρ`
 """
 function discrimination_min_error(
     ρ::Vector{<:AbstractMatrix{T}},
-    q::Vector{<:AbstractFloat} = fill(real(T)(1) / length(ρ), length(ρ));
+    q::Vector{<:Real} = fill(real(T)(1) / length(ρ), length(ρ));
     verbose = false,
     dualize = false,
     solver = Hypatia.Optimizer{_solver_type(T)}
@@ -277,24 +277,36 @@ end
 export discrimination_min_error
 
 """
-    pretty_good_measurement(ρ::Vector{<:AbstractMatrix})
+    pretty_good_measurement(ρ::Vector{<:AbstractMatrix}, q::Vector{<:Real})
 
-Computes the pretty good measurement POVM for discriminating a vector of states `ρ`.
+Computes the pretty good measurement POVM for discriminating a vector of states `ρ` with probabilities `q`.
 
 Reference: Watrous, [Theory of Quantum Information Cp. 3](https://cs.uwaterloo.ca/~watrous/TQI/TQI.3.pdf)
 """
-function pretty_good_measurement(ρ::Vector{<:AbstractMatrix{T}}) where {T}
+function pretty_good_measurement(ρ::Vector{<:AbstractMatrix{T}}, q::Vector{<:Real} = ones(length(ρ))) where {T}
     n = length(ρ)
     d = size(ρ[1], 1)
 
+    for i ∈ 1:n
+        parent(ρ[i]) .*= q[i]
+    end
     M = sum(ρ)
-    rootinvM::Matrix{T} = Matrix(Hermitian(M)^-0.5)
+    λ, temp = eigen(Hermitian(M))
+    for i ∈ 1:d
+        if λ[i] > _rtol(T)
+            @views temp[:, i] .*= λ[i]^-0.25
+        else
+            @views temp[:, i] .*= 0
+        end
+    end
+    rootinvM = temp * temp'
     E = [Matrix{T}(undef, d, d) for _ ∈ 1:n]
-    temp = Matrix{T}(undef, d, d)
     for i ∈ 1:n
         mul!(temp, rootinvM, ρ[i])
         mul!(E[i], temp, rootinvM')
     end
+    kernM = I - sum(E)
+    E[n] .+= kernM
     return Hermitian.(E)
 end
 export pretty_good_measurement

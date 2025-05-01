@@ -46,10 +46,10 @@
     end
 
     @testset "Pretty good measurements" begin
-        ρ = [1/2 * [1 1; 1 1],[1 0; 0 0]]
+        ρ = [zeros(3,3), proj(Float64, 1, 3)]
+        ρ[1][1:2,1:2] .= ones(2,2)/2
         E = pretty_good_measurement(ρ)
-        @test tr(E[1]*ρ[1]) ≈ (2+sqrt(2))/4 atol=1e-6
-
+        @test sum(dot.(E, ρ))/2 ≈ (2+sqrt(2))/4 atol=1e-6
         for R ∈ (Float64, Double64), T ∈ (R, Complex{R})
             N = 3
             ρ = [random_state(T,N) for i in 1:N]
