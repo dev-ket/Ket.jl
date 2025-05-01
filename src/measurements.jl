@@ -895,3 +895,81 @@ function _fiducial_WH(::Type{T}, d::Integer) where {T}
 end
 
 _fiducial_WH(d::Integer) = _fiducial_WH(ComplexF64, d)
+
+"""
+    state_discrimination_min_error(
+        ρ::Vector{<:AbstractMatrix{T}},
+        q::Vector{<:AbstractFloat} = fill(1/length(ρ), length(ρ));
+        verbose = false,
+        dualize = false,
+        solver = Hypatia.Optimizer{_solver_type(T)}
+    ) where {T, S<:AbstractFloat}
+
+Return a POVM ``{E_i}_{=1}^N`` and probability P such that if we observe ``E_i`` with average probability P we are in state ``ρ_i``
+
+# Arguments
+- ρ: list of state to be discriminated
+- q: (optional) list of probabilities associated with the state ρ, if not provided, uniform probability is assumed
+"""
+function state_discrimination_min_error(
+    ρ::Vector{<:AbstractMatrix{T}},
+    q::Vector{<:AbstractFloat} = fill(real(T)(1)/length(ρ), length(ρ));
+    verbose = false,
+    dualize = false,
+    solver = Hypatia.Optimizer{_solver_type(T)}) where {T}
+
+    is_complex = T <: Complex
+    psd_cone, wrapper, hermitian_space = _sdp_parameters(is_complex)
+    model = JuMP.GenericModel{_solver_type(T)}()    
+    N = length(ρ)
+    d = maximum(size(ρ[1]))
+
+    @assert length(q) == length(ρ) 
+
+    E = [1 * JuMP.@variable(model, [1:d, 1:d] in psd_cone) for i in 1:N-1]
+
+    E_N = wrapper(I - sum(E))
+    JuMP.@constraint(model, E_N in psd_cone)
+    push!(E, E_N)
+
+    JuMP.@objective(
+        model,
+        Max,
+        sum(q[i] * real(dot(ρ[i],E[i])) for i in 1:N),
+    )
+
+    if dualize
+        JuMP.set_optimizer(model, Dualization.dual_optimizer(solver; coefficient_type = _solver_type(T)))
+    else
+        JuMP.set_optimizer(model, solver)
+    end
+    !verbose && JuMP.set_silent(model)
+    JuMP.optimize!(model)
+
+    JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
+    return JuMP.objective_value(model), [wrapper(JuMP.value.(e)) for e in E]
+end
+export state_discrimination_min_error
+
+"""
+    pretty_good_measurement(ρ::Vector{<:AbstractMatrix{T}}) where {T}
+
+Return a POVM `{E_i}_{i=1}^N` using the pretty good measurements method to discriminate between the states `ρ`
+
+Reference: (https://www.math.uwaterloo.ca/~wcleung/co781-presentation-PGM-Lavoie.pdf)
+"""
+function pretty_good_measurement(ρ::Vector{<:AbstractMatrix{T}}) where {T}
+    n = length(ρ)
+    d = maximum(size(ρ[1]))
+
+    M = sum(ρ)
+    rootinvM = Matrix(Hermitian(M)^-0.5)
+    E = [Matrix{T}(undef, d, d) for _ ∈ 1:n]
+    temp = Matrix{T}(undef, d, d)
+    for i ∈ 1:n
+        mul!(temp, rootinvM, ρ[i])
+        mul!(E[i], temp, rootinvM')
+    end
+    return Hermitian.(E)
+end
+export pretty_good_measurement

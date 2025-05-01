@@ -32,4 +32,25 @@
         end
         @test test_mub(mub(Cyc{Rational{BigInt}}, 5, 5, 7)) # can access beyond the number of combinations
     end
+
+    @testset "State Discrimination" begin
+        for R ∈ (Float64, Double64, BigFloat), T ∈ (R, Complex{R})
+            ρ = [random_state(T,2) for _ in 1:2]
+            successProb = state_discrimination_min_error(ρ)[1]
+            @test (0.5 + 0.25 * sum(svdvals(ρ[1] - ρ[2]))) ≈ successProb atol=1e-6
+        end
+    end
+
+    @testset "Pretty good measurements" begin
+        ρ = [1/2 * [1 1; 1 1],[1 0; 0 0]]
+        E = pretty_good_measurement(ρ)
+        @test tr(E[1]*ρ[1]) ≈ (2+sqrt(2))/4 atol=1e-6
+
+        for R ∈ (Float64, Double64, BigFloat), T ∈ (R, Complex{R})
+            N = 3
+            ρ = [random_state(T,N) for i in 1:N]
+            E = pretty_good_measurement(ρ)
+            @test sum(E) ≈ I
+        end
+    end
 end
