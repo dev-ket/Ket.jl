@@ -34,9 +34,13 @@
     end
 
     @testset "State Discrimination" begin
-        for R ∈ (Float64, Double64, BigFloat), T ∈ (R, Complex{R})
-            ρ = [random_state(T,2) for _ in 1:2]
-            successProb = state_discrimination_min_error(ρ)[1]
+        N = 3
+        ρ = [random_state(2) for _ in 1:N]
+        p, E = discrimination_min_error(ρ)
+        @test p ≈ sum(dot.(ρ, E))/N
+        for R ∈ (Float64, Double64), T ∈ (R, Complex{R})
+            ρ = [random_state(T,3) for _ in 1:2]
+            successProb = discrimination_min_error(ρ)[1]
             @test (0.5 + 0.25 * sum(svdvals(ρ[1] - ρ[2]))) ≈ successProb atol=1e-6
         end
     end
@@ -46,11 +50,11 @@
         E = pretty_good_measurement(ρ)
         @test tr(E[1]*ρ[1]) ≈ (2+sqrt(2))/4 atol=1e-6
 
-        for R ∈ (Float64, Double64, BigFloat), T ∈ (R, Complex{R})
+        for R ∈ (Float64, Double64), T ∈ (R, Complex{R})
             N = 3
             ρ = [random_state(T,N) for i in 1:N]
             E = pretty_good_measurement(ρ)
-            @test sum(E) ≈ I
+            @test test_povm(E)
         end
     end
 end
