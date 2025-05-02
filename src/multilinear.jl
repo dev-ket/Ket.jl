@@ -384,8 +384,10 @@ function apply_to_subsystem(
     prod(dims[ssys]) == size(op, 2) ||
         throw(DimensionMismatch("op has dimensions $(size(op)), expected $((size(op,1), prod(dims[ssys])))"))
     square_op = size(op, 1) == size(op, 2)
-    ctg_ssys = length(ssys) == ssys[end] - ssys[1] + 1 && ssys == ssys[1]:ssys[end]
-    ctg_ssys || square_op || throw(ArgumentError("op needs to be square or ssys need to be contiguous and ordered"))
+    contiguous_subsystems = length(ssys) == ssys[end] - ssys[1] + 1 && ssys == ssys[1]:ssys[end]
+    if !contiguous_subsystems && !square_op
+        throw(ArgumentError("op needs to be square or ssys need to be contiguous and ordered"))
+    end
 
     nsys = length(dims)
     keep = _subsystems_complement(ssys, nsys)
@@ -413,7 +415,7 @@ function apply_to_subsystem(
     end
 
     inv_perm = sortperm(perm)
-    output_dims = ctg_ssys ? vcat(ones(eltype(dims), length(ssys) - 1), [output_size]) : dims[ssys] # either contiguous ssys or square operators
+    output_dims = contiguous_subsystems ? vcat(ones(eltype(dims), length(ssys) - 1), [output_size]) : dims[ssys] # either contiguous ssys or square operators
     dims_perm_output = vcat(dims_keep, output_dims) # The dims of the subsystem when applying the inverse permutation
     return permute_systems(Y, inv_perm, dims_perm_output)
 end
@@ -456,8 +458,8 @@ function apply_to_subsystem(
 )
     isempty(ssys) && throw(ArgumentError("ssys vector must not be empty"))
     square_kraus_ops = all([size(k, 1) == size(k, 2) for k ∈ kraus])
-    ctg_ssys = length(ssys) == ssys[end] - ssys[1] + 1 && ssys == ssys[1]:ssys[end]
-    if (!ctg_ssys && !square_kraus_ops)
+    contiguous_subsystems = length(ssys) == ssys[end] - ssys[1] + 1 && ssys == ssys[1]:ssys[end]
+    if (!contiguous_subsystems && !square_kraus_ops)
         throw(ArgumentError("Kraus operator need to be square or ssys need to be contiguous and ordered"))
     end
     nsys = length(dims)
@@ -509,7 +511,7 @@ function apply_to_subsystem(
     end
 
     inv_perm = sortperm(perm)
-    output_dims = ctg_ssys ? vcat(ones(eltype(dims), length(ssys) - 1), [output_size]) : dims[ssys] # either contiguous ssys or square operators
+    output_dims = contiguous_subsystems ? vcat(ones(eltype(dims), length(ssys) - 1), [output_size]) : dims[ssys] # either contiguous ssys or square operators
     dims_perm_output = vcat(dims_keep, output_dims) # The dims of the subsystem when applying the inverse permutation
     return permute_systems(Y, inv_perm, dims_perm_output)
 end
@@ -532,8 +534,8 @@ function apply_to_subsystem(
 )
     isempty(ssys) && throw(ArgumentError("ssys vector must not be empty"))
     square_kraus_ops = all([size(k, 1) == size(k, 2) for k ∈ kraus])
-    ctg_ssys = length(ssys) == ssys[end] - ssys[1] + 1 && ssys == ssys[1]:ssys[end]
-    if (!ctg_ssys && !square_kraus_ops)
+    contiguous_subsystems = length(ssys) == ssys[end] - ssys[1] + 1 && ssys == ssys[1]:ssys[end]
+    if (!contiguous_subsystems && !square_kraus_ops)
         throw(ArgumentError("Kraus operator need to be square or ssys need to be contiguous and ordered"))
     end
     nsys = length(dims)
@@ -573,7 +575,7 @@ function apply_to_subsystem(
     Y = SA.sparse(Y)
 
     inv_perm = sortperm(perm)
-    output_dims = ctg_ssys ? vcat(ones(eltype(dims), length(ssys) - 1), [output_size]) : dims[ssys] # either contiguous ssys or square operators
+    output_dims = contiguous_subsystems ? vcat(ones(eltype(dims), length(ssys) - 1), [output_size]) : dims[ssys] # either contiguous ssys or square operators
     dims_perm_output = vcat(dims_keep, output_dims) # The dims of the subsystem when applying the inverse permutation
     return permute_systems(Y, inv_perm, dims_perm_output)
 end
