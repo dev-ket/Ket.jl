@@ -567,8 +567,6 @@ function apply_to_subsystem(
         mul!(Y, interm, k_kron', true, true)
     end
 
-    Y = SA.sparse(Y)
-
     inv_perm = sortperm(perm)
     output_dims = contiguous_subsystems ? vcat(ones(eltype(dims), length(ssys) - 1), [output_size]) : dims[ssys] # either contiguous ssys or square operators
     dims_perm_output = vcat(dims_keep, output_dims) # The dims of the subsystem when applying the inverse permutation
