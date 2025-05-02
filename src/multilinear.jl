@@ -401,7 +401,8 @@ function apply_to_subsystem(
     perm = vcat(keep, ssys)
     ψ_perm = permute_systems(ψ, perm, dims)
 
-    Y = Vector{typeof(1 * ψ[1])}(undef, Y_length) #hack for JuMP variables
+    Y_type = Base.promote_op(*, eltype(op), eltype(ψ))
+    Y = Vector{Y_type}(undef, Y_length) #hack for JuMP variables
 
     if eltype(ψ) <: JuMP.AbstractJuMPScalar
         for (i_in, i_out) ∈ zip(1:input_size:ψ_length-1, 1:output_size:Y_length-output_size+1)
@@ -483,7 +484,9 @@ function apply_to_subsystem(
     perm = vcat(keep, ssys)
     ρ_perm = permute_systems(ρ, perm, dims)
 
-    Y = Matrix{typeof(1 * ρ[1])}(undef, Y_size, Y_size) #hack for JuMP variables
+    kraus_type = promote_type([eltype(k) for k ∈ kraus]...)
+    Y_type = Base.promote_op(*, kraus_type, eltype(ρ))
+    Y = Matrix{Y_type}(undef, Y_size, Y_size) #hack for JuMP variables
     for i ∈ eachindex(Y) # Init with 0s
         Y[i] = 0
     end
@@ -498,7 +501,7 @@ function apply_to_subsystem(
             end
         end
     else
-        interm = Matrix{eltype(kraus[1])}(undef, size(kraus[1]))
+        interm = Matrix{Y_type}(undef, size(kraus[1]))
         for (j_in, j_out) ∈ zip(1:input_size:ρ_size-1, 1:output_size:Y_size-output_size+1),
             (i_in, i_out) ∈ zip(1:input_size:ρ_size-1, 1:output_size:Y_size-output_size+1)
 
@@ -559,8 +562,10 @@ function apply_to_subsystem(
     perm = vcat(keep, ssys)
     ρ_perm = permute_systems(ρ, perm, dims)
 
-    Y = SA.spzeros(eltype(ρ), Y_size, Y_size)
-    interm = similar(ρ, output_size * keep_size, input_size * keep_size)
+    kraus_type = promote_type([eltype(k) for k ∈ kraus]...)
+    Y_type = Base.promote_op(*, kraus_type, eltype(ρ))
+    Y = SA.spzeros(Y_type, Y_size, Y_size)
+    interm = SA.spzeros(Y_type, output_size * keep_size, input_size * keep_size)
     spI = SA.sparse(I, keep_size, keep_size)
     for k ∈ kraus
         k_kron = kron(spI, k)

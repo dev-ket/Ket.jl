@@ -40,6 +40,12 @@
                 @test apply_to_subsystem(abc, v123, [2, 1, 3], [2, 2, 3]) ≈
                       permute_systems(abc, [2, 1, 3], [2, 2, 3]) * v123
             end
+            for R ∈ (Float64, BigFloat), (T, S) ∈ [(R, Complex{R}), (Complex{R}, R)]
+                I2 = Matrix(one(T) * I, (2, 2))
+                op = randn(T, 6, 6)
+                v = randn(S, 12)
+                @test apply_to_subsystem(op, v, [2, 3], [2, 2, 3]) ≈ kron(I2, op) * v
+            end
         end
         @testset "Rectangular op applied to ψ " begin
             model = JuMP.Model()
@@ -68,6 +74,12 @@
                 @test apply_to_subsystem(c, v12, [2, 3], [2, 2, 3]) ≈ kron(I2, c) * v12
                 @test apply_to_subsystem(d, v16, [2, 3], [2, 2, 2, 2]) ≈ kron(I2, d, I2) * v16
                 @test apply_to_subsystem(e, v16, [2, 3], [2, 2, 2, 2]) ≈ kron(I2, e, I2) * v16
+            end
+            for R ∈ (Float64, BigFloat), (T, S) ∈ [(R, Complex{R}), (Complex{R}, R)]
+                I2 = Matrix(one(T) * I, (2, 2))
+                op = randn(T, 7, 6)
+                v = randn(S, 12)
+                @test apply_to_subsystem(op, v, [2, 3], [2, 2, 3]) ≈ kron(I2, op) * v
             end
         end
         @testset "Square Kraus applied to ρ      " begin
@@ -125,6 +137,12 @@
                 x = Matrix(M)
                 @test apply_to_subsystem([a], M, 1, [2, 2, 3]) ≈ apply_to_subsystem([a], x, 1, [2, 2, 3])
                 @test apply_to_subsystem([b], M, [1, 3], [2, 2, 3]) ≈ apply_to_subsystem([b], x, [1, 3], [2, 2, 3])
+            end
+            for R ∈ (Float64, BigFloat), (T, S) ∈ [(R, Complex{R}), (Complex{R}, R)]
+                I2 = Matrix(one(T) * I, (2, 2))
+                k = randn(T, 6, 6)
+                ρ = randn(S, 12, 12)
+                @test apply_to_subsystem([k], ρ, [2, 3], [2, 2, 3]) ≈ kron(I2, k) * ρ * kron(I2, k)'
             end
         end
         @testset "Rectangular Kraus applied to ρ       " begin
@@ -184,6 +202,17 @@
                       apply_to_subsystem([k1, k2], StdM, [2, 3], [3, 3, 3, 3])
                 @test apply_to_subsystem([k3, k4], SparseM, [2, 3], [3, 3, 3, 3]) ≈
                       apply_to_subsystem([k3, k4], StdM, [2, 3], [3, 3, 3, 3])
+            end
+            for R ∈ (Float64, BigFloat), (T, S) ∈ [(R, Complex{R}), (Complex{R}, R)]
+                I2 = Matrix(one(T) * I, (2, 2))
+                k = randn(T, 7, 6)
+                ρ = randn(S, 12, 12)
+                @test apply_to_subsystem([k], ρ, [2, 3], [2, 2, 3]) ≈ kron(I2, k) * ρ * kron(I2, k)'
+
+                k_sparse = sparse(k)
+                Sparse_ρ = SparseArrays.spdiagm(-1 => randn(S, 12 - 1), 1 => randn(S, 12 - 1))
+                @test apply_to_subsystem([k_sparse], Sparse_ρ, [2, 3], [2, 2, 3]) ≈
+                      apply_to_subsystem([Matrix(k_sparse)], Matrix(Sparse_ρ), [2, 3], [2, 2, 3])
             end
         end
     end
