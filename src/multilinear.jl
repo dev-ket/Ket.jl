@@ -368,7 +368,6 @@ op::AbstractMatrix,
 ψ::AbstractVector,
 ssys::AbstractVector,
 dims::AbstractVector = _equal_sizes(ρ)
-outssys_to_end::Bool = false
 Apply the operator `op` on the subsytems of `ρ` identified by `ssys`
 (op ⊗ I) * ψ
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
