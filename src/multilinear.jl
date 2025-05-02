@@ -384,7 +384,7 @@ function apply_to_subsystem(
     prod(dims[ssys]) == size(op, 2) ||
         throw(DimensionMismatch("op has dimensions $(size(op)), expected $((size(op,1), prod(dims[ssys])))"))
     square_op = size(op, 1) == size(op, 2)
-    contiguous_subsystems = length(ssys) == ssys[end] - ssys[1] + 1 && ssys == ssys[1]:ssys[end]
+    contiguous_subsystems = ssys == ssys[1]:ssys[end]
     if !contiguous_subsystems && !square_op
         throw(ArgumentError("op needs to be square or ssys need to be contiguous and ordered"))
     end
@@ -458,7 +458,7 @@ function apply_to_subsystem(
 )
     isempty(ssys) && throw(ArgumentError("ssys vector must not be empty"))
     square_kraus_ops = all([size(k, 1) == size(k, 2) for k ∈ kraus])
-    contiguous_subsystems = length(ssys) == ssys[end] - ssys[1] + 1 && ssys == ssys[1]:ssys[end]
+    contiguous_subsystems = ssys == ssys[1]:ssys[end]
     if (!contiguous_subsystems && !square_kraus_ops)
         throw(ArgumentError("Kraus operator need to be square or ssys need to be contiguous and ordered"))
     end
@@ -534,7 +534,7 @@ function apply_to_subsystem(
 )
     isempty(ssys) && throw(ArgumentError("ssys vector must not be empty"))
     square_kraus_ops = all([size(k, 1) == size(k, 2) for k ∈ kraus])
-    contiguous_subsystems = length(ssys) == ssys[end] - ssys[1] + 1 && ssys == ssys[1]:ssys[end]
+    contiguous_subsystems = ssys == ssys[1]:ssys[end]
     if (!contiguous_subsystems && !square_kraus_ops)
         throw(ArgumentError("Kraus operator need to be square or ssys need to be contiguous and ordered"))
     end
