@@ -561,8 +561,9 @@ function apply_to_subsystem(
 
     Y = SA.spzeros(eltype(ρ), Y_size, Y_size)
     interm = similar(ρ, output_size * keep_size, input_size * keep_size)
+    spI = SA.sparse(I, keep_size, keep_size)
     for k ∈ kraus
-        k_kron = kron(I(prod(dims_keep)), k)
+        k_kron = kron(spI, k)
         mul!(interm, k_kron, ρ_perm)
         mul!(Y, interm, k_kron', true, true)
     end
