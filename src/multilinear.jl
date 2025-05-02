@@ -405,11 +405,11 @@ function apply_to_subsystem(
     Y = Vector{typeof(1 * ψ[1])}(undef, Y_length) #hack for JuMP variables
 
     if eltype(ψ) <: JuMP.AbstractJuMPScalar
-        for (i_in, i_out) ∈ zip(1:input_size:ψ_length-1, 1:output_size:Y_length-1)
+        for (i_in, i_out) ∈ zip(1:input_size:ψ_length-1, 1:output_size:Y_length-output_size+1)
             @views Y[i_out:i_out+output_size-1] .= op * ψ_perm[i_in:i_in+input_size-1]
         end
     else
-        for (i_in, i_out) ∈ zip(1:input_size:ψ_length-1, 1:output_size:Y_length-1)
+        for (i_in, i_out) ∈ zip(1:input_size:ψ_length-1, 1:output_size:Y_length-output_size+1)
             @views mul!(Y[i_out:i_out+output_size-1], op, ψ_perm[i_in:i_in+input_size-1])
         end
     end
@@ -490,8 +490,8 @@ function apply_to_subsystem(
     end
 
     if eltype(ρ) <: JuMP.AbstractJuMPScalar
-        for (j_in, j_out) ∈ zip(1:input_size:ρ_size-1, 1:output_size:Y_size-1),
-            (i_in, i_out) ∈ zip(1:input_size:ρ_size-1, 1:output_size:Y_size-1)
+        for (j_in, j_out) ∈ zip(1:input_size:ρ_size-1, 1:output_size:Y_size-output_size+1),
+            (i_in, i_out) ∈ zip(1:input_size:ρ_size-1, 1:output_size:Y_size-output_size+1)
 
             for kraus_op ∈ kraus
                 @views Y[i_out:i_out+output_size-1, j_out:j_out+output_size-1] .+=
@@ -500,8 +500,8 @@ function apply_to_subsystem(
         end
     else
         interm = Matrix{eltype(kraus[1])}(undef, size(kraus[1]))
-        for (j_in, j_out) ∈ zip(1:input_size:ρ_size-1, 1:output_size:Y_size-1),
-            (i_in, i_out) ∈ zip(1:input_size:ρ_size-1, 1:output_size:Y_size-1)
+        for (j_in, j_out) ∈ zip(1:input_size:ρ_size-1, 1:output_size:Y_size-output_size+1),
+            (i_in, i_out) ∈ zip(1:input_size:ρ_size-1, 1:output_size:Y_size-output_size+1)
 
             for kraus_op ∈ kraus
                 @views mul!(interm, kraus_op, ρ_perm[i_in:i_in+input_size-1, j_in:j_in+input_size-1])
@@ -560,16 +560,12 @@ function apply_to_subsystem(
     perm = vcat(keep, ssys)
     ρ_perm = permute_systems(ρ, perm, dims)
 
-    Y = Matrix{typeof(1 * ρ[1])}(undef, Y_size, Y_size) #hack for JuMP variables
-    for i ∈ eachindex(Y) # Init with 0s
-        Y[i] = 0
-    end
-
+    Y = SA.spzeros(eltype(ρ), Y_size, Y_size)
     interm = similar(ρ, output_size * keep_size, input_size * keep_size)
     for k ∈ kraus
         k_kron = kron(I(prod(dims_keep)), k)
-        @views mul!(interm, k_kron, ρ_perm)
-        Y .+= interm * k_kron'
+        mul!(interm, k_kron, ρ_perm)
+        mul!(Y, interm, k_kron', true, true)
     end
 
     Y = SA.sparse(Y)
