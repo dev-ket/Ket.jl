@@ -503,7 +503,7 @@ function apply_to_subsystem(
 
             for kraus_op ∈ kraus
                 @views mul!(interm, kraus_op, ρ_perm[i_in:i_in+input_size-1, j_in:j_in+input_size-1])
-                @views Y[i_out:i_out+output_size-1, j_out:j_out+output_size-1] .+= interm * kraus_op'
+                @views mul!(Y[i_out:i_out+output_size-1, j_out:j_out+output_size-1], interm, kraus_op', true, true)
             end
         end
     end
