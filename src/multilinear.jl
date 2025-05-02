@@ -379,17 +379,16 @@ function apply_to_subsystem(
     ssys::AbstractVector{<:Integer},
     dims::AbstractVector{<:Integer} = _equal_sizes(ψ)
 )
-    @assert !isempty(ssys)
-    @assert prod(dims) == length(ψ) "dimensions do not match with ψ"
-    @assert prod(dims[ssys]) == size(op, 2) "dimensions and ssys do not match with matrix op"
-
+    isempty(ssys) && throw(ArgumentError("ssys vector must not be empty"))
+    prod(dims) == length(ψ) || throw(DimensionMismatch("ψ has length $(length(ψ)), expected length $(prod(dims))"))
+    prod(dims[ssys]) == size(op, 2) ||
+        throw(DimensionMismatch("op has dimensions $(size(op)), expected $((size(op,1), prod(dims[ssys])))"))
     square_op = size(op, 1) == size(op, 2)
     ctg_ssys = length(ssys) == ssys[end] - ssys[1] + 1 && ssys == ssys[1]:ssys[end]
-    @assert ctg_ssys || square_op "Operator needs to be square or ssys need to be contiguous and ordered"
+    ctg_ssys || square_op || throw(ArgumentError("op needs to be square or ssys need to be contiguous and ordered"))
 
     nsys = length(dims)
     keep = _subsystems_complement(ssys, nsys)
-
     dims_keep = dims[keep]
 
     ψ_length = length(ψ)
@@ -444,7 +443,6 @@ kraus::AbstractVector{<:AbstractMatrix},
 ρ::AbstractMatrix,
 ssys::AbstractVector,
 dims::AbstractVector = _equal_sizes(ρ)
-outssys_to_end::Bool = false
 Apply the operators `kraus` on the subsytems of `ρ` identified by `ssys`
 ∑(Kᵢ ⊗ I) * ρ * (Kᵢ ⊗ I)†
 For each input subsystem `i` of size `dims[ssys[i]]` they are mapped to a subsystem of size `output_dims[i]`
@@ -454,14 +452,14 @@ function apply_to_subsystem(
     kraus::AbstractVector{<:AbstractMatrix},
     ρ::AbstractMatrix,
     ssys::AbstractVector{<:Integer},
-    dims::AbstractVector{<:Integer} = _equal_sizes(ρ),
-    outssys_to_end::Bool = false
+    dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
 )
-    @assert !isempty(ssys)
+    isempty(ssys) && throw(ArgumentError("ssys vector must not be empty"))
     square_kraus_ops = all([size(k, 1) == size(k, 2) for k ∈ kraus])
     ctg_ssys = length(ssys) == ssys[end] - ssys[1] + 1 && ssys == ssys[1]:ssys[end]
-    @assert ctg_ssys || square_kraus_ops "Kraus operators need to be square or ssys need to be contiguous and ordered"
-
+    if (!ctg_ssys && !square_kraus_ops)
+        throw(ArgumentError("Kraus operator need to be square or ssys need to be contiguous and ordered"))
+    end
     nsys = length(dims)
     keep = _subsystems_complement(ssys, nsys)
 
@@ -471,12 +469,15 @@ function apply_to_subsystem(
     input_size = prod(input_dims) #input size of Kraus
     output_size = size(kraus[1], 1)
     keep_size = prod(dims_keep)
-    ρ_size = size(ρ, 1)
+    ρ_size = prod(dims)
     Y_size = keep_size * output_size
 
-    @assert prod(dims) == ρ_size "dimensions do not match with ρ"
-    @assert all([size(k, 2) == input_size for k ∈ kraus]) "dimensions do not match with kraus operators"
-    @assert all([size(k, 1) == output_size for k ∈ kraus]) "dimensions do not match with kraus operators"
+    if (ρ_size, ρ_size) != size(ρ)
+        throw(DimensionMismatch("ρ has dimensions $(size(ρ)), expected dimensions $((ρ_size, ρ_size))"))
+    end
+    if !all([size(k, 2) == input_size for k ∈ kraus]) || !all([size(k, 1) == output_size for k ∈ kraus])
+        throw(DimensionMismatch("Kraus operators have invalid dimensions"))
+    end
 
     perm = vcat(keep, ssys)
     ρ_perm = permute_systems(ρ, perm, dims)
@@ -519,7 +520,6 @@ kraus::AbstractVector{<:AbstractMatrix},
 ρ::AbstractMatrix,
 ssys::AbstractVector,
 dims::AbstractVector = _equal_sizes(ρ)
-outssys_to_end::Bool = false
 Apply the operators `kraus` on the subsytems of `ρ` identified by `ssys`
 ∑(Kᵢ ⊗ I) * ρ * (Kᵢ ⊗ I)†
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
@@ -530,11 +530,12 @@ function apply_to_subsystem(
     ssys::AbstractVector{<:Integer},
     dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
 )
-    @assert !isempty(ssys)
+    isempty(ssys) && throw(ArgumentError("ssys vector must not be empty"))
     square_kraus_ops = all([size(k, 1) == size(k, 2) for k ∈ kraus])
     ctg_ssys = length(ssys) == ssys[end] - ssys[1] + 1 && ssys == ssys[1]:ssys[end]
-    @assert ctg_ssys || square_kraus_ops "Kraus operators need to be square or ssys need to be contiguous and ordered"
-
+    if (!ctg_ssys && !square_kraus_ops)
+        throw(ArgumentError("Kraus operator need to be square or ssys need to be contiguous and ordered"))
+    end
     nsys = length(dims)
     keep = _subsystems_complement(ssys, nsys)
 
@@ -544,12 +545,15 @@ function apply_to_subsystem(
     input_size = prod(input_dims) #input size of Kraus
     output_size = size(kraus[1], 1)
     keep_size = prod(dims_keep)
-    ρ_size = size(ρ, 1)
+    ρ_size = prod(dims)
     Y_size = keep_size * output_size
 
-    @assert prod(dims) == ρ_size "dimensions do not match with ρ"
-    @assert all([size(k, 2) == input_size for k ∈ kraus]) "dimensions do not match with kraus operators"
-    @assert all([size(k, 1) == output_size for k ∈ kraus]) "dimensions do not match with kraus operators"
+    if (ρ_size, ρ_size) != size(ρ)
+        throw(DimensionMismatch("ρ has dimensions $(size(ρ)), expected dimensions $((ρ_size, ρ_size))"))
+    end
+    if !all([size(k, 2) == input_size for k ∈ kraus]) || !all([size(k, 1) == output_size for k ∈ kraus])
+        throw(DimensionMismatch("Kraus operators have invalid dimensions"))
+    end
 
     perm = vcat(keep, ssys)
     ρ_perm = permute_systems(ρ, perm, dims)
@@ -579,7 +583,6 @@ kraus::AbstractVector{<:AbstractMatrix},
 ρ::AbstractMatrix,
 ssys::Integer,
 dims::AbstractVector = _equal_sizes(ρ)
-outssys_to_end::Bool = false
 Apply the operators `kraus` on the subsytem of `ρ` identified by `ssys`
 ∑(Kᵢ ⊗ I) * ρ * (Kᵢ ⊗ I)†
 The subsystem identified by `ssys` of size `dims[ssys]` is mapped to a subsystem of size `output_dims[ssys]`
