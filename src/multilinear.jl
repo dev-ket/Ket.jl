@@ -405,11 +405,11 @@ function apply_to_subsystem(
     Y = Vector{Y_type}(undef, Y_length) #hack for JuMP variables
 
     if eltype(ψ) <: JuMP.AbstractJuMPScalar
-        for (i_in, i_out) ∈ zip(1:input_size:ψ_length-1, 1:output_size:Y_length-output_size+1)
+        for (i_in, i_out) ∈ zip(1:input_size:1+ψ_length-input_size, 1:output_size:1+Y_length-output_size)
             @views Y[i_out:i_out+output_size-1] .= op * ψ_perm[i_in:i_in+input_size-1]
         end
     else
-        for (i_in, i_out) ∈ zip(1:input_size:ψ_length-1, 1:output_size:Y_length-output_size+1)
+        for (i_in, i_out) ∈ zip(1:input_size:1+ψ_length-input_size, 1:output_size:1+Y_length-output_size)
             @views mul!(Y[i_out:i_out+output_size-1], op, ψ_perm[i_in:i_in+input_size-1])
         end
     end
@@ -492,8 +492,8 @@ function apply_to_subsystem(
     end
 
     if eltype(ρ) <: JuMP.AbstractJuMPScalar
-        for (j_in, j_out) ∈ zip(1:input_size:ρ_size-1, 1:output_size:Y_size-output_size+1),
-            (i_in, i_out) ∈ zip(1:input_size:ρ_size-1, 1:output_size:Y_size-output_size+1)
+        for (j_in, j_out) ∈ zip(1:input_size:1+ρ_size-input_size, 1:output_size:Y_size-output_size+1),
+            (i_in, i_out) ∈ zip(1:input_size:1+ρ_size-input_size, 1:output_size:Y_size-output_size+1)
 
             for kraus_op ∈ kraus
                 @views Y[i_out:i_out+output_size-1, j_out:j_out+output_size-1] .+=
@@ -502,8 +502,8 @@ function apply_to_subsystem(
         end
     else
         interm = Matrix{Y_type}(undef, size(kraus[1]))
-        for (j_in, j_out) ∈ zip(1:input_size:ρ_size-1, 1:output_size:Y_size-output_size+1),
-            (i_in, i_out) ∈ zip(1:input_size:ρ_size-1, 1:output_size:Y_size-output_size+1)
+        for (j_in, j_out) ∈ zip(1:input_size:1+ρ_size-input_size, 1:output_size:Y_size-output_size+1),
+            (i_in, i_out) ∈ zip(1:input_size:1+ρ_size-input_size, 1:output_size:Y_size-output_size+1)
 
             for kraus_op ∈ kraus
                 @views mul!(interm, kraus_op, ρ_perm[i_in:i_in+input_size-1, j_in:j_in+input_size-1])

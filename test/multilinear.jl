@@ -12,6 +12,7 @@
                 a = randn(T, 2, 2)
                 b = randn(T, 2, 2)
                 c = randn(T, 3, 3)
+                d = randn(T, 1, 1)
                 v1 = randn(T, 2)
                 v2 = randn(T, 2)
                 v3 = randn(T, 3)
@@ -39,6 +40,7 @@
                       permute_systems(kron(I2, bc), [2, 1, 3], [2, 2, 3]) * v123
                 @test apply_to_subsystem(abc, v123, [2, 1, 3], [2, 2, 3]) ≈
                       permute_systems(abc, [2, 1, 3], [2, 2, 3]) * v123
+                @test apply_to_subsystem(d, v123, 3, [2, 2, 1, 3]) ≈ v123 .* d[1, 1]
             end
             for R ∈ (Float64, BigFloat), (T, S) ∈ [(R, Complex{R}), (Complex{R}, R)]
                 I2 = Matrix(one(T) * I, (2, 2))
@@ -61,6 +63,7 @@
                 c = randn(T, 4, 6)
                 d = randn(T, 6, 4)
                 e = randn(T, 1, 4)
+                f = randn(T, 4, 1)
                 v2 = randn(T, 2)
                 v3 = randn(T, 3)
                 v4 = randn(T, 4)
@@ -74,6 +77,7 @@
                 @test apply_to_subsystem(c, v12, [2, 3], [2, 2, 3]) ≈ kron(I2, c) * v12
                 @test apply_to_subsystem(d, v16, [2, 3], [2, 2, 2, 2]) ≈ kron(I2, d, I2) * v16
                 @test apply_to_subsystem(e, v16, [2, 3], [2, 2, 2, 2]) ≈ kron(I2, e, I2) * v16
+                @test apply_to_subsystem(f, v4, [2], [2, 1, 2]) ≈ kron(I2, f, I2) * v4
             end
             for R ∈ (Float64, BigFloat), (T, S) ∈ [(R, Complex{R}), (Complex{R}, R)]
                 I2 = Matrix(one(T) * I, (2, 2))
@@ -97,6 +101,7 @@
                 a = randn(T, d1, d1)
                 b = randn(T, d2, d2)
                 c = randn(T, d3, d3)
+                d = randn(T, 1, 1)
                 ab = kron(a, b)
                 ac = kron(a, c)
                 bc = kron(b, c)
@@ -118,7 +123,7 @@
                       kron(I2, ac) * abc * kron(I2, ac)' + kron(I2, bc) * abc * kron(I2, bc)'
                 @test apply_to_subsystem([abc], abc, [2, 1, 3], [2, 2, 3]) ≈
                       permute_systems(abc, [2, 1, 3], [2, 2, 3]) * abc * permute_systems(abc, [2, 1, 3], [2, 2, 3])'
-
+                @test apply_to_subsystem([d], abc, [1], [1, 2, 2, 3]) ≈ d[1, 1] .* abc .* d[1, 1]'
                 #sparse arrays
                 d = 3^4
                 SparseM = SparseArrays.spdiagm(-1 => randn(T, d - 1), 1 => randn(T, d - 1))
@@ -164,14 +169,15 @@
                 k5 = randn(T, d1 * d1, d2 * d2)
                 k6 = randn(T, d2 * d2, d1 * d1)
                 k7 = randn(T, 1, d1 * d1)
+                k8 = randn(T, d1, 1)
 
                 a = randn(T, d1^3, d1^3)
                 b = randn(T, d2^3, d2^3)
                 c = randn(T, 3, 3)
-                d = randn(T, 1, d1^3)
 
                 I2 = Matrix(one(T) * I, (2, 2))
                 I3 = Matrix(one(T) * I, (3, 3))
+                I4 = Matrix(one(T) * I, (4, 4))
                 I9 = Matrix(one(T) * I, (9, 9))
                 @test apply_to_subsystem([k1, k2], c, 1, [3]) ≈ k1 * c * k1' + k2 * c * k2'
                 @test apply_to_subsystem([k1, k2], b, 1, [3, 3, 3]) ≈
@@ -189,6 +195,7 @@
                 @test apply_to_subsystem([k5], b, [1, 2], [3, 3, 3]) ≈ kron(k5, I3) * b * kron(k5, I3)'
                 @test apply_to_subsystem([k6], a, [2, 3], [2, 2, 2]) ≈ kron(I2, k6) * a * kron(I2, k6)'
                 @test apply_to_subsystem([k7], a, [2, 3], [2, 2, 2]) ≈ kron(I2, k7) * a * kron(I2, k7)'
+                @test apply_to_subsystem([k8], a, 2, [2, 1, 2, 2]) ≈ kron(I2, k8, I4) * a * kron(I2, k8, I4)'
 
                 #sparse arrays
                 d = 3^4
