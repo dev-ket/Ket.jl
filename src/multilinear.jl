@@ -565,12 +565,19 @@ function apply_to_subsystem(
     kraus_type = promote_type([eltype(k) for k ∈ kraus]...)
     Y_type = Base.promote_op(*, kraus_type, eltype(ρ))
     Y = SA.spzeros(Y_type, Y_size, Y_size)
-    interm = SA.spzeros(Y_type, output_size * keep_size, input_size * keep_size)
     spI = SA.sparse(I, keep_size, keep_size)
-    for k ∈ kraus
-        k_kron = kron(spI, k)
-        mul!(interm, k_kron, ρ_perm)
-        mul!(Y, interm, k_kron', true, true)
+    if eltype(ρ) <: JuMP.AbstractJuMPScalar
+        for k ∈ kraus
+            k_kron = kron(spI, k)
+            Y .+= k_kron * ρ_perm * k_kron'
+        end
+    else
+        temp = SA.spzeros(Y_type, output_size * keep_size, input_size * keep_size)
+        for k ∈ kraus
+            k_kron = kron(spI, k)
+            mul!(temp, k_kron, ρ_perm)
+            mul!(Y, temp, k_kron', true, true)
+        end
     end
 
     inv_perm = sortperm(perm)
