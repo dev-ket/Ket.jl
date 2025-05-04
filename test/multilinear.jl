@@ -354,5 +354,3 @@
         end
     end
 end
-
-#TODO add test with JuMP variables
