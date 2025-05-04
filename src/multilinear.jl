@@ -351,7 +351,6 @@ for (T, limit, wrapper) ∈
     end
 end
 export trace_replace
-
 """
     trace_replace(X::AbstractMatrix, remove::Integer, dims::AbstractVector = _equal_sizes(X))
 
@@ -363,29 +362,25 @@ trace_replace(X::AbstractMatrix, remove::Integer, dims::AbstractVector{<:Integer
     trace_replace(X, [remove], dims)
 
 """
-apply_to_subsystem(
-op::AbstractMatrix,
-ψ::AbstractVector,
-ssys::AbstractVector,
-dims::AbstractVector = _equal_sizes(ρ)
-Apply the operator `op` on the subsytems of `ρ` identified by `ssys`
-(op ⊗ I) * ψ
+    applymap_subsystem(op::AbstractMatrix, ψ::AbstractVector, ssys::AbstractVector, dims::AbstractVector = _equal_sizes(ρ))
+
+Applies the operator `op` to the subsytem of `ρ` identified by `ssys`, resulting in (op ⊗ I) * ψ.
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """
-function apply_to_subsystem(
+function applymap_subsystem(
     op::AbstractMatrix,
     ψ::AbstractVector,
     ssys::AbstractVector{<:Integer},
     dims::AbstractVector{<:Integer} = _equal_sizes(ψ)
 )
-    isempty(ssys) && throw(ArgumentError("ssys vector must not be empty"))
+    isempty(ssys) && throw(ArgumentError("Subsystems vector must not be empty"))
     prod(dims) == length(ψ) || throw(DimensionMismatch("ψ has length $(length(ψ)), expected length $(prod(dims))"))
     prod(dims[ssys]) == size(op, 2) ||
         throw(DimensionMismatch("op has dimensions $(size(op)), expected $((size(op,1), prod(dims[ssys])))"))
     square_op = size(op, 1) == size(op, 2)
     contiguous_subsystems = ssys == ssys[1]:ssys[end]
     if !contiguous_subsystems && !square_op
-        throw(ArgumentError("op needs to be square or ssys need to be contiguous and ordered"))
+        throw(ArgumentError("op needs to be square or subsystems need to be contiguous and ordered"))
     end
 
     nsys = length(dims)
@@ -402,7 +397,7 @@ function apply_to_subsystem(
     ψ_perm = permute_systems(ψ, perm, dims)
 
     Y_type = Base.promote_op(*, eltype(op), eltype(ψ))
-    Y = Vector{Y_type}(undef, Y_length) #hack for JuMP variables
+    Y = Vector{Y_type}(undef, Y_length)
 
     if eltype(ψ) <: JuMP.AbstractJuMPScalar
         for (i_in, i_out) ∈ zip(1:input_size:1+ψ_length-input_size, 1:output_size:1+Y_length-output_size)
@@ -419,48 +414,36 @@ function apply_to_subsystem(
     dims_perm_output = vcat(dims_keep, output_dims) # The dims of the subsystem when applying the inverse permutation
     return permute_systems(Y, inv_perm, dims_perm_output)
 end
-
-export apply_to_subsystem
-
+export applymap_subsystem
 """
-apply_to_subsystem(
-op::AbstractMatrix,
-ψ::AbstractVector,
-ssys::Integer,
-dims::AbstractVector = _equal_sizes(ρ)
-Apply the operator `op` on the subsytems of `ρ` identified by `ssys`
-(op ⊗ I) * ψ
+    applymap_subsystem(op::AbstractMatrix, ψ::AbstractVector, ssys::Integer, dims::AbstractVector = _equal_sizes(ρ))
+
+Applies the operator `op` to the subsytems of `ρ` identified by `ssys`, resulting in (op ⊗ I) * ψ.
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """
-apply_to_subsystem(
+applymap_subsystem(
     op::AbstractMatrix,
     ψ::AbstractVector,
     ssys::Integer,
     dims::AbstractVector{<:Integer} = _equal_sizes(ψ)
-) = apply_to_subsystem(op, ψ, [ssys], dims)
-
+) = applymap_subsystem(op, ψ, [ssys], dims)
 """
-apply_to_subsystem(
-kraus::AbstractVector{<:AbstractMatrix},
-ρ::AbstractMatrix,
-ssys::AbstractVector,
-dims::AbstractVector = _equal_sizes(ρ)
-Apply the operators `kraus` on the subsytems of `ρ` identified by `ssys`
-∑(Kᵢ ⊗ I) * ρ * (Kᵢ ⊗ I)†
-For each input subsystem `i` of size `dims[ssys[i]]` they are mapped to a subsystem of size `output_dims[i]`
+    applymap_subsystem(K::AbstractVector{<:AbstractMatrix}, ρ::AbstractMatrix, ssys::Integer, dims::AbstractVector = _equal_sizes(ρ))
+
+Applies the Kraus operators in `K` to the subsytems of `ρ` identified by `ssys`, resulting in ∑ᵢ(K[i] ⊗ I) * ρ * (K[i]' ⊗ I).
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """
-function apply_to_subsystem(
-    kraus::AbstractVector{<:AbstractMatrix},
+function applymap_subsystem(
+    K::AbstractVector{<:AbstractMatrix},
     ρ::AbstractMatrix,
     ssys::AbstractVector{<:Integer},
     dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
 )
-    isempty(ssys) && throw(ArgumentError("ssys vector must not be empty"))
-    square_kraus_ops = all([size(k, 1) == size(k, 2) for k ∈ kraus])
+    isempty(ssys) && throw(ArgumentError("Subsystems vector must not be empty"))
+    square_kraus_ops = all([size(Ki, 1) == size(Ki, 2) for Ki ∈ K])
     contiguous_subsystems = ssys == ssys[1]:ssys[end]
     if (!contiguous_subsystems && !square_kraus_ops)
-        throw(ArgumentError("Kraus operator need to be square or ssys need to be contiguous and ordered"))
+        throw(ArgumentError("Kraus operators need to be square or subsystems need to be contiguous and ordered"))
     end
     nsys = length(dims)
     keep = _subsystems_complement(ssys, nsys)
@@ -468,8 +451,8 @@ function apply_to_subsystem(
     dims_keep = dims[keep]
     input_dims = dims[ssys]
 
-    input_size = prod(input_dims) #input size of Kraus
-    output_size = size(kraus[1], 1)
+    input_size = prod(input_dims)
+    output_size = size(K[1], 1)
     keep_size = prod(dims_keep)
     ρ_size = prod(dims)
     Y_size = keep_size * output_size
@@ -477,37 +460,35 @@ function apply_to_subsystem(
     if (ρ_size, ρ_size) != size(ρ)
         throw(DimensionMismatch("ρ has dimensions $(size(ρ)), expected dimensions $((ρ_size, ρ_size))"))
     end
-    if !all([size(k, 2) == input_size for k ∈ kraus]) || !all([size(k, 1) == output_size for k ∈ kraus])
+    if !all([size(Ki, 2) == input_size for Ki ∈ K]) || !all([size(Ki, 1) == output_size for Ki ∈ K])
         throw(DimensionMismatch("Kraus operators have invalid dimensions"))
     end
 
     perm = vcat(keep, ssys)
     ρ_perm = permute_systems(ρ, perm, dims)
 
-    kraus_type = promote_type([eltype(k) for k ∈ kraus]...)
+    kraus_type = promote_type([eltype(Ki) for Ki ∈ K]...)
     Y_type = Base.promote_op(*, kraus_type, eltype(ρ))
-    Y = Matrix{Y_type}(undef, Y_size, Y_size) #hack for JuMP variables
-    for i ∈ eachindex(Y) # Init with 0s
+    Y = Matrix{Y_type}(undef, Y_size, Y_size)
+    for i ∈ eachindex(Y)
         Y[i] = 0
     end
 
     if eltype(ρ) <: JuMP.AbstractJuMPScalar
         for (j_in, j_out) ∈ zip(1:input_size:1+ρ_size-input_size, 1:output_size:Y_size-output_size+1),
             (i_in, i_out) ∈ zip(1:input_size:1+ρ_size-input_size, 1:output_size:Y_size-output_size+1)
-
-            for kraus_op ∈ kraus
+            for Ki ∈ K
                 @views Y[i_out:i_out+output_size-1, j_out:j_out+output_size-1] .+=
-                    kraus_op * ρ_perm[i_in:i_in+input_size-1, j_in:j_in+input_size-1] * kraus_op'
+                    Ki * ρ_perm[i_in:i_in+input_size-1, j_in:j_in+input_size-1] * Ki'
             end
         end
     else
-        interm = Matrix{Y_type}(undef, size(kraus[1]))
+        interm = Matrix{Y_type}(undef, size(K[1]))
         for (j_in, j_out) ∈ zip(1:input_size:1+ρ_size-input_size, 1:output_size:Y_size-output_size+1),
             (i_in, i_out) ∈ zip(1:input_size:1+ρ_size-input_size, 1:output_size:Y_size-output_size+1)
-
-            for kraus_op ∈ kraus
-                @views mul!(interm, kraus_op, ρ_perm[i_in:i_in+input_size-1, j_in:j_in+input_size-1])
-                @views mul!(Y[i_out:i_out+output_size-1, j_out:j_out+output_size-1], interm, kraus_op', true, true)
+            for Ki ∈ K
+                @views mul!(interm, Ki, ρ_perm[i_in:i_in+input_size-1, j_in:j_in+input_size-1])
+                @views mul!(Y[i_out:i_out+output_size-1, j_out:j_out+output_size-1], interm, Ki', true, true)
             end
         end
     end
@@ -517,28 +498,23 @@ function apply_to_subsystem(
     dims_perm_output = vcat(dims_keep, output_dims) # The dims of the subsystem when applying the inverse permutation
     return permute_systems(Y, inv_perm, dims_perm_output)
 end
-
 """
-apply_to_subsystem(
-kraus::AbstractVector{<:AbstractMatrix},
-ρ::AbstractMatrix,
-ssys::AbstractVector,
-dims::AbstractVector = _equal_sizes(ρ)
-Apply the operators `kraus` on the subsytems of `ρ` identified by `ssys`
-∑(Kᵢ ⊗ I) * ρ * (Kᵢ ⊗ I)†
+    applymap_subsystem(K::AbstractVector{<:AbstractSparseArray}, ρ::AbstractSparseArray, ssys::AbstractVector{<:Integer}, dims::AbstractVector = _equal_sizes(ρ))
+
+Applies the sparse Kraus operators in `K` to the subsytems of a sparse matrix `ρ` identified by `ssys`, resulting in ∑ᵢ(K[i] ⊗ I) * ρ * (K[i]' ⊗ I).
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """
-function apply_to_subsystem(
-    kraus::AbstractVector{<:SA.AbstractSparseArray},
+function applymap_subsystem(
+    K::AbstractVector{<:SA.AbstractSparseArray},
     ρ::SA.AbstractSparseArray,
     ssys::AbstractVector{<:Integer},
     dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
 )
     isempty(ssys) && throw(ArgumentError("ssys vector must not be empty"))
-    square_kraus_ops = all([size(k, 1) == size(k, 2) for k ∈ kraus])
+    square_kraus_ops = all([size(Ki, 1) == size(Ki, 2) for Ki ∈ K])
     contiguous_subsystems = ssys == ssys[1]:ssys[end]
     if (!contiguous_subsystems && !square_kraus_ops)
-        throw(ArgumentError("Kraus operator need to be square or ssys need to be contiguous and ordered"))
+        throw(ArgumentError("Kraus operators need to be square or subsystems need be contiguous and ordered"))
     end
     nsys = length(dims)
     keep = _subsystems_complement(ssys, nsys)
@@ -546,8 +522,8 @@ function apply_to_subsystem(
     dims_keep = dims[keep]
     input_dims = dims[ssys]
 
-    input_size = prod(input_dims) #input size of Kraus
-    output_size = size(kraus[1], 1)
+    input_size = prod(input_dims)
+    output_size = size(K[1], 1)
     keep_size = prod(dims_keep)
     ρ_size = prod(dims)
     Y_size = keep_size * output_size
@@ -555,26 +531,26 @@ function apply_to_subsystem(
     if (ρ_size, ρ_size) != size(ρ)
         throw(DimensionMismatch("ρ has dimensions $(size(ρ)), expected dimensions $((ρ_size, ρ_size))"))
     end
-    if !all([size(k, 2) == input_size for k ∈ kraus]) || !all([size(k, 1) == output_size for k ∈ kraus])
+    if !all([size(Ki, 2) == input_size for Ki ∈ K]) || !all([size(Ki, 1) == output_size for Ki ∈ K])
         throw(DimensionMismatch("Kraus operators have invalid dimensions"))
     end
 
     perm = vcat(keep, ssys)
     ρ_perm = permute_systems(ρ, perm, dims)
 
-    kraus_type = promote_type([eltype(k) for k ∈ kraus]...)
+    kraus_type = promote_type([eltype(Ki) for Ki ∈ K]...)
     Y_type = Base.promote_op(*, kraus_type, eltype(ρ))
     Y = SA.spzeros(Y_type, Y_size, Y_size)
     spI = SA.sparse(I, keep_size, keep_size)
     if eltype(ρ) <: JuMP.AbstractJuMPScalar
-        for k ∈ kraus
-            k_kron = kron(spI, k)
+        for Ki ∈ K
+            k_kron = kron(spI, Ki)
             Y .+= k_kron * ρ_perm * k_kron'
         end
     else
         temp = SA.spzeros(Y_type, output_size * keep_size, input_size * keep_size)
-        for k ∈ kraus
-            k_kron = kron(spI, k)
+        for Ki ∈ K
+            k_kron = kron(spI, Ki)
             mul!(temp, k_kron, ρ_perm)
             mul!(Y, temp, k_kron', true, true)
         end
@@ -586,20 +562,16 @@ function apply_to_subsystem(
     return permute_systems(Y, inv_perm, dims_perm_output)
 end
 """
-apply_to_subsystem(
-kraus::AbstractVector{<:AbstractMatrix},
-ρ::AbstractMatrix,
-ssys::Integer,
-dims::AbstractVector = _equal_sizes(ρ)
-Apply the operators `kraus` on the subsytem of `ρ` identified by `ssys`
-∑(Kᵢ ⊗ I) * ρ * (Kᵢ ⊗ I)†
-The subsystem identified by `ssys` of size `dims[ssys]` is mapped to a subsystem of size `output_dims[ssys]`
+    applymap_subsystem(K::AbstractVector{<:AbstractMatrix}, ρ::AbstractMatrix, ssys::Integer, dims::AbstractVector = _equal_sizes(ρ))
+
+Applies the Kraus operators in `K` to the subsytem of `ρ` identified by `ssys`, resulting in ∑ᵢ(K[i] ⊗ I) * ρ * (K[i]' ⊗ I).
+If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """
-function apply_to_subsystem(
-    kraus::AbstractVector{<:AbstractMatrix},
+function applymap_subsystem(
+    K::AbstractVector{<:AbstractMatrix},
     ρ::AbstractMatrix,
     ssys::Integer,
     dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
 )
-    apply_to_subsystem(kraus, ρ, [ssys], dims)
+    applymap_subsystem(K, ρ, [ssys], dims)
 end

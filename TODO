@@ -12,5 +12,4 @@ MA - canonical representation of Bell inequalities
 MA - state purification
 MA - optimal cloning
 MA - distinguishability of quantum states (general, LOCC, etc.)
-CG - apply_to_subsystem(op, rho, ssys) in a faster way than permutations
 CG - put docs for release version in the pipeline? (currently only dev is being displayed)
