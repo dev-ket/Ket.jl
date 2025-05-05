@@ -374,6 +374,7 @@ function applymap_subsystem(
     dims::AbstractVector{<:Integer} = _equal_sizes(ψ)
 )
     isempty(ssys) && throw(ArgumentError("Subsystems vector must not be empty"))
+    ssys == 1:length(dims) && return op*ψ
     prod(dims) == length(ψ) || throw(DimensionMismatch("ψ has length $(length(ψ)), expected length $(prod(dims))"))
     prod(dims[ssys]) == size(op, 2) ||
         throw(DimensionMismatch("op has dimensions $(size(op)), expected $((size(op,1), prod(dims[ssys])))"))
@@ -440,6 +441,7 @@ function applymap_subsystem(
     dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
 )
     isempty(ssys) && throw(ArgumentError("Subsystems vector must not be empty"))
+    ssys == 1:length(dims) && return applymap(K, ρ)
     square_kraus_ops = all([size(Ki, 1) == size(Ki, 2) for Ki ∈ K])
     contiguous_subsystems = ssys == ssys[1]:ssys[end]
     if (!contiguous_subsystems && !square_kraus_ops)
@@ -467,7 +469,7 @@ function applymap_subsystem(
     perm = vcat(keep, ssys)
     ρ_perm = permute_systems(ρ, perm, dims)
 
-    kraus_type = promote_type([eltype(Ki) for Ki ∈ K]...)
+    kraus_type = eltype(K[1])
     Y_type = Base.promote_op(*, kraus_type, eltype(ρ))
     Y = Matrix{Y_type}(undef, Y_size, Y_size)
     for i ∈ eachindex(Y)
@@ -496,7 +498,8 @@ function applymap_subsystem(
     inv_perm = sortperm(perm)
     output_dims = contiguous_subsystems ? vcat(ones(eltype(dims), length(ssys) - 1), [output_size]) : dims[ssys] # either contiguous ssys or square operators
     dims_perm_output = vcat(dims_keep, output_dims) # The dims of the subsystem when applying the inverse permutation
-    return permute_systems(Y, inv_perm, dims_perm_output)
+    result = permute_systems(Y, inv_perm, dims_perm_output)
+    return _wrapper_applymap(ρ, kraus_type)(result)
 end
 """
     applymap_subsystem(K::AbstractVector{<:AbstractSparseArray}, ρ::AbstractSparseArray, ssys::AbstractVector{<:Integer}, dims::AbstractVector = _equal_sizes(ρ))
@@ -538,7 +541,7 @@ function applymap_subsystem(
     perm = vcat(keep, ssys)
     ρ_perm = permute_systems(ρ, perm, dims)
 
-    kraus_type = promote_type([eltype(Ki) for Ki ∈ K]...)
+    kraus_type = eltype(K[1])
     Y_type = Base.promote_op(*, kraus_type, eltype(ρ))
     Y = SA.spzeros(Y_type, Y_size, Y_size)
     spI = SA.sparse(I, keep_size, keep_size)

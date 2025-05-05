@@ -95,7 +95,7 @@
             res[1:2, 3:4] = H * ρ[1:2, 3:4] * H'
             res[3:4, 1:2] = H * ρ[3:4, 1:2] * H'
             res[3:4, 3:4] = H * ρ[3:4, 3:4] * H'
-            @test applymap_subsystem([H], ρ, 2, [2, 2]) == res
+            @test applymap_subsystem([H], ρ, 2, [2, 2]) == Hermitian(res)
             d1, d2, d3 = 2, 2, 3
             for R ∈ (Float64, BigFloat), T ∈ (R, Complex{R})
                 a = randn(T, d1, d1)
@@ -159,7 +159,7 @@
             res[1:3, 4:6] = k * ρ[1:2, 3:4] * k'
             res[4:6, 1:3] = k * ρ[3:4, 1:2] * k'
             res[4:6, 4:6] = k * ρ[3:4, 3:4] * k'
-            @test applymap_subsystem([k], ρ, 2, [2, 2]) == res
+            @test applymap_subsystem([k], ρ, 2, [2, 2]) == Hermitian(res)
             d1, d2 = 2, 3
             for R ∈ (Float64, BigFloat), T ∈ (R, Complex{R})
                 k1 = randn(T, d1, d2)
