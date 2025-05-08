@@ -14,7 +14,7 @@ Return the array `step_sizes` s.t. `step_sizes[j]` is the step in standard index
 to go from tensor index [i₁, i₂, ..., iⱼ, ...] to tensor index [i₁, i₂, ..., iⱼ + 1, ...]
 """
 function _step_sizes_subsystems(dims::AbstractVector{<:Integer})
-    isempty(dims) && return dims
+    isempty(dims) && return similar(dims)
     step_sizes = similar(dims)
     _step_sizes_subsystems!(step_sizes, dims)
     return step_sizes
@@ -35,7 +35,7 @@ length(`dims`) nested loops of range `dims[i]` each.
 Returns array s.t. the value at tensor index [a₁, a₂, ...] is 1 + ∑(aᵢ - 1) * `step_sizes[i]`
 """
 function _step_iterator(dims::AbstractVector{<:Integer}, step_sizes::AbstractVector{<:Integer})
-    isempty(dims) && return eltype(dims)[]
+    isempty(dims) && return similar(dims)
     step_iterator = Vector{eltype(dims)}(undef, prod(dims))
     _step_iterator!(step_iterator, dims, step_sizes)
     return step_iterator

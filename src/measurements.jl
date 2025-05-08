@@ -194,7 +194,7 @@ function test_povm(E::Vector{<:AbstractMatrix{T}}) where {T<:Number}
     d = size(E[1], 1)
     !(sum(E) ≈ I(d)) && return false
     for i ∈ 1:length(E)
-        minimum(eigvals(E[i])) < -_rtol(T) && return false
+        !isposdef(E[i] + _rtol(T)*I) && return false
     end
     return true
 end
