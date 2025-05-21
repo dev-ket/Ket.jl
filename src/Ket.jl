@@ -16,7 +16,6 @@ import QuantumNPA
 import SparseArrays as SA
 
 const MOI = JuMP.MOI
-const JuMPReal = Union{JuMP.GenericVariableRef{<:Real},JuMP.GenericAffExpr{<:Real},JuMP.GenericQuadExpr{<:Real}}
 
 """
     Measurement{T}

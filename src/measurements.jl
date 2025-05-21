@@ -272,7 +272,7 @@ function discrimination_min_error(
     JuMP.optimize!(model)
 
     JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
-    return JuMP.objective_value(model), [wrapper(JuMP.value.(e)) for e ∈ E]
+    return JuMP.objective_value(model), JuMP.value.(E)
 end
 export discrimination_min_error
 

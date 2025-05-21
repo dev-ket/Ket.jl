@@ -124,8 +124,8 @@ function _optimize_alice_assemblage(
     !verbose && JuMP.set_silent(model)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
-    value_ρxa = [[Hermitian(JuMP.value.(ρxa[x][a])) for a ∈ 1:oa-1] for x ∈ 1:ia]::typeof(B)
-    value_ρB = Hermitian(JuMP.value.(ρ_B))::typeof(B[1][1])
+    value_ρxa = [[JuMP.value(ρxa[x][a]) for a ∈ 1:oa-1] for x ∈ 1:ia]::typeof(B)
+    value_ρB = JuMP.value(ρ_B)::typeof(B[1][1])
     return JuMP.value(ω)::R, value_ρxa, value_ρB
 end
 
@@ -153,7 +153,7 @@ function _optimize_bob_povm(
     !verbose && JuMP.set_silent(model)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
-    value_B = [[Hermitian(JuMP.value.(B[y][b])) for b ∈ 1:ob-1] for y ∈ 1:ib]::typeof(ρxa)
+    value_B = [[JuMP.value(B[y][b]) for b ∈ 1:ob-1] for y ∈ 1:ib]::typeof(ρxa)
     return JuMP.value(ω)::R, value_B
 end
 

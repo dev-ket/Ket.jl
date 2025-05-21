@@ -1,9 +1,9 @@
 function _wrapper_applymap(M::AbstractMatrix{T}, ::Type{mapT}) where {T,mapT}
     if isa(M, Hermitian)
         return Hermitian
-    elseif isa(M, Symmetric) && T <: Union{Real,JuMPReal} && mapT <: Union{Real,JuMPReal}
+    elseif isa(M, Symmetric) && JuMP.value_type(T) <: Real && JuMP.value_type(mapT) <: Real
         return Symmetric
-    elseif isa(M, Symmetric) && T <: Union{Real,JuMPReal}
+    elseif isa(M, Symmetric) && JuMP.value_type(T) <: Real
         return Hermitian
     else
         return identity

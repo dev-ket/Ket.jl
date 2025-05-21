@@ -74,7 +74,7 @@ function entanglement_entropy(
     !verbose && JuMP.set_silent(model)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
-    return JuMP.objective_value(model), wrapper(JuMP.value.(σ))
+    return JuMP.objective_value(model), JuMP.value(σ)
 end
 
 """
@@ -458,7 +458,7 @@ function ppt_mixture(
     _minimize_dotprod!(model, ρ, W, solver, verbose)
 
     JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
-    JuMP.objective_value(model) ≤ 0 ? W = JuMP.value.(W) : W = zeros(T, size(W))
+    JuMP.objective_value(model) ≤ 0 ? W = JuMP.value(W) : W = zeros(T, size(W))
     return 1 / (1 - dim * JuMP.value.(model[:λ])), Hermitian(W)
 end
 
