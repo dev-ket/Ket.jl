@@ -123,7 +123,7 @@ function _optimize_alice_assemblage(
     JuMP.set_optimizer(model, solver)
     !verbose && JuMP.set_silent(model)
     JuMP.optimize!(model)
-    JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
+    JuMP.is_solved_and_feasible(model) || error(JuMP.raw_status(model))
     value_ρxa = [[JuMP.value(ρxa[x][a]) for a ∈ 1:oa-1] for x ∈ 1:ia]::typeof(B)
     value_ρB = JuMP.value(ρ_B)::typeof(B[1][1])
     return JuMP.value(ω)::R, value_ρxa, value_ρB
@@ -152,7 +152,7 @@ function _optimize_bob_povm(
     JuMP.set_optimizer(model, solver)
     !verbose && JuMP.set_silent(model)
     JuMP.optimize!(model)
-    JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
+    JuMP.is_solved_and_feasible(model) || error(JuMP.raw_status(model))
     value_B = [[JuMP.value(B[y][b]) for b ∈ 1:ob-1] for y ∈ 1:ib]::typeof(ρxa)
     return JuMP.value(ω)::R, value_B
 end

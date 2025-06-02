@@ -81,7 +81,7 @@ function incompatibility_robustness(
     JuMP.set_optimizer(model, solver)
     !verbose && JuMP.set_silent(model)
     JuMP.optimize!(model)
-    JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
+    JuMP.is_solved_and_feasible(model) || error(JuMP.raw_status(model))
     η = JuMP.objective_value(model)
     IR = 1 / η - 1
     if return_parent && JuMP.has_duals(model)

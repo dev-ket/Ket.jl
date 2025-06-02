@@ -73,7 +73,7 @@ function entanglement_entropy(
     JuMP.set_optimizer(model, Hypatia.Optimizer{Rs})
     !verbose && JuMP.set_silent(model)
     JuMP.optimize!(model)
-    JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
+    JuMP.is_solved_and_feasible(model) || error(JuMP.raw_status(model))
     return JuMP.objective_value(model), JuMP.value(σ)
 end
 
@@ -187,7 +187,7 @@ function schmidt_number(
     !verbose && JuMP.set_silent(model)
     JuMP.optimize!(model)
 
-    JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
+    JuMP.is_solved_and_feasible(model) || error(JuMP.raw_status(model))
     return JuMP.objective_value(model)
 end
 export schmidt_number
@@ -251,7 +251,7 @@ function entanglement_robustness(
     !verbose && JuMP.set_silent(model)
     JuMP.optimize!(model)
 
-    JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
+    JuMP.is_solved_and_feasible(model) || error(JuMP.raw_status(model))
     W = JuMP.dual(model[:witness_constraint])
     return JuMP.objective_value(model), W
 end
@@ -457,7 +457,7 @@ function ppt_mixture(
     _fully_decomposable_witness_constraints!(model, dims, W)
     _minimize_dotprod!(model, ρ, W, solver, verbose)
 
-    JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
+    JuMP.is_solved_and_feasible(model) || error(JuMP.raw_status(model))
     JuMP.objective_value(model) ≤ 0 ? W = JuMP.value(W) : W = zeros(T, size(W))
     return 1 / (1 - dim * JuMP.value.(model[:λ])), Hermitian(W)
 end
@@ -503,7 +503,7 @@ function ppt_mixture(
     _fully_decomposable_witness_constraints!(model, dims, W)
     _minimize_dotprod!(model, ρ, W, solver, verbose)
 
-    JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
+    JuMP.is_solved_and_feasible(model) || error(JuMP.raw_status(model))
     JuMP.objective_value(model) ≤ 0 ? w_coeffs = JuMP.value.(w_coeffs) : w_coeffs = zeros(T, size(w_coeffs))
     return 1 / (1 - dim * JuMP.value.(model[:λ])), w_coeffs
 end

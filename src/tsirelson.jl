@@ -105,7 +105,7 @@ function _npa(functional::Array{T,N}, behaviour_operator, level; verbose, solver
     end
     !verbose && JuMP.set_silent(model)
     JuMP.optimize!(model)
-    JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
+    JuMP.is_solved_and_feasible(model) || error(JuMP.raw_status(model))
     return JuMP.objective_value(model)::T, JuMP.value.(behaviour)::Array{T,N}
 end
 
@@ -243,7 +243,7 @@ function _tsirelson_bound_manual(
     end
     !verbose && JuMP.set_silent(model)
     JuMP.optimize!(model)
-    JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
+    JuMP.is_solved_and_feasible(model) || error(JuMP.raw_status(model))
     return JuMP.objective_value(model)::T, JuMP.value.(behaviour)::Matrix{T}
 end
 
@@ -312,6 +312,6 @@ function _tsirelson_bound_manual(FC::Matrix{T}, include_ab::Bool; verbose, duali
     end
     !verbose && JuMP.set_silent(model)
     JuMP.optimize!(model)
-    JuMP.is_solved_and_feasible(model) || throw(error(JuMP.raw_status(model)))
+    JuMP.is_solved_and_feasible(model) || error(JuMP.raw_status(model))
     return JuMP.objective_value(model)::T, JuMP.value.(behaviour)::Matrix{T}
 end
