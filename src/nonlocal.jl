@@ -37,13 +37,15 @@ function _local_bound_correlation(G::Array{T,N}; marg::Bool = true) where {T<:Re
     return score
 end
 
+_scratch_type(::Array{T,N}) where {T,N} = N == 2 ? Vector{Vector{T}} : Vector{Array{T}}
+
 function _local_bound_correlation_recursive!(
     A::Array{T,N},
     chunk,
     marg = true,
     m = size(A),
-    tmp = [zeros(T, m[1:i]) for i ∈ 1:N-1]::Vector{Array{T}},
-    offset = [zeros(T, m[1:i]) for i ∈ 1:N-1]::Vector{Array{T}},
+    tmp = [zeros(T, m[1:i]) for i ∈ 1:N-1]::_scratch_type(A),
+    offset = [zeros(T, m[1:i]) for i ∈ 1:N-1]::_scratch_type(A),
     ind = [zeros(Int8, m[i] - marg) for i ∈ 2:N]
 ) where {T<:Real,N}
     tmp_end = tmp[N-1]::Array{T,N - 1}
