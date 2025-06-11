@@ -42,12 +42,12 @@ function _local_bound_correlation_recursive!(
     chunk,
     marg = true,
     m = size(A),
-    tmp = [zeros(T, m[1:i]) for i ∈ 1:N-1],
-    offset = [zeros(T, m[1:i]) for i ∈ 1:N-1],
+    tmp = [zeros(T, m[1:i]) for i ∈ 1:N-1]::Vector{Array{T}},
+    offset = [zeros(T, m[1:i]) for i ∈ 1:N-1]::Vector{Array{T}},
     ind = [zeros(Int8, m[i] - marg) for i ∈ 2:N]
 ) where {T<:Real,N}
-    tmp_end::Array{T,N - 1} = tmp[N-1]
-    offset_end::Array{T,N - 1} = offset[N-1]
+    tmp_end = tmp[N-1]::Array{T,N - 1}
+    offset_end = offset[N-1]::Array{T,N - 1}
     sum!(offset_end, A)
     A .*= 2
     marg && (offset_end .-= selectdim(A, N, 1)) # note this is twice the original A
@@ -57,14 +57,14 @@ function _local_bound_correlation_recursive!(
     for _ ∈ chunk[1]:chunk[2]
         tmp_end .= offset_end
         _tensor_contraction!(tmp_end, A, ind[N-1], marg)
-        @views temp_score = _local_bound_correlation_recursive!(
+        temp_score = _local_bound_correlation_recursive!(
             tmp_end,
             (0, 2^(m[N-1] - marg) - 1),
             marg,
             m[1:N-1],
-            tmp[1:N-2],
-            offset[1:N-2],
-            ind[1:N-2]
+            tmp,
+            offset,
+            ind
         )
         if temp_score > score
             score = temp_score
