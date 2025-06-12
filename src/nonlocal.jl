@@ -29,7 +29,7 @@ function _local_bound_correlation(G::Array{T,N}; marg::Bool = true) where {T<:Re
     end
 
     chunks = _partition(outs[N]^(ins[N] - marg), Threads.nthreads())
-    G2 = G #workaround for https://github.com/JuliaLang/julia/issues/15276
+    G2 = FArray(G) #workaround for https://github.com/JuliaLang/julia/issues/15276
     tasks = map(chunks) do chunk
         Threads.@spawn _local_bound_correlation_recursive!(copy(G2), chunk, marg)
     end
@@ -37,19 +37,19 @@ function _local_bound_correlation(G::Array{T,N}; marg::Bool = true) where {T<:Re
     return score
 end
 
-_scratch_type(::Array{T,N}) where {T,N} = N == 2 ? Vector{Vector{T}} : Vector{Array{T}}
+_scratch_type(::FArray{T,N}) where {T,N} = N == 2 ? Vector{FVector{T}} : Vector{FArray{T}}
 
 function _local_bound_correlation_recursive!(
-    A::Array{T,N},
+    A::FArray{T,N},
     chunk,
     marg = true,
     m = size(A),
-    tmp = [zeros(T, m[1:i]) for i ∈ 1:N-1]::_scratch_type(A),
-    offset = [zeros(T, m[1:i]) for i ∈ 1:N-1]::_scratch_type(A),
-    ind = [zeros(Int8, m[i] - marg) for i ∈ 2:N]
+    tmp = [fzeros(T, m[1:i]) for i ∈ 1:N-1]::_scratch_type(A),
+    offset = [fzeros(T, m[1:i]) for i ∈ 1:N-1]::_scratch_type(A),
+    ind = [fzeros(Int8, m[i] - marg) for i ∈ 2:N]
 ) where {T<:Real,N}
-    tmp_end = tmp[N-1]::Array{T,N - 1}
-    offset_end = offset[N-1]::Array{T,N - 1}
+    tmp_end = tmp[N-1]::FArray{T,N - 1}
+    offset_end = offset[N-1]::FArray{T,N - 1}
     sum!(offset_end, A)
     A .*= 2
     marg && (offset_end .-= selectdim(A, N, 1)) # note this is twice the original A
@@ -76,7 +76,7 @@ function _local_bound_correlation_recursive!(
     return score
 end
 
-function _local_bound_correlation_recursive!(A::Vector, chunk, marg, m, tmp, offset, ind)
+function _local_bound_correlation_recursive!(A::FVector, chunk, marg, m, tmp, offset, ind)
     score = marg ? A[1] : abs(A[1])
     for x ∈ 2:m[1]
         score += abs(A[x])

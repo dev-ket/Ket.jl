@@ -14,6 +14,35 @@ import JuMP
 import Nemo
 import QuantumNPA
 import SparseArrays as SA
+import FixedSizeArrays
+
+const FArray = FixedSizeArrays.FixedSizeArrayDefault
+const FVector = FixedSizeArrays.FixedSizeVectorDefault
+const FMatrix = FixedSizeArrays.FixedSizeMatrixDefault
+
+for (fname, felt) in ((:fzeros, :zero), (:fones, :one))
+    @eval begin
+        $fname(dims::Base.DimOrInd...) = $fname(dims)
+        $fname(::Type{T}, dims::Base.DimOrInd...) where {T} = $fname(T, dims)
+        $fname(dims::Tuple{Vararg{Base.DimOrInd}}) = $fname(Float64, dims)
+        $fname(::Type{T}, dims::NTuple{N, Union{Integer, Base.OneTo}}) where {T,N} = $fname(T, map(to_dim, dims))
+        function $fname(::Type{T}, dims::NTuple{N, Integer}) where {T,N}
+            a = FArray{T,N}(undef, dims)
+            fill!(a, $felt(T))
+            return a
+        end
+        function $fname(::Type{T}, dims::Tuple{}) where {T}
+            a = FArray{T}(undef)
+            fill!(a, $felt(T))
+            return a
+        end
+        function $fname(::Type{T}, dims::NTuple{N, Base.DimOrInd}) where {T,N}
+            a = similar(FArray{T,N}, dims)
+            fill!(a, $felt(T))
+            return a
+        end
+    end
+end
 
 const MOI = JuMP.MOI
 
