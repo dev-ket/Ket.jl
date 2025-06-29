@@ -9,7 +9,7 @@ import Base.AbstractVecOrTuple
 import Combinatorics
 import Dualization
 import GenericLinearAlgebra
-import Hypatia, Hypatia.Cones
+import Hypatia
 import JuMP
 import Nemo
 import QuantumNPA

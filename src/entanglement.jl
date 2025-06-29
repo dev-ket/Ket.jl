@@ -63,9 +63,9 @@ function entanglement_entropy(
     _dps_constraints!(model, σ, dims, n; is_complex)
     JuMP.@constraint(model, tr(σ) == 1)
 
-    vec_dim = Cones.svec_length(Ts, d)
-    ρvec = _svec(ρ, Ts)
-    σvec = _svec(σ, Ts)
+    vec_dim = Hypatia.Cones.svec_length(Ts, d)
+    ρvec = _svec(ρ)
+    σvec = _svec(σ)
 
     JuMP.@variable(model, h)
     JuMP.@objective(model, Min, h / log(Rs(2)))
@@ -78,20 +78,20 @@ function entanglement_entropy(
 end
 
 """
-    _svec(M::AbstractMatrix, ::Type{T})
+    _svec(M::AbstractMatrix)
 
-Produces the scaled vectorized version of a Hermitian matrix `M` with coefficient type `T`.
-The transformation preserves inner products, i.e., ⟨M,N⟩ = ⟨svec(M,T),svec(N,T)⟩.
+Produces the scaled vectorized version of a Hermitian matrix `M`. The transformation preserves inner products, i.e., ⟨M,N⟩ = ⟨svec(M),svec(N)⟩.
 """
-function _svec(M::AbstractMatrix, ::Type{T}) where {T} #the weird stuff here is to make it work with JuMP variables
+function _svec(M::AbstractMatrix{T}) where {T} #the weird stuff here is to make it work with JuMP variables
     d = size(M, 1)
-    R = real(T)
-    vec_dim = Cones.svec_length(T, d)
-    v = Vector{real(eltype(1 * M))}(undef, vec_dim)
-    if T <: Real
-        Cones.smat_to_svec!(v, 1 * M, sqrt(R(2)))
+    numericalT = JuMP.value_type(T)
+    vec_dim = Hypatia.Cones.svec_length(numericalT, d)
+    v = Vector{real(T)}(undef, vec_dim)
+    root2 = sqrt(real(numericalT(2)))
+    if numericalT <: Real
+        Hypatia.Cones.smat_to_svec!(v, 1 * M, root2)
     else
-        Cones._smat_to_svec_complex!(v, M, sqrt(R(2)))
+        Hypatia.Cones._smat_to_svec_complex!(v, M, root2)
     end
     return v
 end
