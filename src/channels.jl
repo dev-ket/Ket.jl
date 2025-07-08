@@ -13,25 +13,30 @@ end
 """
     applymap(K::Vector{<:AbstractMatrix}, M::AbstractMatrix)
 
-Applies the CP map given by the Kraus operators `K` to the matrix `M`.
+Applies the CP map given by the Kraus operators `K` to the matrix `M`. Preserves sparsity.
 """
 function applymap(K::Vector{<:AbstractMatrix{T}}, M::AbstractMatrix{S}) where {T,S}
     dout, din = size(K[1])
     TS = Base.promote_op(*, T, S)
-    temp = Matrix{TS}(undef, dout, din)
-    result = Matrix{TS}(undef, dout, dout)
+    if all(SA.issparse.(K)) && SA.issparse(M)
+        temp = SA.spzeros(TS, dout, din)
+        result = SA.spzeros(TS, dout, dout)
+    else
+        temp = Matrix{TS}(undef, dout, din)
+        result = Matrix{TS}(undef, dout, dout)
+    end
     applymap!(result, K, M, temp)
     return _wrapper_applymap(M, T)(result)
 end
 export applymap
 
 """
-    applymap!(result::Matrix, K::Vector{<:AbstractMatrix}, M::AbstractMatrix, temp::Matrix)
+    applymap!(result::AbstractMatrix, K::Vector{<:AbstractMatrix}, M::AbstractMatrix, temp::AbstractMatrix)
 
 Applies the CP map given by the Kraus operators `K` to the matrix `M` without allocating or wrapping. `result` and `temp` must be
 matrices of size `dout × dout` and `dout × din`, where `dout, din == size(K[1])`.
 """
-function applymap!(result::Matrix, K::Vector{<:AbstractMatrix}, M::AbstractMatrix, temp::Matrix)
+function applymap!(result::AbstractMatrix, K::Vector{<:AbstractMatrix}, M::AbstractMatrix, temp::AbstractMatrix)
     mul!(temp, K[1], M)
     mul!(result, temp, K[1]')
     for i ∈ 2:length(K)
@@ -45,7 +50,7 @@ export applymap!
 """
     applymap(Φ::AbstractMatrix, M::AbstractMatrix)
 
-Applies the CP map given by the Choi-Jamiołkowski operator `Φ` to the matrix `M`.
+Applies the CP map given by the Choi-Jamiołkowski operator `Φ` to the matrix `M`. Preserves sparsity.
 """
 function applymap(Φ::AbstractMatrix{T}, M::AbstractMatrix{S}) where {T,S}
     din = size(M, 1)
@@ -53,20 +58,24 @@ function applymap(Φ::AbstractMatrix{T}, M::AbstractMatrix{S}) where {T,S}
     dout = dtotal ÷ din
     @assert dtotal == din * dout
     TS = Base.promote_op(*, T, S)
-    result = Matrix{TS}(undef, dout, dout)
+    if SA.issparse(Φ) && SA.issparse(M)
+        result = SA.spzeros(TS, dout, dout)
+    else
+        result = Matrix{TS}(undef, dout, dout)
+    end
     applymap!(result, Φ, M)
     return _wrapper_applymap(M, T)(result)
 end
 
 @doc """
-     applymap!(result::Matrix, Φ::AbstractMatrix, M::AbstractMatrix)
+     applymap!(result::AbstractMatrix, Φ::AbstractMatrix, M::AbstractMatrix)
 
 Applies the CP map given by the Choi-Jamiołkowski operator `Φ` to the matrix `M` without allocating or wrapping. In the symmetric or Hermitian cases only the upper triangular is computed. `result` must be a matrix of size `dout × dout`,  where `size(M, 1) * dout == size(Φ, 1)`.
-""" applymap!(result::Matrix, Φ::AbstractMatrix, M::AbstractMatrix)
+""" applymap!(result::AbstractMatrix, Φ::AbstractMatrix, M::AbstractMatrix)
 
 for (matrixtype, limit) ∈ ((:AbstractMatrix, :dout), (:Symmetric, :j), (:Hermitian, :j))
     @eval begin
-        function applymap!(result::Matrix, Φ::AbstractMatrix, M::$matrixtype)
+        function applymap!(result::AbstractMatrix, Φ::AbstractMatrix, M::$matrixtype)
             din = size(M, 1)
             dtotal = size(Φ, 1)
             dout = dtotal ÷ din
@@ -183,10 +192,29 @@ export channel_phase_damping
 """
     choi(K::Vector{<:AbstractMatrix})
 
-Constructs the Choi-Jamiołkowski representation of the CP map given by the Kraus operators `K`.
-The convention used is that choi(K) = ∑ᵢⱼ |i⟩⟨j|⊗K|i⟩⟨j|K'
+Constructs the Choi-Jamiołkowski representation of the CP map given by the Kraus operators `K`. Preserves sparsity.
+The convention used is that choi(K) = ∑ᵢⱼ |i⟩⟨j|⊗K|i⟩⟨j|K'.
 """
-choi(K::Vector{<:AbstractMatrix}) = sum(ketbra(vec(Ki)) for Ki ∈ K)
+function choi(K::Vector{<:AbstractMatrix})
+    if all(SA.issparse.(K))
+        vecK = SA.SparseVector.(vec.(K))
+        result = vecK[1] * vecK[1]'
+        for i ∈ 2:length(vecK)
+            result .+= vecK[i] * vecK[i]'
+        end
+    else
+        d = length(K[1])
+        result = vec(K[1]) * vec(K[1])'
+        @inbounds for k ∈ 2:length(K)
+            for j ∈ 1:d
+                for i ∈ 1:j
+                    result[i, j] += K[k][i] * conj(K[k][j])
+                end
+            end
+        end
+    end
+    return Hermitian(result)
+end
 export choi
 
 """
