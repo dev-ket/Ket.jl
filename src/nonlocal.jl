@@ -589,12 +589,11 @@ function nonlocality_robustness(
     scenario = size(FP)
     temp_outs::NTuple{N,Int} = scenario[1:N]
     temp_ins::NTuple{N,Int} = scenario[N+1:2N]
-    num_strategies::NTuple{N,Int} = temp_outs .^ temp_ins
+    num_strategies::NTuple{N,BigInt} = BigInt.(temp_outs) .^ temp_ins
 
     normalization = sum(FP[1:prod(temp_outs)])
 
-    exploding_party = findfirst(x -> x == 0, num_strategies)
-    largest_party = exploding_party == nothing ? argmax(num_strategies) : exploding_party
+    largest_party = argmax(num_strategies)
     if largest_party != 1
         perm = [largest_party; 2:largest_party-1; 1; largest_party+1:N]
         temp_outs = temp_outs[perm]
@@ -603,7 +602,7 @@ function nonlocality_robustness(
         FP = permutedims(FP, [perm; perm .+ N])
     end
     outs, ins = temp_outs, temp_ins #workaround for https://github.com/JuliaLang/julia/issues/15276
-    total_num_strategies = prod(num_strategies[2:N])
+    total_num_strategies = Int(prod(num_strategies[2:N]))
 
     stT = _solver_type(T)
     model = JuMP.GenericModel{stT}()
