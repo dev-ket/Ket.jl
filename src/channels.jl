@@ -200,7 +200,7 @@ function choi(K::Vector{<:AbstractMatrix})
         vecK = SA.SparseVector.(vec.(K))
         result = vecK[1] * vecK[1]'
         for i ∈ 2:length(vecK)
-            result .+= vecK[i] * vecK[i]'
+            mul!(result, vecK[i], vecK[i]', true, true)
         end
     else
         d = length(K[1])

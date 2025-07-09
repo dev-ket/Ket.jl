@@ -50,6 +50,7 @@
     sK = [sprandn(ComplexF64, 3, 2, 0.5) for _ ∈ 1:2]
     sΦ = choi(sK)
     sρ = Hermitian(sprandn(ComplexF64, 2, 2, 0.5))
+    @test applymap(sK, sρ) ≈ applymap(sΦ, sρ)
     @test issparse(applymap(sK, sρ))
     @test issparse(applymap(sΦ, sρ))
 end
