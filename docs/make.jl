@@ -60,6 +60,6 @@ makedocs(;
     checkdocs = :exports
 )
 
-deploydocs(; repo = "github.com/dev-ket/Ket.jl", devbranch = "master", push_preview = true; forcepush = true)
+deploydocs(; repo = "github.com/dev-ket/Ket.jl", devbranch = "master", push_preview = true, forcepush = true)
 
 # makedocs(; sitename = "Ket", format = Documenter.HTML(; prettyurls = get(ENV, "CI", nothing) == "true"))
