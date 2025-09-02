@@ -294,8 +294,12 @@
         for wrapper ∈ (Symmetric, Hermitian)
             M = wrapper(randn(ComplexF64, (d1 * d2 * d3, d1 * d2 * d3)))
             x = Matrix(M)
-            @test partial_transpose(M, 2, [d1, d2, d3]) ≈ partial_transpose(x, 2, [d1, d2, d3])
-            @test partial_transpose(M, [1, 3], [d1, d2, d3]) ≈ partial_transpose(x, [1, 3], [d1, d2, d3])
+            ptM = partial_transpose(M, 2, [d1, d2, d3])
+            @test isa(ptM, wrapper)
+            @test ptM ≈ partial_transpose(x, 2, [d1, d2, d3])
+            ptM = partial_transpose(M, [1, 3], [d1, d2, d3])
+            @test isa(ptM, wrapper)
+            @test ptM ≈ partial_transpose(x, [1, 3], [d1, d2, d3])
         end
     end
 

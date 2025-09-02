@@ -169,7 +169,7 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
 
             keep_size = prod(dims_keep)
             transp_size = prod(dims_transp)
-            prod(dims_keep) > prod(dims_transp) && return partial_transpose(transpose(X), keep, dims)
+            keep_size > transp_size && return $wrapper(partial_transpose(transpose(X), keep, dims))
 
             X_size = size(X, 1)
             Y = similar(X, X_size, X_size)                 # hack to unwrap multiple layers
