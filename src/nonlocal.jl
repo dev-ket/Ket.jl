@@ -238,29 +238,27 @@ function _digits(ind; base)
 end
 
 function _update_odometer!(ind::AbstractVector{<:Integer}, base::AbstractVector{<:Integer})
-    ind[1] += 1
     d = length(ind)
-
+    ind[1] += 1
     @inbounds for i ∈ 1:d
         if ind[i] ≥ base[i]
             ind[i] = 0
-            i < d ? ind[i+1] += 1 : return
+            i < d ? ind[i+1] += 1 : return ind
         else
-            return
+            return ind
         end
     end
 end
 
 function _update_odometer!(ind::AbstractVector{<:Integer}, base::Integer)
-    ind[1] += 1
     d = length(ind)
-
+    ind[1] += 1
     @inbounds for i ∈ 1:d
         if ind[i] ≥ base
             ind[i] = 0
-            i < d ? ind[i+1] += 1 : return
+            i < d ? ind[i+1] += 1 : return ind
         else
-            return
+            return ind
         end
     end
 end
@@ -674,7 +672,7 @@ function nonlocality_robustness(
     JuMP.set_optimizer(model, solver)
     !verbose && JuMP.set_silent(model)
     JuMP.optimize!(model)
-    JuMP.is_solved_and_feasible(model) || error(JuMP.raw_status(model))
+    JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     return JuMP.objective_value(model)
 end
 export nonlocality_robustness
