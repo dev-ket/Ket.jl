@@ -175,7 +175,7 @@ Constructs the set `i`,`j`th Gell-Mann matrix of dimension `d`.
 Reference: [Generalizations of Pauli matrices](https://en.wikipedia.org/wiki/Generalizations_of_Pauli_matrices)
 """
 function gellmann(::Type{T}, i::Integer, j::Integer, d::Integer = 3) where {T<:Number}
-    return gellmann!(zeros(T, d, d), i, j, d)
+    return gellmann!(Hermitian(zeros(T, d, d)), i, j, d)
 end
 gellmann(i::Integer, j::Integer, d::Integer = 3) = gellmann(ComplexF64, i, j, d)
 
@@ -186,11 +186,11 @@ In-place version of `gellmann`.
 """
 function gellmann!(res::AbstractMatrix{T}, i::Integer, j::Integer, d::Integer = 3) where {T<:Number}
     if i < j
-        res[i, j] = 1
-        res[j, i] = 1
+        parent(res)[i, j] = 1
+        parent(res)[j, i] = 1
     elseif i > j
-        res[i, j] = im
-        res[j, i] = -im
+        parent(res)[i, j] = im
+        parent(res)[j, i] = -im
     elseif i == 1
         for k ∈ 1:d
             res[k, k] = 1 # _sqrt(T, 2) / _sqrt(T, d) if we want a proper normalisation
