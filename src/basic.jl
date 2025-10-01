@@ -184,7 +184,7 @@ gellmann(i::Integer, j::Integer, d::Integer = 3) = gellmann(ComplexF64, i, j, d)
 
 In-place version of `gellmann`.
 """
-function gellmann!(res::AbstractMatrix{T}, i::Integer, j::Integer, d::Integer = 3) where {T<:Number}
+function gellmann!(res::Hermitian{T}, i::Integer, j::Integer, d::Integer = 3) where {T<:Number}
     if i < j
         parent(res)[i, j] = 1
     elseif i > j
@@ -200,7 +200,7 @@ function gellmann!(res::AbstractMatrix{T}, i::Integer, j::Integer, d::Integer = 
         end
         res[d, d] = -(d - 1) * tmp
     else
-        gellmann!(view(res, 1:d-1, 1:d-1), i, j, d - 1)
+        gellmann!(res, i, j, d - 1)
     end
     return res
 end
