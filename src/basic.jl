@@ -187,9 +187,7 @@ In-place version of `gellmann`.
 function gellmann!(res::AbstractMatrix{T}, i::Integer, j::Integer, d::Integer = 3) where {T<:Number}
     if i < j
         parent(res)[i, j] = 1
-        parent(res)[j, i] = 1
     elseif i > j
-        parent(res)[i, j] = im
         parent(res)[j, i] = -im
     elseif i == 1
         for k ∈ 1:d
