@@ -8,7 +8,7 @@ Reference: Buhrman and Massar, [arXiv:quant-ph/0409066](https://arxiv.org/abs/qu
 function chsh(::Type{T}, d::Integer = 2) where {T}
     G = zeros(T, d, d, d, d)
 
-    normalization = T <: Integer ? 1 : inv(T(d^2))
+    normalization = T <: Integer ? T(1) : inv(T(d^2))
 
     for a ∈ 0:d-1, b ∈ 0:d-1, x ∈ 0:d-1, y ∈ 0:d-1
         if mod(a + b + x * y, d) == 0
@@ -32,7 +32,7 @@ Cleve et al., [arXiv:quant-ph/0404076](https://arxiv.org/abs/quant-ph/0404076)
 function braunsteincaves(::Type{T}, s::Integer = 3) where {T}
     G = zeros(T, 2, 2, s, s)
 
-    normalization = T <: Integer ? 1 : inv(T(2s))
+    normalization = T <: Integer ? T(1) : inv(T(2s))
 
     for y ∈ 0:s-1, x ∈ 0:s-1
         if x == y || (x - y - 1) % s == 0
@@ -61,7 +61,7 @@ References:
 function cglmp(::Type{T}, d::Integer = 3) where {T}
     G = zeros(T, d, d, 2, 2)
 
-    normalization = T <: Integer ? 1 : inv(T(4 * (d - 1)))
+    normalization = T <: Integer ? T(1) : inv(T(4 * (d - 1)))
 
     for a ∈ 0:d-1, b ∈ 0:d-1, x ∈ 0:1, y ∈ 0:1, k ∈ 0:d-2
         if mod(a - b, d) == mod((-1)^mod(x + y, 2) * k + x * y, d)
@@ -110,7 +110,7 @@ Reference: Almeida et al., [arXiv:1003.3844](https://arxiv.org/abs/1003.3844)
 function gyni(::Type{T}, n::Integer = 3) where {T}
     G = zeros(T, ntuple(_ -> 2, 2 * n))
 
-    normalization = T <: Integer ? 1 : inv(T(2^(n - 1)))
+    normalization = T <: Integer ? T(1) : inv(T(2^(n - 1)))
 
     nmax = n % 2 == 1 ? n : n - 1
     for x ∈ CartesianIndices(ntuple(_ -> 2, n))
@@ -124,3 +124,28 @@ function gyni(::Type{T}, n::Integer = 3) where {T}
 end
 gyni(n::Integer = 3) = gyni(Float64, n)
 export gyni
+
+"""
+    mermin([T=Float64,] n::Integer)
+
+GHZ-Mermin game in probability notation. Local bound 1/2 + 2^-ceil(`n`/2).
+If `T` is an integer type the game is unnormalized.
+
+Reference: Brassard et al., [arXiv:quant-ph/0408052](https://arxiv.org/abs/quant-ph/0408052)
+"""
+function mermin(::Type{T}, n::Integer = 3) where {T}
+    G = zeros(T, ntuple(_ -> 2, 2 * n))
+    normalization = T <: Integer ? T(1) : inv(T(2^(n-1)))
+    for x ∈ CartesianIndices(ntuple(_ -> 2, n))
+        if sum(x.I .- 1) % 2 == 0
+            for a ∈ CartesianIndices(ntuple(_ -> 2, n))
+                if sum(a.I .- 1) % 2 == div(sum(x.I .- 1), 2) % 2
+                    G[a, x] = normalization
+                end
+            end
+        end
+    end
+    return G
+end
+mermin(n::Integer = 3) = mermin(Float64, n)
+export mermin
