@@ -101,6 +101,7 @@ cglmp
 braunsteincaves
 inn22
 gyni
+mermin
 local_bound
 tsirelson_bound
 seesaw
