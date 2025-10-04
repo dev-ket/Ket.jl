@@ -20,7 +20,7 @@ function _local_bound_correlation(G::Array{T,N}; marg::Bool = true) where {T<:Re
     outs = fill(2, N)
     ins = size(G)
 
-    num_strategies = outs .^ (ins .- 1)
+    num_strategies = Base.checked_pow.(outs, ins .- 1)
     largest_party = argmax(num_strategies)
     if largest_party != 1
         perm = [largest_party; 2:largest_party-1; 1; largest_party+1:N]
@@ -28,7 +28,8 @@ function _local_bound_correlation(G::Array{T,N}; marg::Bool = true) where {T<:Re
         G = permutedims(G, perm)
     end
 
-    chunks = _partition(outs[N]^(ins[N] - marg), Threads.nthreads())
+    total_num_strategies = Base.checked_pow(outs[N], ins[N] - marg)
+    chunks = _partition(total_num_strategies, Threads.nthreads())
     G2 = G #workaround for https://github.com/JuliaLang/julia/issues/15276
     tasks = map(chunks) do chunk
         Threads.@spawn _local_bound_correlation_recursive!(copy(G2), chunk, marg)
@@ -101,7 +102,7 @@ function _local_bound_probability(G::Array{T,N2}) where {T<:Real,N2}
     outs = scenario[1:N]
     ins = scenario[N+1:2N]
 
-    num_strategies = outs .^ ins
+    num_strategies = Base.checked_pow.(outs, ins)
     largest_party = argmax(num_strategies)
     if largest_party != 1
         perm = [largest_party; 2:largest_party-1; 1; largest_party+1:N]
@@ -111,8 +112,9 @@ function _local_bound_probability(G::Array{T,N2}) where {T<:Real,N2}
     end
     permutedG = permutedims(G, [1; N + 1; 2:N; N+2:2N])
     squareG = reshape(permutedG, outs[1] * ins[1], prod(outs[2:N]) * prod(ins[2:N]))
-
-    chunks = _partition(prod((outs .^ ins)[2:N]), Threads.nthreads())
+    new_num_strategies = Base.checked_pow.(outs[2:N], ins[2:N])
+    total_num_strategies = reduce(Base.checked_mul, new_num_strategies)
+    chunks = _partition(total_num_strategies, Threads.nthreads())
     outs2 = outs
     ins2 = ins #workaround for https://github.com/JuliaLang/julia/issues/15276
     tasks = map(chunks) do chunk

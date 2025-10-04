@@ -18,6 +18,8 @@ end
     @test local_bound(braunsteincaves(Int)) == 5
     @test local_bound(mermin(Int, 3)) == 3
     @test local_bound(mermin(Int, 4)) == 6
+    @test_throws OverflowError local_bound(chsh(Int, 16))
+    @test_throws OverflowError local_bound(inn22(Int, 63))
     @test local_bound([1 2; 2 -2]; marg = false) == 5
     Random.seed!(0)
     fp1 = rand(0:1, 2, 2, 2, 2, 2, 2, 2, 2)
