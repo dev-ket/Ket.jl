@@ -17,24 +17,23 @@ end
 export local_bound
 
 function _local_bound_correlation(G::Array{T,N}; marg::Bool = true) where {T<:Real,N}
-    outs = fill(2, N)
-    ins = size(G)
+    ins = size(G) .- marg
 
-    num_strategies = Base.checked_pow.(outs, ins .- 1)
+    num_strategies = 2 .^ BigInt.(ins)
     largest_party = argmax(num_strategies)
     if largest_party != 1
         perm = [largest_party; 2:largest_party-1; 1; largest_party+1:N]
-        ins::NTuple{N,Int} = ins[perm]
+        ins = ins[perm]::NTuple{N,Int}
         G = permutedims(G, perm)
     end
-
-    total_num_strategies = Base.checked_pow(outs[N], ins[N] - marg)
-    chunks = _partition(total_num_strategies, Threads.nthreads())
+    new_num_strategies = Base.checked_pow.(Ref(2), ins[2:N])
+    chunks = _partition(new_num_strategies[end], Threads.nthreads())
     G2 = G #workaround for https://github.com/JuliaLang/julia/issues/15276
     tasks = map(chunks) do chunk
         Threads.@spawn _local_bound_correlation_recursive!(copy(G2), chunk, marg)
     end
-    score::T = maximum(fetch.(tasks))
+    scores = fetch.(tasks)::Vector{T}
+    score = maximum(scores)
     return score
 end
 
@@ -102,12 +101,12 @@ function _local_bound_probability(G::Array{T,N2}) where {T<:Real,N2}
     outs = scenario[1:N]
     ins = scenario[N+1:2N]
 
-    num_strategies = Base.checked_pow.(outs, ins)
+    num_strategies = outs .^ BigInt.(ins)
     largest_party = argmax(num_strategies)
     if largest_party != 1
         perm = [largest_party; 2:largest_party-1; 1; largest_party+1:N]
-        outs::NTuple{N,Int} = outs[perm]
-        ins::NTuple{N,Int} = ins[perm]
+        outs = outs[perm]::NTuple{N,Int}
+        ins = ins[perm]::NTuple{N,Int}
         G = permutedims(G, [perm; perm .+ N])
     end
     permutedG = permutedims(G, [1; N + 1; 2:N; N+2:2N])
@@ -120,7 +119,8 @@ function _local_bound_probability(G::Array{T,N2}) where {T<:Real,N2}
     tasks = map(chunks) do chunk
         Threads.@spawn _local_bound_probability_core(chunk, outs2, ins2, squareG)
     end
-    score::T = maximum(fetch.(tasks))
+    scores = fetch.(tasks)::Vector{T}
+    score = maximum(scores)
     return score
 end
 
@@ -587,22 +587,22 @@ function nonlocality_robustness(
     @assert iseven(N2)
     N = N2 ÷ 2
     scenario = size(FP)
-    temp_outs::NTuple{N,Int} = scenario[1:N]
-    temp_ins::NTuple{N,Int} = scenario[N+1:2N]
-    num_strategies::NTuple{N,BigInt} = BigInt.(temp_outs) .^ temp_ins
+    temp_outs = scenario[1:N]
+    temp_ins = scenario[N+1:2N]
+    num_strategies = BigInt.(temp_outs) .^ temp_ins
 
     normalization = sum(FP[1:prod(temp_outs)])
 
     largest_party = argmax(num_strategies)
     if largest_party != 1
         perm = [largest_party; 2:largest_party-1; 1; largest_party+1:N]
-        temp_outs = temp_outs[perm]
-        temp_ins = temp_ins[perm]
-        num_strategies = num_strategies[perm]
+        temp_outs = temp_outs[perm]::NTuple{N,Int}
+        temp_ins = temp_ins[perm]::NTuple{N,Int}
         FP = permutedims(FP, [perm; perm .+ N])
     end
     outs, ins = temp_outs, temp_ins #workaround for https://github.com/JuliaLang/julia/issues/15276
-    total_num_strategies = Int(prod(num_strategies[2:N]))
+    new_num_strategies = Base.checked_pow.(outs[2:N], ins[2:N])
+    total_num_strategies = reduce(Base.checked_mul, new_num_strategies)
 
     stT = _solver_type(T)
     model = JuMP.GenericModel{stT}()
@@ -675,6 +675,6 @@ function nonlocality_robustness(
     !verbose && JuMP.set_silent(model)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
-    return JuMP.objective_value(model)
+    return JuMP.objective_value(model)::T
 end
 export nonlocality_robustness
