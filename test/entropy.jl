@@ -21,10 +21,10 @@
             q = rand(R)
             @test entropy([q, 1 - q]) ≈ binary_entropy(q)
             @test entropy([q, 1 - q], α) ≈ binary_entropy(q, α)
-            @test binary_entropy(q) ≈ binary_entropy(q, base = ℯ) / log(R(2))
+            @test binary_entropy(q) ≈ binary_entropy(q; base = ℯ) / log(R(2))
             @test binary_entropy(q, α) ≈ binary_entropy(q, α; base = ℯ) / log(R(2))
             @test binary_entropy(R(0.5)) == R(1)
-            @test binary_entropy(R(0.75), α) ≈ (log2(3^α + 1) - 2α)/(1-α)
+            @test binary_entropy(R(0.75), α) ≈ (log2(3^α + 1) - 2α) / (1 - α)
         end
     end
 
@@ -54,13 +54,22 @@
 
     @testset "Conditional" begin
         @test conditional_entropy(Diagonal(ones(2) / 2)) == 0.0
+        @test conditional_entropy(Diagonal(ones(2) / 2), 0.9) == 0.0
         @test conditional_entropy(ones(2, 2) / 4) == 1.0
-        for R ∈ [Float64, BigFloat]
+        @test conditional_entropy(ones(2, 2) / 4, 0.9) ≈ 1.0
+        for R ∈ (Float64, Double64)
+            α = R(0.8)
+            p = random_probability(R, 2)
+            pAB = [zeros(2) p]
+            @test conditional_entropy(pAB) ≈ entropy(p)
+            @test conditional_entropy(pAB, α) ≈ entropy(p, α)
             pAB = ones(R, 3, 2) / 6
             @test isa(conditional_entropy(pAB), R)
-            @test conditional_entropy(pAB) ≈ log2(R(6)) - 1
+            @test conditional_entropy(pAB) ≈ log2(R(3))
+            @test conditional_entropy(pAB, α) ≈ log2(R(3))
             pAB = reshape(random_probability(R, 6), 2, 3)
             @test conditional_entropy(pAB) ≈ conditional_entropy(pAB; base = ℯ) / log(R(2))
+            @test conditional_entropy(pAB, α) ≈ conditional_entropy(pAB, α; base = ℯ) / log(R(2))
             rhoAB = Diagonal(vec(pAB'))
             @test conditional_entropy(pAB) ≈ conditional_entropy(rhoAB, 2, [2, 3])
             @test conditional_entropy(state_phiplus(), 2, [2, 2]) == -1

@@ -184,21 +184,38 @@ end
 export binary_entropy
 
 """
-    conditional_entropy(pAB::AbstractMatrix; base = 2)
+    conditional_entropy(pAB::AbstractMatrix{T}, α::T = 1; base = 2)
 
-Computes the conditional Shannon entropy H(A|B) of the joint probability distribution `pAB` using a base `base` logarithm.
+Computes the conditional Shannon entropy ∑ᵢⱼ`pAB`[i,j] * log(`pAB`[i|j]) of the joint probability distribution `pAB` using a base `base` logarithm.
 
-Reference: [Conditional entropy](https://en.wikipedia.org/wiki/Conditional_entropy)
+If `α != 1` is given, computes the conditional Rényi entropy log(∑ⱼ`pAB`[j] * (∑ᵢ`pAB`[i|j]^α)^(1/α)) * α / (1 - α).
+
+References: [Conditional entropy](https://en.wikipedia.org/wiki/Conditional_entropy)
+Müller-Lennert et al. [arXiv:1306.3142](https://arxiv.org/abs/1306.3142)
 """
-function conditional_entropy(pAB::AbstractMatrix{T}; base = 2) where {T<:Real}
+function conditional_entropy(pAB::AbstractMatrix{T}, α::T = T(1); base = 2) where {T<:Real}
     nA, nB = size(pAB)
     if any(pAB .< 0)
         throw(DomainError("pAB must be non-negative"))
     end
-    h = T(0)
     pB = sum(pAB; dims = 1)
-    for a ∈ 1:nA, b ∈ 1:nB
-        h -= pAB[a, b] * _log(base, pAB[a, b] / pB[b])
+    if α == 1
+        h = zero(α)
+        for b ∈ 1:nB
+            if pB[b] > 0
+                for a ∈ 1:nA
+                    h -= pAB[a, b] * _log(base, pAB[a, b] / pB[b])
+                end
+            end
+        end
+    else
+        ψ = zero(α)
+        for b ∈ 1:nB
+            if pB[b] > 0
+                ψ += pB[b] * sum((pAB[a, b] / pB[b])^α for a ∈ 1:nA)^inv(α)
+            end
+        end
+        h = log(base, ψ) * α / (1 - α)
     end
     return h
 end
