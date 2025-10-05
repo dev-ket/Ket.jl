@@ -193,8 +193,8 @@ function test_povm(E::Vector{<:AbstractMatrix{T}}) where {T<:Number}
     !all(ishermitian.(E)) && return false
     d = size(E[1], 1)
     !(sum(E) ≈ I(d)) && return false
-    for i ∈ 1:length(E)
-        !isposdef(E[i] + _rtol(T)*I) && return false
+    for Ei ∈ E
+        !_ispossemidef(Ei) && return false
     end
     return true
 end

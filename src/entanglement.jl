@@ -23,21 +23,21 @@ end
 export schmidt_decomposition
 
 """
-    entanglement_entropy(ψ::AbstractVector, dims::AbstractVecOrTuple = _equal_sizes(ψ))
+    entanglement_entropy(ψ::AbstractVector, dims::AbstractVecOrTuple = _equal_sizes(ψ); base = 2)
 
 Computes the relative entropy of entanglement of a bipartite pure state `ψ` with subsystem dimensions `dims`.
 If the argument `dims` is omitted equally-sized subsystems are assumed.
 """
-function entanglement_entropy(ψ::AbstractVector, dims::AbstractVecOrTuple = _equal_sizes(ψ))
+function entanglement_entropy(ψ::AbstractVector, dims::AbstractVecOrTuple = _equal_sizes(ψ); base = 2)
     length(dims) != 2 && throw(ArgumentError("Two subsystem sizes must be specified."))
     max_sys = argmax(dims)
     ρ = partial_trace(ketbra(ψ), max_sys, dims)
-    return entropy(ρ)
+    return entropy(ρ; base)
 end
 export entanglement_entropy
 
 """
-    entanglement_entropy(ρ::AbstractMatrix, dims::AbstractVecOrTuple = _equal_sizes(ρ), n::Integer = 1; verbose = false)
+    entanglement_entropy(ρ::AbstractMatrix, dims::AbstractVecOrTuple = _equal_sizes(ρ), n::Integer = 1; verbose = false, base = 2)
 
 Lower bounds the relative entropy of entanglement of a bipartite state `ρ` with subsystem dimensions `dims` using level `n` of the DPS hierarchy.
 If the argument `dims` is omitted equally-sized subsystems are assumed.
@@ -46,7 +46,8 @@ function entanglement_entropy(
     ρ::AbstractMatrix{T},
     dims::AbstractVecOrTuple = _equal_sizes(ρ),
     n::Integer = 1;
-    verbose = false
+    verbose = false,
+    base = 2
 ) where {T}
     ishermitian(ρ) || throw(ArgumentError("State needs to be Hermitian"))
     length(dims) != 2 && throw(ArgumentError("Two subsystem sizes must be specified."))
@@ -68,7 +69,7 @@ function entanglement_entropy(
     σvec = _svec(σ)
 
     JuMP.@variable(model, h)
-    JuMP.@objective(model, Min, h / log(Rs(2)))
+    JuMP.@objective(model, Min, h / log(Rs(base)))
     JuMP.@constraint(model, [h; σvec; ρvec] ∈ Hypatia.EpiTrRelEntropyTriCone{Rs,Ts}(1 + 2 * vec_dim))
     JuMP.set_optimizer(model, Hypatia.Optimizer{Rs})
     !verbose && JuMP.set_silent(model)

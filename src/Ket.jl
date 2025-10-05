@@ -4,6 +4,7 @@ Toolbox for quantum information, nonlocality, and entanglement.
 module Ket
 
 using LinearAlgebra
+import LinearAlgebra.checksquare
 
 import Base.AbstractVecOrTuple
 import Combinatorics

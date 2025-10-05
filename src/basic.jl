@@ -247,8 +247,7 @@ function _orthonormal_range_svd!(
     return dec.U[:, 1:rank]
 end
 
-_orthonormal_range_svd(A::AbstractMatrix; tol::Union{Real,Nothing} = nothing) =
-    _orthonormal_range_svd!(copy(A); tol)
+_orthonormal_range_svd(A::AbstractMatrix; tol::Union{Real,Nothing} = nothing) = _orthonormal_range_svd!(copy(A); tol)
 
 function _orthonormal_range_qr(A::SA.AbstractSparseMatrix{T,M}; tol::Union{Real,Nothing} = nothing) where {T<:Number,M}
     dec = qr(A)
@@ -264,15 +263,12 @@ Orthonormal basis for the range of `A`. When `A` is sparse and `T` ∈ [`Float64
 otherwise uses an SVD and returns a dense matrix.
 Tolerance `tol` is used to compute the rank and is automatically set if not provided.
 """
-function orthonormal_range(
-    A::SA.AbstractMatrix{T};
-    tol::Union{Real,Nothing} = nothing
-) where {T<:Number}
-        if (T <: SA.CHOLMOD.VTypes) && SA.issparse(A)
-            return _orthonormal_range_qr(A; tol)
-        else
-            return _orthonormal_range_svd(Matrix(A); tol)
-        end
+function orthonormal_range(A::SA.AbstractMatrix{T}; tol::Union{Real,Nothing} = nothing) where {T<:Number}
+    if (T <: SA.CHOLMOD.VTypes) && SA.issparse(A)
+        return _orthonormal_range_qr(A; tol)
+    else
+        return _orthonormal_range_svd(Matrix(A); tol)
+    end
 end
 export orthonormal_range
 
@@ -332,7 +328,7 @@ function n_body_basis(
     n::Integer,
     n_parties::Integer;
     sb::AbstractVector{<:AbstractMatrix} = SA.sparse.([pauli(1), pauli(2), pauli(3)]),
-    eye::AbstractMatrix = SA.sparse(one(eltype(sb[1]))*I, size(sb[1]))
+    eye::AbstractMatrix = SA.sparse(one(eltype(sb[1])) * I, size(sb[1]))
 )
     (n ≥ 0 && n_parties ≥ 2) || throw(ArgumentError("Number of parties must be ≥ 2 and n ≥ 0."))
     n ≤ n_parties || throw(ArgumentError("Number of parties cannot be larger than n."))
@@ -347,3 +343,6 @@ function n_body_basis(
     return basis
 end
 export n_body_basis
+
+_ispossemidef(λ::AbstractVector{T}) where {T<:Real} = all(λ .> -_rtol(T))
+_ispossemidef(A::AbstractMatrix{T}) where {T<:Number} = isposdef(A + _rtol(T) * I)
