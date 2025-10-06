@@ -24,7 +24,6 @@ Ket is a registered Julia package, so it can be installed by typing the followin
 ```
 ]add Ket
 ```
-This will install the latest released version. For the development version with the latest updates, use `]add Ket#master` instead.
 
 ## Contributing
 
