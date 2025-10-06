@@ -221,27 +221,40 @@ function conditional_entropy(pAB::AbstractMatrix{T}, α::T = T(1); base = 2) whe
 end
 
 """
-    conditional_entropy(rho::AbstractMatrix, csys::AbstractVecOrTuple, dims::AbstractVecOrTuple; base = 2)
+    conditional_entropy(ρ::AbstractMatrix{T}, cond::Union{Integer,Vector{<:Integer}}, dims::AbstractVecOrTuple, α::real(T) = 1; base = 2)
 
-Computes the conditional von Neumann entropy of `rho` with subsystem dimensions `dims` and conditioning systems `csys`, using a base `base` logarithm.
+Computes the conditional von Neumann entropy of `ρ` with subsystem dimensions `dims` and conditioning systems `cond`, using a base `base` logarithm.
 
-Reference: [Conditional quantum entropy](https://en.wikipedia.org/wiki/Conditional_quantum_entropy)
+If `α != 1` is given, computes instead the following lower bound to the conditional Rényi entropy: -D`α`(`ρ`||I ⊗ `ρ`_`cond`). It is close to the true value when `α` is close to 1.
+
+References: [Conditional quantum entropy](https://en.wikipedia.org/wiki/Conditional_quantum_entropy)
+Müller-Lennert et al. [arXiv:1306.3142](https://arxiv.org/abs/1306.3142)
 """
-function conditional_entropy(ρ::AbstractMatrix, csys::AbstractVecOrTuple, dims::AbstractVecOrTuple; base = 2)
-    isempty(csys) && return entropy(ρ; base)
-    length(csys) == length(dims) && return zero(real(eltype(ρ)))
+function conditional_entropy(
+    ρ::AbstractMatrix{T},
+    cond::Union{Integer,Vector{<:Integer}},
+    dims::AbstractVecOrTuple,
+    α::R = R(1);
+    base = 2
+) where {R<:Real,T<:Union{R,Complex{R}}}
+    isa(cond, Integer) && (cond = [cond])
+    isempty(cond) && return entropy(ρ, α; base)
+    length(cond) == length(dims) && return zero(real(eltype(ρ)))
 
-    remove = Vector{eltype(csys)}(undef, length(dims) - length(csys))  # To condition on csys we trace out the rest
+    remove = Vector{eltype(cond)}(undef, length(dims) - length(cond))  # To condition on cond we trace out the rest
     counter = 0
     for i ∈ 1:length(dims)
-        if !(i ∈ csys)
+        if !(i ∈ cond)
             counter += 1
             remove[counter] = i
         end
     end
-    ρ_cond = partial_trace(ρ, remove, dims)
-    return entropy(ρ; base) - entropy(ρ_cond; base)
+    if α == 1
+        ρ_cond = partial_trace(ρ, remove, dims)
+        return entropy(ρ; base) - entropy(ρ_cond; base)
+    else
+        ρ_cond = trace_replace(ρ, remove, dims) * prod(dims[remove])
+        return -relative_entropy(ρ, ρ_cond, α; base)
+    end
 end
-conditional_entropy(ρ::AbstractMatrix, csys::Integer, dims::AbstractVecOrTuple; base = 2) =
-    conditional_entropy(ρ, [csys], dims; base)
 export conditional_entropy

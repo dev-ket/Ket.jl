@@ -70,13 +70,18 @@
             pAB = reshape(random_probability(R, 6), 2, 3)
             @test conditional_entropy(pAB) ≈ conditional_entropy(pAB; base = ℯ) / log(R(2))
             @test conditional_entropy(pAB, α) ≈ conditional_entropy(pAB, α; base = ℯ) / log(R(2))
-            rhoAB = Diagonal(vec(pAB'))
-            @test conditional_entropy(pAB) ≈ conditional_entropy(rhoAB, 2, [2, 3])
-            @test conditional_entropy(state_phiplus(), 2, [2, 2]) == -1
+            ρAB = Diagonal(vec(pAB'))
+            @test conditional_entropy(pAB) ≈ conditional_entropy(ρAB, 2, [2, 3])
+            @test conditional_entropy(pAB, α) > conditional_entropy(ρAB, 2, [2, 3], α)
+            @test conditional_entropy(state_phiplus(Complex{R}, 2), 2, [2, 2]) == -1
+            @test conditional_entropy(state_phiplus(Complex{R}, 2), 2, [2, 2], α) ≈ -1
             ρ = random_state(Complex{R}, 6)
             @test conditional_entropy(ρ, 2, [2, 3]) ≈ conditional_entropy(ρ, 2, [2, 3]; base = ℯ) / log(R(2))
+            @test conditional_entropy(ρ, 2, [2, 3], α) ≈ conditional_entropy(ρ, 2, [2, 3], α; base = ℯ) / log(R(2))
             @test conditional_entropy(ρ, [1, 2], [2, 3]) == 0
+            @test conditional_entropy(ρ, [1, 2], [2, 3], α) == 0
             @test conditional_entropy(ρ, Int[], [2, 3]) ≈ entropy(ρ)
+            @test conditional_entropy(ρ, Int[], [2, 3], α) ≈ entropy(ρ, α)
         end
     end
 end
