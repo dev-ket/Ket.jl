@@ -1,25 +1,25 @@
 @testset "Nonlocal games        " begin
-    @test eltype(chsh()) <: Float64
-    @test eltype(cglmp()) <: Float64
-    @test eltype(inn22()) <: Int
+    @test eltype(game_chsh()) <: Float64
+    @test eltype(game_cglmp()) <: Float64
+    @test eltype(game_inn22()) <: Int
     for T ∈ [Float64, BigFloat]
-        @test eltype(chsh(T)) <: T
-        @test eltype(cglmp(T)) <: T
-        @test cglmp(T, 4)[3] == T(1) / 12
+        @test eltype(game_chsh(T)) <: T
+        @test eltype(game_cglmp(T)) <: T
+        @test game_cglmp(T, 4)[3] == T(1) / 12
     end
 end
 
 @testset "Local bound           " begin
-    @test local_bound(chsh()) ≈ 0.75
-    @test local_bound(chsh(Int, 3)) == 6
-    @test local_bound(cglmp(Int, 4)) == 9
-    @test local_bound(gyni(Int, 3)) == 1
-    @test local_bound(gyni(Int, 4)) == 1
-    @test local_bound(braunsteincaves(Int)) == 5
-    @test local_bound(mermin(Int, 3)) == 3
-    @test local_bound(mermin(Int, 4)) == 6
-    @test_throws OverflowError local_bound(chsh(Int, 16))
-    @test_throws OverflowError local_bound(inn22(Int, 63))
+    @test local_bound(game_chsh()) ≈ 0.75
+    @test local_bound(game_chsh(Int, 3)) == 6
+    @test local_bound(game_cglmp(Int, 4)) == 9
+    @test local_bound(game_gyni(Int, 3)) == 1
+    @test local_bound(game_gyni(Int, 4)) == 1
+    @test local_bound(game_braunsteincaves(Int)) == 5
+    @test local_bound(game_mermin(Int, 3)) == 3
+    @test local_bound(game_mermin(Int, 4)) == 6
+    @test_throws OverflowError local_bound(game_chsh(Int, 16))
+    @test_throws OverflowError local_bound(game_inn22(Int, 63))
     @test local_bound([1 2; 2 -2]; marg = false) == 5
     Random.seed!(0)
     fp1 = rand(0:1, 2, 2, 2, 2, 2, 2, 2, 2)
@@ -51,7 +51,7 @@ end
 end
 
 @testset "Tsirelson bound       " begin
-    @test tsirelson_bound(inn22(), (2, 2, 3, 3), 1)[1] ≈ 11 / 8
+    @test tsirelson_bound(game_inn22(), (2, 2, 3, 3), 1)[1] ≈ 11 / 8
     chsh_fc = [
         0 0 0
         0 1 1
@@ -67,16 +67,16 @@ end
         0 1 -1
     ]
     @test tsirelson_bound(tilted_chsh_fc, 3)[1] ≈ 3.80128907501837942169727948014219026
-    bc_cg = tensor_collinsgisin(braunsteincaves())
+    bc_cg = tensor_collinsgisin(game_braunsteincaves())
     @test tsirelson_bound(bc_cg, (2, 2, 3, 3), 1)[1] ≈ cos(π / 12)^2 rtol = 1e-7
     @test tsirelson_bound(bc_cg, (2, 2, 3, 3), "1 + A B")[1] ≈ cos(π / 12)^2 rtol = 1e-7
     scenario = (2, 3, 3, 2)
     rand_cg = tensor_collinsgisin(randn(scenario))
     q, behaviour = tsirelson_bound(rand_cg, scenario, "1 + A B")
     @test q ≈ dot(rand_cg, behaviour)
-    cglmp_cg = tensor_collinsgisin(cglmp())
+    cglmp_cg = tensor_collinsgisin(game_cglmp())
     @test tsirelson_bound(cglmp_cg, (3, 3, 2, 2), "1 + A B")[1] ≈ (15 + sqrt(33)) / 24 rtol = 1.0e-7
-    gyni_cg = tensor_collinsgisin(gyni())
+    gyni_cg = tensor_collinsgisin(game_gyni())
     @test tsirelson_bound(gyni_cg, (2, 2, 2, 2, 2, 2), 3)[1] ≈ 0.25 rtol = 1e-6
     Śliwa18 = [
         0 0 0; 1 1 0; 1 1 0;;;
@@ -88,9 +88,9 @@ end
 
 @testset "Seesaw                " begin
     Random.seed!(1337)
-    cglmp_cg = tensor_collinsgisin(cglmp())
+    cglmp_cg = tensor_collinsgisin(game_cglmp())
     @test seesaw(cglmp_cg, (3, 3, 2, 2), 3)[1] ≈ (15 + sqrt(33)) / 24
-    @test seesaw(inn22(), (2, 2, 3, 3), 2)[1] ≈ 1.25
+    @test seesaw(game_inn22(), (2, 2, 3, 3), 2)[1] ≈ 1.25
 end
 
 @testset "FP and FC notations   " begin
@@ -157,7 +157,7 @@ end
 
 @testset "Nonlocality robustness" begin
     for T ∈ [Float64, Double64]
-        prbox = 2 * chsh(T)
+        prbox = 2 * game_chsh(T)
         @test nonlocality_robustness(prbox; noise = "white") ≈ T(1)
         @test nonlocality_robustness(prbox; noise = "local") ≈ T(1) / 2
         @test nonlocality_robustness(prbox; noise = "general") ≈ T(1) / 3 rtol = 1e-7

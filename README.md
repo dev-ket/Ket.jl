@@ -13,6 +13,7 @@ Highlights:
 * Generate uniformly-distributed random states, unitaries, and POVMs with `random_state`, `random_unitary`, and `random_povm`.
 * Generate well-known families of quantum states, such as the Bell states, the GHZ state, the W state, the Dicke states, and the super-singlet via `state_bell`, `state_ghz`, `state_w`, `state_dicke`, and `state_supersinglet`.
 * Work with multilinear algebra via utility functions such as `partial_trace`, `partial_transpose`, and `permute_systems`.
+* Compute Shannon, von Neumann, and Rényi entropies with functions such as `entropy`, `relative_entropy`, and `conditional_entropy`.
 * Generate kets with `ket`.
 
 For the full list of functions see the [documentation](https://dev-ket.github.io/Ket.jl/dev/api/).

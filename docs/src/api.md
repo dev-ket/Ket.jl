@@ -96,12 +96,12 @@ pretty_good_measurement
 ## Nonlocality
 
 ```@docs
-chsh
-cglmp
-braunsteincaves
-inn22
-gyni
-mermin
+game_chsh
+game_cglmp
+game_braunsteincaves
+game_inn22
+game_gyni
+game_mermin
 local_bound
 tsirelson_bound
 seesaw

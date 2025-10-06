@@ -1,11 +1,11 @@
 """
-    chsh([T=Float64,] d::Integer = 2)
+    game_chsh([T=Float64,] d::Integer = 2)
 
 CHSH-d nonlocal game in probability notation. If `T` is an integer type the game is unnormalized.
 
 Reference: Buhrman and Massar, [arXiv:quant-ph/0409066](https://arxiv.org/abs/quant-ph/0409066)
 """
-function chsh(::Type{T}, d::Integer = 2) where {T}
+function game_chsh(::Type{T}, d::Integer = 2) where {T}
     G = zeros(T, d, d, d, d)
 
     normalization = T <: Integer ? T(1) : inv(T(d^2))
@@ -18,18 +18,18 @@ function chsh(::Type{T}, d::Integer = 2) where {T}
 
     return G
 end
-chsh(d::Integer = 2) = chsh(Float64, d)
-export chsh
+game_chsh(d::Integer = 2) = game_chsh(Float64, d)
+export game_chsh
 
 """
-    braunsteincaves([T=Float64,] s::Integer = 3)
+    game_braunsteincaves([T=Float64,] s::Integer = 3)
 
 Braunstein-Caves nonlocal game in probability notation. Known in the computer science literature as odd cycle game. If `T` is an integer type the game is unnormalized.
 
 References: Braunstein and Caves [doi:10.1016/0003-4916(90)90339-P](https://doi.org/10.1016/0003-4916(90)90339-P)
 Cleve et al., [arXiv:quant-ph/0404076](https://arxiv.org/abs/quant-ph/0404076)
 """
-function braunsteincaves(::Type{T}, s::Integer = 3) where {T}
+function game_braunsteincaves(::Type{T}, s::Integer = 3) where {T}
     G = zeros(T, 2, 2, s, s)
 
     normalization = T <: Integer ? T(1) : inv(T(2s))
@@ -46,11 +46,11 @@ function braunsteincaves(::Type{T}, s::Integer = 3) where {T}
 
     return G
 end
-braunsteincaves(s::Integer = 3) = braunsteincaves(Float64, s)
-export braunsteincaves
+game_braunsteincaves(s::Integer = 3) = game_braunsteincaves(Float64, s)
+export game_braunsteincaves
 
 """
-    cglmp([T=Float64,] d::Integer = 3)
+    game_cglmp([T=Float64,] d::Integer = 3)
 
 CGLMP nonlocal game in probability notation. If `T` is an integer type the game is unnormalized.
 
@@ -58,7 +58,7 @@ References:
 - Collins, Gisin, Linden, Massar, Popescu, [arXiv:quant-ph/0106024](https://arxiv.org/abs/quant-ph/0106024) (original game)
 - Araújo, Hirsch, Quintino, [arXiv:2005.13418](https://arxiv.org/abs/2005.13418) (form presented here)
 """
-function cglmp(::Type{T}, d::Integer = 3) where {T}
+function game_cglmp(::Type{T}, d::Integer = 3) where {T}
     G = zeros(T, d, d, 2, 2)
 
     normalization = T <: Integer ? T(1) : inv(T(4 * (d - 1)))
@@ -71,17 +71,17 @@ function cglmp(::Type{T}, d::Integer = 3) where {T}
 
     return G
 end
-cglmp(d::Integer = 3) = cglmp(Float64, d)
-export cglmp
+game_cglmp(d::Integer = 3) = game_cglmp(Float64, d)
+export game_cglmp
 
 """
-    inn22([T=Float64,] n::Integer = 3)
+    game_inn22([T=Float64,] n::Integer = 3)
 
 inn22 Bell functional in Collins-Gisin notation. Local bound 1.
 
 Reference: Cezary Śliwa, [arXiv:quant-ph/0305190](https://arxiv.org/abs/quant-ph/0305190)
 """
-function inn22(::Type{T}, n) where {T}
+function game_inn22(::Type{T}, n) where {T}
     C = zeros(T, n + 1, n + 1)
     for x ∈ 1:n
         for y ∈ 1:n
@@ -96,8 +96,8 @@ function inn22(::Type{T}, n) where {T}
     C[2, 1] = 1
     return C
 end
-inn22(n::Integer = 3) = inn22(Int, n)
-export inn22
+game_inn22(n::Integer = 3) = game_inn22(Int, n)
+export game_inn22
 
 """
     gyni([T=Float64,] n::Integer)
@@ -107,7 +107,7 @@ If `T` is an integer type the game is unnormalized.
 
 Reference: Almeida et al., [arXiv:1003.3844](https://arxiv.org/abs/1003.3844)
 """
-function gyni(::Type{T}, n::Integer = 3) where {T}
+function game_gyni(::Type{T}, n::Integer = 3) where {T}
     G = zeros(T, ntuple(_ -> 2, 2 * n))
 
     normalization = T <: Integer ? T(1) : inv(T(2^(n - 1)))
@@ -122,18 +122,18 @@ function gyni(::Type{T}, n::Integer = 3) where {T}
 
     return G
 end
-gyni(n::Integer = 3) = gyni(Float64, n)
-export gyni
+game_gyni(n::Integer = 3) = game_gyni(Float64, n)
+export game_gyni
 
 """
-    mermin([T=Float64,] n::Integer)
+    game_mermin([T=Float64,] n::Integer)
 
 GHZ-Mermin game in probability notation. Local bound 1/2 + 2^-ceil(`n`/2).
 If `T` is an integer type the game is unnormalized.
 
 Reference: Brassard et al., [arXiv:quant-ph/0408052](https://arxiv.org/abs/quant-ph/0408052)
 """
-function mermin(::Type{T}, n::Integer = 3) where {T}
+function game_mermin(::Type{T}, n::Integer = 3) where {T}
     G = zeros(T, ntuple(_ -> 2, 2 * n))
     normalization = T <: Integer ? T(1) : inv(T(2^(n-1)))
     for x ∈ CartesianIndices(ntuple(_ -> 2, n))
@@ -147,5 +147,5 @@ function mermin(::Type{T}, n::Integer = 3) where {T}
     end
     return G
 end
-mermin(n::Integer = 3) = mermin(Float64, n)
-export mermin
+game_mermin(n::Integer = 3) = game_mermin(Float64, n)
+export game_mermin
