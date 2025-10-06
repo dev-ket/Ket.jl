@@ -10,8 +10,9 @@ If given `α` != 1 computes the (quantum) Rényi sandwiched relative entropy log
 
 Note that the support of `ρ` must be contained in the support of `σ` but for efficiency this is not checked.
 
-References: [Quantum relative entropy](https://en.wikipedia.org/wiki/Quantum_relative_entropy)
-[Rényi entropy](https://en.wikipedia.org/wiki/Rényi_entropy)
+References:
+- [Quantum relative entropy](https://en.wikipedia.org/wiki/Quantum_relative_entropy)
+- [Rényi entropy](https://en.wikipedia.org/wiki/Rényi_entropy)
 """
 function relative_entropy(
     ρ::AbstractMatrix{T},
@@ -58,8 +59,9 @@ If given `α` != 1 computes the Rényi relative entropy log(Σᵢ`p`ᵢ^`α` * `
 
 Note that the support of `p` must be contained in the support of `q` but for efficiency this is not checked.
 
-References: [Relative entropy](https://en.wikipedia.org/wiki/Relative_entropy)
-[Rényi entropy](https://en.wikipedia.org/wiki/Rényi_entropy)
+References:
+- [Relative entropy](https://en.wikipedia.org/wiki/Relative_entropy)
+- [Rényi entropy](https://en.wikipedia.org/wiki/Rényi_entropy)
 """
 function relative_entropy(p::AbstractVector{T}, q::AbstractVector{T}, α::T = T(1); base = 2) where {T<:Real}
     if length(p) != length(q)
@@ -94,8 +96,9 @@ Computes the binary relative entropy `p` log(`p`/`q`) + (1-`p`) log((1-`p`)/(1-`
 
 If given `α` != 1 computes the Rényi binary relative entropy log(`p`^`α` * `q`^(1-`α`) + (1-`p`)^`α` * (1-`q`)^`α`) / (`α` - 1).
 
-References: [Relative entropy](https://en.wikipedia.org/wiki/Relative_entropy)
-[Rényi entropy](https://en.wikipedia.org/wiki/Rényi_entropy)
+References:
+- [Relative entropy](https://en.wikipedia.org/wiki/Relative_entropy)
+- [Rényi entropy](https://en.wikipedia.org/wiki/Rényi_entropy)
 """
 function binary_relative_entropy(p::T, q::T, α::T = T(1); base = 2) where {T<:Real}
     if p < 0 || p > 1 || q < 0 || q > 1
@@ -122,8 +125,9 @@ Computes the von Neumann entropy -tr(`ρ` log `ρ`) of a positive semidefinite o
 
 If given `α` != 1 computes the Rényi entropy log(tr(`ρ`^`α`)) / (1 - `α`).
 
-References: [von Neumann entropy](https://en.wikipedia.org/wiki/Von_Neumann_entropy)
-[Rényi entropy](https://en.wikipedia.org/wiki/Rényi_entropy)
+References:
+- [von Neumann entropy](https://en.wikipedia.org/wiki/Von_Neumann_entropy)
+- [Rényi entropy](https://en.wikipedia.org/wiki/Rényi_entropy)
 """
 function entropy(ρ::AbstractMatrix{T}, α::R = R(1); base = 2) where {R<:Real,T<:Union{R,Complex{R}}}
     checksquare(ρ)
@@ -144,8 +148,9 @@ Computes the Shannon entropy -Σᵢ`p`ᵢlog(`p`ᵢ) of a non-negative vector `p
 
 If `α != 1` is given computes the Rényi entropy log(Σᵢ`p`ᵢ^`α` )/(1 - `α`).
 
-References: [Entropy (information theory)](https://en.wikipedia.org/wiki/Entropy_(information_theory))
-[Rényi entropy](https://en.wikipedia.org/wiki/Rényi_entropy)
+References:
+- [Entropy (information theory)](https://en.wikipedia.org/wiki/Entropy_(information_theory))
+- [Rényi entropy](https://en.wikipedia.org/wiki/Rényi_entropy)
 
 """
 function entropy(p::AbstractVector{T}, α::T = T(1); base = 2) where {T<:Real}
@@ -165,8 +170,9 @@ Computes the Shannon entropy -`p` log(`p`) - (1-`p`)log(1-`p`) of a probability 
 
 If `α` != 1 is given computes the Rényi entropy log(`p`^`α` + (1-`p`)^`α`) / (1-`α`).
 
-References: [Entropy (information theory)](https://en.wikipedia.org/wiki/Entropy_(information_theory))
-[Rényi entropy](https://en.wikipedia.org/wiki/Rényi_entropy)
+References:
+- [Entropy (information theory)](https://en.wikipedia.org/wiki/Entropy_(information_theory))
+- [Rényi entropy](https://en.wikipedia.org/wiki/Rényi_entropy)
 """
 function binary_entropy(p::T, α::T = T(1); base = 2) where {T<:Real}
     if p < 0 || p > 1
@@ -190,8 +196,9 @@ Computes the conditional Shannon entropy ∑ᵢⱼ`pAB`[i,j] * log(`pAB`[i|j]) o
 
 If `α != 1` is given, computes the conditional Rényi entropy log(∑ⱼ`pAB`[j] * (∑ᵢ`pAB`[i|j]^α)^(1/α)) * α / (1 - α).
 
-References: [Conditional entropy](https://en.wikipedia.org/wiki/Conditional_entropy)
-Müller-Lennert et al. [arXiv:1306.3142](https://arxiv.org/abs/1306.3142)
+References:
+- [Conditional entropy](https://en.wikipedia.org/wiki/Conditional_entropy)
+- Müller-Lennert et al. [arXiv:1306.3142](https://arxiv.org/abs/1306.3142)
 """
 function conditional_entropy(pAB::AbstractMatrix{T}, α::T = T(1); base = 2) where {T<:Real}
     nA, nB = size(pAB)
@@ -221,18 +228,19 @@ function conditional_entropy(pAB::AbstractMatrix{T}, α::T = T(1); base = 2) whe
 end
 
 """
-    conditional_entropy(ρ::AbstractMatrix{T}, cond::Union{Integer,Vector{<:Integer}}, dims::AbstractVecOrTuple, α::real(T) = 1; base = 2)
+    conditional_entropy(ρ::AbstractMatrix{T}, cond::Union{Integer,AbstractVector{<:Integer}}, dims::AbstractVecOrTuple, α::real(T) = 1; base = 2)
 
 Computes the conditional von Neumann entropy of `ρ` with subsystem dimensions `dims` and conditioning systems `cond`, using a base `base` logarithm.
 
 If `α != 1` is given, computes instead the following lower bound to the conditional Rényi entropy: -D`α`(`ρ`||I ⊗ `ρ`_`cond`). It is close to the true value when `α` is close to 1.
 
-References: [Conditional quantum entropy](https://en.wikipedia.org/wiki/Conditional_quantum_entropy)
-Müller-Lennert et al. [arXiv:1306.3142](https://arxiv.org/abs/1306.3142)
+References:
+- [Conditional quantum entropy](https://en.wikipedia.org/wiki/Conditional_quantum_entropy)
+- Müller-Lennert et al. [arXiv:1306.3142](https://arxiv.org/abs/1306.3142)
 """
 function conditional_entropy(
     ρ::AbstractMatrix{T},
-    cond::Union{Integer,Vector{<:Integer}},
+    cond::Union{Integer,AbstractVector{<:Integer}},
     dims::AbstractVecOrTuple,
     α::R = R(1);
     base = 2

@@ -87,20 +87,25 @@ function _step_iterator_rec!(
 end
 
 @doc """
-    partial_trace(X::AbstractMatrix, remove::AbstractVector, dims::AbstractVector = _equal_sizes(X))
+    partial_trace(X::AbstractMatrix, remove::Union{Integer, AbstractVector{<:Integer}}, dims::AbstractVector = _equal_sizes(X))
 
 Takes the partial trace of matrix `X` with subsystem dimensions `dims` over the subsystems in `remove`.
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
-""" partial_trace(X::AbstractMatrix, remove::AbstractVector, dims::AbstractVector = _equal_sizes(X))
+""" partial_trace(
+    X::AbstractMatrix,
+    remove::Union{Integer,AbstractVector{<:Integer}},
+    dims::AbstractVector = _equal_sizes(X)
+)
 
 for (T, limit, wrapper) ∈
     [(:AbstractMatrix, :dY, :identity), (:(Hermitian), :j, :(Hermitian)), (:(Symmetric), :j, :(Symmetric))]
     @eval begin
         function partial_trace(
             X::$T,
-            remove::AbstractVector{<:Integer},
+            remove::Union{Integer,AbstractVector{<:Integer}},
             dims::AbstractVector{<:Integer} = _equal_sizes(X)
         )
+            isa(remove, Integer) && (remove = [remove])
             isempty(remove) && return X
             length(remove) == length(dims) && return $wrapper([eltype(X)(tr(X));;])
 
@@ -135,29 +140,25 @@ for (T, limit, wrapper) ∈
 end
 export partial_trace
 
-"""
-    partial_trace(X::AbstractMatrix, remove::Integer, dims::AbstractVector = _equal_sizes(X)))
-
-Takes the partial trace of matrix `X` with subsystem dimensions `dims` over the subsystem `remove`.
-If the argument `dims` is omitted two equally-sized subsystems are assumed.
-"""
-partial_trace(X::AbstractMatrix, remove::Integer, dims::AbstractVector{<:Integer} = _equal_sizes(X)) =
-    partial_trace(X, [remove], dims)
-
 @doc """
-    partial_transpose(X::AbstractMatrix, transp::AbstractVector, dims::AbstractVector = _equal_sizes(X))
+    partial_transpose(X::AbstractMatrix, transp::Union{Integer, AbstractVector{<:Integer}}, dims::AbstractVector = _equal_sizes(X))
 
 Takes the partial transpose of matrix `X` with subsystem dimensions `dims` over the subsystems in `transp`.
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
-""" partial_transpose(X::AbstractMatrix, transp::AbstractVector, dims::AbstractVector = _equal_sizes(X))
+""" partial_transpose(
+    X::AbstractMatrix,
+    transp::Union{Integer,AbstractVector{<:Integer}},
+    dims::AbstractVector = _equal_sizes(X)
+)
 
 for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian)), (:(Symmetric), :(Symmetric))]
     @eval begin
         function partial_transpose(
             X::$T,
-            transp::AbstractVector{<:Integer},
+            transp::Union{Integer,AbstractVector{<:Integer}},
             dims::AbstractVector{<:Integer} = _equal_sizes(X)
         )
+            isa(transp, Integer) && (transp = [transp])
             isempty(transp) && return X
             length(transp) == length(dims) && return $wrapper(collect(transpose(X)))
 
@@ -189,15 +190,6 @@ for (T, wrapper) ∈ [(:AbstractMatrix, :identity), (:(Hermitian), :(Hermitian))
     end
 end
 export partial_transpose
-
-"""
-    partial_transpose(X::AbstractMatrix, transp::Integer, dims::AbstractVector = _equal_sizes(X))
-
-Takes the partial transpose of matrix `X` with subsystem dimensions `dims` over the subsystem `transp`.
-If the argument `dims` is omitted two equally-sized subsystems are assumed.
-"""
-partial_transpose(X::AbstractMatrix, transp::Integer, dims::AbstractVector{<:Integer} = _equal_sizes(X)) =
-    partial_transpose(X, [transp], dims)
 
 """
     _idxperm(perm::Vector, dims::Vector)
@@ -298,21 +290,26 @@ permutation_matrix(dims, perm) = permutation_matrix(Bool, dims, perm)
 export permutation_matrix
 
 @doc """
-    trace_replace(X::AbstractMatrix, remove::AbstractVector, dims::AbstractVector = _equal_sizes(X))
+    trace_replace(X::AbstractMatrix, replace::Union{Integer, AbstractVector{<:Integer}}, dims::AbstractVector = _equal_sizes(X))
 
-Takes the partial trace of matrix `X` with subsystem dimensions `dims` over the subsystems in `remove`
+Takes the partial trace of matrix `X` with subsystem dimensions `dims` over the subsystems in `replace`
 and replace them with normalized identity.
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
-""" trace_replace(X::AbstractMatrix, remove::AbstractVector, dims::AbstractVector = _equal_sizes(X))
+""" trace_replace(
+    X::AbstractMatrix,
+    replace::Union{Integer,AbstractVector{<:Integer}},
+    dims::AbstractVector = _equal_sizes(X)
+)
 
 for (T, limit, wrapper) ∈
     [(:AbstractMatrix, :dim_ptX, :identity), (:(Hermitian), :j, :(Hermitian)), (:(Symmetric), :j, :(Symmetric))]
     @eval begin
         function trace_replace(
             X::$T,
-            replace::AbstractVector{<:Integer},
+            replace::Union{Integer,AbstractVector{<:Integer}},
             dims::AbstractVector{<:Integer} = _equal_sizes(X)
         )
+            isa(replace, Integer) && (replace = [replace])
             isempty(replace) && return X
             length(replace) == length(dims) && return $wrapper(Matrix(I * tr(X) / size(X, 1), size(X)))
 
@@ -349,18 +346,9 @@ for (T, limit, wrapper) ∈
     end
 end
 export trace_replace
-"""
-    trace_replace(X::AbstractMatrix, remove::Integer, dims::AbstractVector = _equal_sizes(X))
-
-Takes the partial trace of matrix `X` with subsystem dimensions `dims` over the subsystem `remove`
-and replace it with normalized identity.
-If the argument `dims` is omitted two equally-sized subsystems are assumed.
-"""
-trace_replace(X::AbstractMatrix, remove::Integer, dims::AbstractVector{<:Integer} = _equal_sizes(X)) =
-    trace_replace(X, [remove], dims)
 
 """
-    applymap_subsystem(op::AbstractMatrix, ψ::AbstractVector, subsystems::AbstractVector, dims::AbstractVector = _equal_sizes(ρ))
+    applymap_subsystem(op::AbstractMatrix, ψ::AbstractVector, subsystems::Union{Integer, AbstractVector{<:Integer}}, dims::AbstractVector = _equal_sizes(ρ))
 
 Applies the operator `op` to the subsytem of `ρ` identified by `subsystems`, resulting in (op ⊗ I) * ψ.
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
@@ -368,9 +356,10 @@ If the argument `dims` is omitted two equally-sized subsystems are assumed.
 function applymap_subsystem(
     op::AbstractMatrix,
     ψ::AbstractVector,
-    subsystems::AbstractVector{<:Integer},
+    subsystems::Union{Integer,AbstractVector{<:Integer}},
     dims::AbstractVector{<:Integer} = _equal_sizes(ψ)
 )
+    isa(subsystems, Integer) && (subsystems = [subsystems])
     isempty(subsystems) && throw(ArgumentError("Subsystems vector must not be empty"))
     subsystems == 1:length(dims) && return op * ψ
     prod(dims) == length(ψ) || throw(DimensionMismatch("ψ has length $(length(ψ)), expected length $(prod(dims))"))
@@ -415,20 +404,9 @@ function applymap_subsystem(
     return permute_systems(Y, inv_perm, dims_perm_output)
 end
 export applymap_subsystem
-"""
-    applymap_subsystem(op::AbstractMatrix, ψ::AbstractVector, subsystems::Integer, dims::AbstractVector = _equal_sizes(ρ))
 
-Applies the operator `op` to the subsytems of `ρ` identified by `subsystems`, resulting in (op ⊗ I) * ψ.
-If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """
-applymap_subsystem(
-    op::AbstractMatrix,
-    ψ::AbstractVector,
-    subsystems::Integer,
-    dims::AbstractVector{<:Integer} = _equal_sizes(ψ)
-) = applymap_subsystem(op, ψ, [subsystems], dims)
-"""
-    applymap_subsystem(K::AbstractVector{<:AbstractMatrix}, ρ::AbstractMatrix, subsystems::Integer, dims::AbstractVector = _equal_sizes(ρ))
+    applymap_subsystem(K::AbstractVector{<:AbstractMatrix}, ρ::AbstractMatrix, subsystems::Union{Integer, AbstractVector{<:Integer}}, dims::AbstractVector = _equal_sizes(ρ))
 
 Applies the Kraus operators in `K` to the subsytems of `ρ` identified by `subsystems`, resulting in ∑ᵢ(K[i] ⊗ I) * ρ * (K[i]' ⊗ I).
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
@@ -436,9 +414,10 @@ If the argument `dims` is omitted two equally-sized subsystems are assumed.
 function applymap_subsystem(
     K::AbstractVector{<:AbstractMatrix},
     ρ::AbstractMatrix,
-    subsystems::AbstractVector{<:Integer},
+    subsystems::Union{Integer,AbstractVector{<:Integer}},
     dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
 )
+    isa(subsystems, Integer) && (subsystems = [subsystems])
     isempty(subsystems) && throw(ArgumentError("Subsystems vector must not be empty"))
     subsystems == 1:length(dims) && return applymap(K, ρ)
     square_kraus_ops = all([size(Ki, 1) == size(Ki, 2) for Ki ∈ K])
@@ -504,7 +483,7 @@ function applymap_subsystem(
     return _wrapper_applymap(ρ, kraus_type)(result)
 end
 """
-    applymap_subsystem(K::AbstractVector{<:AbstractSparseArray}, ρ::AbstractSparseArray, subsystems::AbstractVector{<:Integer}, dims::AbstractVector = _equal_sizes(ρ))
+    applymap_subsystem(K::AbstractVector{<:AbstractSparseArray}, ρ::AbstractSparseArray, subsystems::Union{Integer, AbstractVector{<:Integer}}, dims::AbstractVector = _equal_sizes(ρ))
 
 Applies the sparse Kraus operators in `K` to the subsytems of a sparse matrix `ρ` identified by `subsystems`, resulting in ∑ᵢ(K[i] ⊗ I) * ρ * (K[i]' ⊗ I).
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
@@ -516,9 +495,10 @@ function applymap_subsystem(
         Hermitian{<:Any,<:SA.AbstractSparseArray},
         Symmetric{<:Any,<:SA.AbstractSparseArray}
     },
-    subsystems::AbstractVector{<:Integer},
+    subsystems::Union{Integer,AbstractVector{<:Integer}},
     dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
 )
+    isa(subsystems, Integer) && (subsystems = [subsystems])
     isempty(subsystems) && throw(ArgumentError("Subsystems vector must not be empty"))
     square_kraus_ops = all([size(Ki, 1) == size(Ki, 2) for Ki ∈ K])
     contiguous_subsystems = subsystems == subsystems[1]:subsystems[end]
@@ -571,18 +551,4 @@ function applymap_subsystem(
     dims_perm_output = vcat(dims_keep, output_dims) # The dims of the subsystem when applying the inverse permutation
     result = permute_systems(Y, inv_perm, dims_perm_output)
     return _wrapper_applymap(ρ, kraus_type)(result)
-end
-"""
-    applymap_subsystem(K::AbstractVector{<:AbstractMatrix}, ρ::AbstractMatrix, subsystems::Integer, dims::AbstractVector = _equal_sizes(ρ))
-
-Applies the Kraus operators in `K` to the subsytem of `ρ` identified by `subsystems`, resulting in ∑ᵢ(K[i] ⊗ I) * ρ * (K[i]' ⊗ I).
-If the argument `dims` is omitted two equally-sized subsystems are assumed.
-"""
-function applymap_subsystem(
-    K::AbstractVector{<:AbstractMatrix},
-    ρ::AbstractMatrix,
-    subsystems::Integer,
-    dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
-)
-    applymap_subsystem(K, ρ, [subsystems], dims)
 end
