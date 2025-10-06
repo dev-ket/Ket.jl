@@ -6,7 +6,6 @@ module Ket
 using LinearAlgebra
 import LinearAlgebra.checksquare
 
-import Base.AbstractVecOrTuple
 import Combinatorics
 import Dualization
 import GenericLinearAlgebra

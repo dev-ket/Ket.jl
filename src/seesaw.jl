@@ -1,7 +1,7 @@
 """
     seesaw(
         CG::Matrix,
-        scenario::AbstractVecOrTuple,
+        scenario::Tuple,
         d::Integer,
         n_trials::Integer = 1;
         verbose::Bool = false,
@@ -21,7 +21,7 @@ References:
 """
 function seesaw(
     CG::Matrix{T},
-    scenario::AbstractVecOrTuple{<:Integer},
+    scenario::Tuple,
     d::Integer,
     n_trials::Integer = 1;
     verbose = false,

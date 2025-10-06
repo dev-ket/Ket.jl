@@ -6,7 +6,7 @@ function _equal_sizes(arg::AbstractVecOrMat)
 end
 
 """
-    schmidt_decomposition(ψ::AbstractVector, dims::AbstractVecOrTuple = _equal_sizes(ψ))
+    schmidt_decomposition(ψ::AbstractVector, dims::AbstractVector = _equal_sizes(ψ))
 
 Produces the Schmidt decomposition of `ψ` with subsystem dimensions `dims`.
 If the argument `dims` is omitted equally-sized subsystems are assumed.
@@ -14,7 +14,7 @@ Returns the (sorted) Schmidt coefficients λ and isometries U, V such that kron(
 
 Reference: [Schmidt decomposition](https://en.wikipedia.org/wiki/Schmidt_decomposition)
 """
-function schmidt_decomposition(ψ::AbstractVector, dims::AbstractVecOrTuple = _equal_sizes(ψ))
+function schmidt_decomposition(ψ::AbstractVector, dims::AbstractVector = _equal_sizes(ψ))
     length(dims) != 2 && throw(ArgumentError("Two subsystem sizes must be specified."))
     m = transpose(reshape(ψ, dims[2], dims[1])) #necessary because the natural reshaping would be row-major, but Julia does it col-major
     U, λ, V = svd(m)
@@ -23,12 +23,12 @@ end
 export schmidt_decomposition
 
 """
-    entanglement_entropy(ψ::AbstractVector, dims::AbstractVecOrTuple = _equal_sizes(ψ); base = 2)
+    entanglement_entropy(ψ::AbstractVector, dims::AbstractVector = _equal_sizes(ψ); base = 2)
 
 Computes the relative entropy of entanglement of a bipartite pure state `ψ` with subsystem dimensions `dims`.
 If the argument `dims` is omitted equally-sized subsystems are assumed.
 """
-function entanglement_entropy(ψ::AbstractVector, dims::AbstractVecOrTuple = _equal_sizes(ψ); base = 2)
+function entanglement_entropy(ψ::AbstractVector, dims::AbstractVector = _equal_sizes(ψ); base = 2)
     length(dims) != 2 && throw(ArgumentError("Two subsystem sizes must be specified."))
     max_sys = argmax(dims)
     ρ = partial_trace(ketbra(ψ), max_sys, dims)
@@ -37,14 +37,14 @@ end
 export entanglement_entropy
 
 """
-    entanglement_entropy(ρ::AbstractMatrix, dims::AbstractVecOrTuple = _equal_sizes(ρ), n::Integer = 1; verbose = false, base = 2)
+    entanglement_entropy(ρ::AbstractMatrix, dims::AbstractVector = _equal_sizes(ρ), n::Integer = 1; verbose = false, base = 2)
 
 Lower bounds the relative entropy of entanglement of a bipartite state `ρ` with subsystem dimensions `dims` using level `n` of the DPS hierarchy.
 If the argument `dims` is omitted equally-sized subsystems are assumed.
 """
 function entanglement_entropy(
     ρ::AbstractMatrix{T},
-    dims::AbstractVecOrTuple = _equal_sizes(ρ),
+    dims::AbstractVector = _equal_sizes(ρ),
     n::Integer = 1;
     verbose = false,
     base = 2
@@ -136,7 +136,7 @@ end
     schmidt_number(
         ρ::AbstractMatrix{T},
         s::Integer = 2,
-        dims::AbstractVecOrTuple = _equal_sizes(ρ),
+        dims::AbstractVector = _equal_sizes(ρ),
         n::Integer = 1;
         ppt::Bool = true,
         verbose::Bool = false,
@@ -157,7 +157,7 @@ References:
 function schmidt_number(
     ρ::AbstractMatrix{T},
     s::Integer = 2,
-    dims::AbstractVecOrTuple = _equal_sizes(ρ),
+    dims::AbstractVector = _equal_sizes(ρ),
     n::Integer = 1;
     ppt::Bool = true,
     verbose::Bool = false,
@@ -196,7 +196,7 @@ export schmidt_number
 """
     entanglement_robustness(
         ρ::AbstractMatrix{T},
-        dims::AbstractVecOrTuple = _equal_sizes(ρ),
+        dims::AbstractVector = _equal_sizes(ρ),
         n::Integer = 1;
         noise::String = "white"
         ppt::Bool = true,
@@ -211,7 +211,7 @@ Returns the robustness and a witness W (note that for `inner = true`, this might
 """
 function entanglement_robustness(
     ρ::AbstractMatrix{T},
-    dims::AbstractVecOrTuple = _equal_sizes(ρ),
+    dims::AbstractVector = _equal_sizes(ρ),
     n::Integer = 1;
     noise::String = "white",
     ppt::Bool = true,
@@ -259,7 +259,7 @@ end
 export entanglement_robustness
 
 """
-    _dps_constraints!(model::JuMP.GenericModel, ρ::AbstractMatrix, dims::AbstractVecOrTuple, n::Integer; ppt::Bool = true, is_complex::Bool = true, isometry::AbstractMatrix = I(size(ρ, 1)))
+    _dps_constraints!(model::JuMP.GenericModel, ρ::AbstractMatrix, dims::AbstractVector, n::Integer; ppt::Bool = true, is_complex::Bool = true, isometry::AbstractMatrix = I(size(ρ, 1)))
 
 Constrains state `ρ` of dimensions `dims` in JuMP model `model` to respect the DPS constraints of level `n`.
 Dimensions are specified in `dims = [dA, dB]` and the extensions will be done on the second subsystem.
@@ -272,7 +272,7 @@ Reference: Doherty, Parrilo, Spedalieri, [arXiv:quant-ph/0308032](https://arxiv.
 function _dps_constraints!(
     model::JuMP.GenericModel{T},
     ρ::AbstractMatrix,
-    dims::AbstractVecOrTuple,
+    dims::AbstractVector,
     n::Integer;
     witness::Bool = false,
     schmidt::Bool = false,
@@ -348,7 +348,7 @@ function _sdp_parameters(is_complex::Bool)
 end
 
 """
-    _inner_dps_constraints!(model::JuMP.GenericModel, ρ::AbstractMatrix, dims::AbstractVecOrTuple, n::Integer; ppt::Bool = true, is_complex::Bool = true, isometry::AbstractMatrix = I(size(ρ, 1)))
+    _inner_dps_constraints!(model::JuMP.GenericModel, ρ::AbstractMatrix, dims::AbstractVector, n::Integer; ppt::Bool = true, is_complex::Bool = true, isometry::AbstractMatrix = I(size(ρ, 1)))
 
 Constrains state `ρ` of dimensions `dims` in JuMP model `model` to respect the Inner DPS constraints of level `n`.
 Dimensions are specified in `dims = [dA, dB]` and the extensions will be done on the second subsystem.
@@ -360,7 +360,7 @@ References: Navascués, Owari, Plenio [arXiv:0906.2735](https://arxiv.org/abs/09
 function _inner_dps_constraints!(
     model::JuMP.GenericModel{T},
     ρ::AbstractMatrix,
-    dims::AbstractVecOrTuple,
+    dims::AbstractVector,
     n::Integer;
     witness::Bool = false,
     ppt::Bool = true,
@@ -431,7 +431,7 @@ end
 """
     function ppt_mixture(
         ρ::AbstractMatrix{T},
-        dims::AbstractVecOrTuple;
+        dims::AbstractVector;
         verbose::Bool = false,
         solver = Hypatia.Optimizer{_solver_type(T)})
 
@@ -444,7 +444,7 @@ Reference: Jungnitsch, Moroder, Gühne, [arXiv:quant-ph/0401118](https://arxiv.o
 """
 function ppt_mixture(
     ρ::AbstractMatrix{T},
-    dims::AbstractVecOrTuple;
+    dims::AbstractVector;
     verbose::Bool = false,
     solver = Hypatia.Optimizer{_solver_type(T)}
 ) where {T<:Number}
@@ -466,7 +466,7 @@ end
 """
     function ppt_mixture(
         ρ::AbstractMatrix{T},
-        dims::AbstractVecOrTuple,
+        dims::AbstractVector,
         obs::AbstractVector{<:AbstractMatrix} = Vector{Matrix}();
         verbose::Bool = false,
         solver = Hypatia.Optimizer{_solver_type(T)})
@@ -488,7 +488,7 @@ Reference: Jungnitsch, Moroder, Gühne [arXiv:quant-ph/0401118](https://arxiv.or
 """
 function ppt_mixture(
     ρ::AbstractMatrix{T},
-    dims::AbstractVecOrTuple,
+    dims::AbstractVector,
     obs::AbstractVector{<:AbstractMatrix};
     verbose::Bool = false,
     solver = Hypatia.Optimizer{_solver_type(T)}

@@ -220,7 +220,7 @@ export choi
 """
     diamond_norm(
         J::AbstractMatrix,
-        dims::AbstractVecOrTuple;
+        dims::AbstractVector;
         verbose::Bool = false,
         solver = Hypatia.Optimizer{_solver_type(T)})
 
@@ -230,7 +230,7 @@ Reference: [Diamond norm](https://en.wikipedia.org/wiki/Diamond_norm)
 """
 function diamond_norm(
     J::AbstractMatrix{T},
-    dims::AbstractVecOrTuple;
+    dims::AbstractVector;
     verbose = false,
     solver = Hypatia.Optimizer{_solver_type(T)}
 ) where {T}

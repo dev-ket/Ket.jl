@@ -228,7 +228,7 @@ function conditional_entropy(pAB::AbstractMatrix{T}, α::T = T(1); base = 2) whe
 end
 
 """
-    conditional_entropy(ρ::AbstractMatrix{T}, cond::Union{Integer,AbstractVector{<:Integer}}, dims::AbstractVecOrTuple, α::real(T) = 1; base = 2)
+    conditional_entropy(ρ::AbstractMatrix{T}, cond::Union{Integer,AbstractVector{<:Integer}}, dims::AbstractVector, α::real(T) = 1; base = 2)
 
 Computes the conditional von Neumann entropy of `ρ` with subsystem dimensions `dims` and conditioning systems `cond`, using a base `base` logarithm.
 
@@ -241,7 +241,7 @@ References:
 function conditional_entropy(
     ρ::AbstractMatrix{T},
     cond::Union{Integer,AbstractVector{<:Integer}},
-    dims::AbstractVecOrTuple,
+    dims::AbstractVector,
     α::R = R(1);
     base = 2
 ) where {R<:Real,T<:Union{R,Complex{R}}}
