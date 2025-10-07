@@ -52,7 +52,7 @@ function entanglement_entropy(
     ishermitian(ρ) || throw(ArgumentError("State needs to be Hermitian"))
     length(dims) != 2 && throw(ArgumentError("Two subsystem sizes must be specified."))
 
-    d = size(ρ, 1)
+    d = checksquare(ρ)
     is_complex = (T <: Complex)
     Rs = _solver_type(T)
     Ts = is_complex ? Complex{Rs} : Rs
@@ -84,7 +84,7 @@ end
 Produces the scaled vectorized version of a Hermitian matrix `M`. The transformation preserves inner products, i.e., ⟨M,N⟩ = ⟨svec(M),svec(N)⟩.
 """
 function _svec(M::AbstractMatrix{T}) where {T} #the weird stuff here is to make it work with JuMP variables
-    d = size(M, 1)
+    d = checksquare(M)
     numericalT = JuMP.value_type(T)
     vec_dim = Hypatia.Cones.svec_length(numericalT, d)
     v = Vector{real(T)}(undef, vec_dim)
@@ -177,12 +177,13 @@ function schmidt_number(
 
     model = JuMP.GenericModel{_solver_type(T)}()
 
+    dρ = checksquare(ρ)
     JuMP.@variable(model, λ)
-    noisy_state = wrapper(ρ + λ * I(size(ρ, 1)))
+    noisy_state = wrapper(ρ + λ * I(dρ))
     JuMP.@objective(model, Min, λ)
 
     _dps_constraints!(model, noisy_state, lifted_dims, n; schmidt = true, ppt, is_complex, isometry = V)
-    JuMP.@constraint(model, tr(model[:symmetric_meat]) == s * (tr(ρ) + λ * size(ρ, 1)))
+    JuMP.@constraint(model, tr(model[:symmetric_meat]) == s * (tr(ρ) + λ * dρ))
 
     JuMP.set_optimizer(model, solver)
     !verbose && JuMP.set_silent(model)
@@ -226,7 +227,7 @@ function entanglement_robustness(
     is_complex = (T <: Complex)
     psd_cone, wrapper, = _sdp_parameters(is_complex)
     _sep! = inner ? _inner_dps_constraints! : _dps_constraints!
-    d = size(ρ, 1)
+    d = checksquare(ρ)
 
     model = JuMP.GenericModel{_solver_type(T)}()
 
@@ -448,8 +449,8 @@ function ppt_mixture(
     verbose::Bool = false,
     solver = Hypatia.Optimizer{_solver_type(T)}
 ) where {T<:Number}
-    dim = size(ρ, 1)
-    prod(dims) == size(ρ, 1) || throw(ArgumentError("State dimension does not agree with local dimensions."))
+    dim = checksquare(ρ)
+    prod(dims) == dim || throw(ArgumentError("State dimension does not agree with local dimensions."))
 
     model = JuMP.GenericModel{_solver_type(T)}()
 
@@ -493,8 +494,8 @@ function ppt_mixture(
     verbose::Bool = false,
     solver = Hypatia.Optimizer{_solver_type(T)}
 ) where {T<:Number}
-    dim = size(ρ, 1)
-    prod(dims) == size(ρ, 1) || throw(ArgumentError("State dimension does not agree with local dimensions."))
+    dim = checksquare(ρ)
+    prod(dims) == dim || throw(ArgumentError("State dimension does not agree with local dimensions."))
 
     model = JuMP.GenericModel{_solver_type(T)}()
 

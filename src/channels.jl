@@ -53,8 +53,8 @@ export applymap!
 Applies the CP map given by the Choi-Jamiołkowski operator `Φ` to the matrix `M`. Preserves sparsity.
 """
 function applymap(Φ::AbstractMatrix{T}, M::AbstractMatrix{S}) where {T,S}
-    din = size(M, 1)
-    dtotal = size(Φ, 1)
+    din = checksquare(M)
+    dtotal = checksquare(Φ)
     dout = dtotal ÷ din
     @assert dtotal == din * dout
     TS = Base.promote_op(*, T, S)
@@ -76,8 +76,8 @@ Applies the CP map given by the Choi-Jamiołkowski operator `Φ` to the matrix `
 for (matrixtype, limit) ∈ ((:AbstractMatrix, :dout), (:Symmetric, :j), (:Hermitian, :j))
     @eval begin
         function applymap!(result::AbstractMatrix, Φ::AbstractMatrix, M::$matrixtype)
-            din = size(M, 1)
-            dtotal = size(Φ, 1)
+            din = checksquare(M)
+            dtotal = checksquare(Φ)
             dout = dtotal ÷ din
             @assert dtotal == din * dout
             @inbounds for j ∈ 1:dout, i ∈ 1:$limit

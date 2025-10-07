@@ -114,7 +114,7 @@ mub(d::Integer, k::Integer, s::Integer = 1) = mub(ComplexF64, d, k, s)
 Checks if the input bases are mutually unbiased.
 """
 function test_mub(B::Vector{Matrix{T}}) where {T<:Number}
-    d = size(B[1], 1)
+    d = checksquare(B[1])
     k = length(B)
     inv_d = inv(T(d))
     for x ∈ 1:k, y ∈ x:k, a ∈ 1:d, b ∈ 1:d
@@ -175,7 +175,7 @@ export povm_to_tensor
 function _measurements_parameters(Axa::Vector{Measurement{T}}) where {T<:Number}
     @assert !isempty(Axa)
     # dimension on which the measurements act
-    d = size(Axa[1][1], 1)
+    d = checksquare(Axa[1][1])
     # tuple of outcome numbers
     o = Tuple(length.(Axa))
     # number of inputs, i.e., of mesurements
@@ -190,8 +190,8 @@ _measurements_parameters(Aa::Measurement) = _measurements_parameters([Aa])
 Checks if the measurement defined by A is valid (hermitian, semi-definite positive, and normalized).
 """
 function test_povm(E::Vector{<:AbstractMatrix{T}}) where {T<:Number}
+    d = checksquare(E[1])
     !all(ishermitian.(E)) && return false
-    d = size(E[1], 1)
     !(sum(E) ≈ I(d)) && return false
     for Ei ∈ E
         !_ispossemidef(Ei) && return false
@@ -252,7 +252,7 @@ function discrimination_min_error(
     psd_cone, wrapper, hermitian_space = _sdp_parameters(is_complex)
     model = JuMP.GenericModel{_solver_type(T)}()
     N = length(ρ)
-    d = size(ρ[1], 1)
+    d = checksquare(ρ[1])
 
     @assert length(q) == length(ρ)
 
@@ -285,7 +285,7 @@ Reference: Watrous, [Theory of Quantum Information Cp. 3](https://cs.uwaterloo.c
 """
 function pretty_good_measurement(ρ::Vector{<:AbstractMatrix{T}}, q::Vector{<:Real} = ones(length(ρ))) where {T}
     n = length(ρ)
-    d = size(ρ[1], 1)
+    d = checksquare(ρ[1])
 
     for i ∈ 1:n
         parent(ρ[i]) .*= q[i]
