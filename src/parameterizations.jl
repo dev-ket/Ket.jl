@@ -12,7 +12,7 @@ end
 export parameterized_unitary
 
 function _parameterized_unitary!(U::Matrix{Complex{T}}, λ::AbstractMatrix{T}) where {T<:Real}
-    d = LinearAlgebra.checksquare(U)
+    d = checksquare(U)
     # set U to the identity (without allocating)
     @inbounds for i ∈ 1:d
         U[i, i] = 1

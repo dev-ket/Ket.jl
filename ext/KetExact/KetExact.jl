@@ -9,7 +9,7 @@ export TExact
 
 Ket._root_unity(::Type{CN.Cyc{R}}, n::Integer) where {R<:Real} = CN.E(Int64(n))
 Ket._sqrt(::Type{CN.Cyc{R}}, n::Integer) where {R<:Real} = CN.root(Int64(n))
-Ket._rtol(::Type{CN.Cyc{R}}) where {R<:Real} = Base.rtoldefault(R)
+Ket._rtol(::Type{CN.Cyc{R}}) where {R<:Real} = sqrt(_eps(R))
 Ket._eps(::Type{CN.Cyc{R}}) where {R<:Real} = R(0)
 Ket._eps(::Type{CN.Cyc{R}}) where {R<:AbstractFloat} = eps(R)
 

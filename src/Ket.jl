@@ -28,7 +28,7 @@ export Measurement
 #extract from T the kind of float to be used in conic solvers
 _solver_type(::Type{T}) where {T<:Number} = float(real(T))
 
-_rtol(::Type{T}) where {T<:Number} = Base.rtoldefault(real(T))
+_rtol(::Type{T}) where {T<:Number} = sqrt(_eps(T))
 function _eps(::Type{T}) where {T<:Number}
     if real(T) <: AbstractFloat
         return eps(real(T))

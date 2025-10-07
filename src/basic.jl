@@ -207,26 +207,21 @@ end
 export gellmann!
 
 """
-    cleanup!(M::AbstractArray{T}; tol = Base.rtoldefault(real(T)))
+    cleanup!(M::AbstractArray{T}; tol = _eps(T))
 
 Zeroes out real or imaginary parts of `M` that are smaller than `tol`.
 """
 function cleanup!(M::AbstractArray{T}; tol = _eps(T)) where {T<:Number}
-    wrapper = Base.typename(typeof(M)).wrapper
-    cleanup!(parent(M); tol)
-    return wrapper(M)
-end
-
-function cleanup!(M::Array{T}; tol = _eps(T)) where {T<:Number}
+    pM = parent(M)
     if isbitstype(T)
-        M2 = reinterpret(real(T), M) #this is a no-op when T<:Real
+        M2 = reinterpret(real(T), pM) #this is a no-op when T<:Real
         _cleanup!(M2; tol)
     else
-        reM = real(M)
-        imM = imag(M)
+        reM = real(pM)
+        imM = imag(pM)
         _cleanup!(reM; tol)
         _cleanup!(imM; tol)
-        M .= Complex.(reM, imM)
+        pM .= Complex.(reM, imM)
     end
     return M
 end
@@ -236,12 +231,8 @@ function _cleanup!(M; tol)
     return M[abs.(M).<tol] .= 0
 end
 
-function _orthonormal_range_svd!(
-    A::AbstractMatrix{T};
-    tol::Union{Real,Nothing} = nothing,
-    alg = LinearAlgebra.default_svd_alg(A)
-) where {T<:Number}
-    dec = svd!(A; alg = alg)
+function _orthonormal_range_svd!(A::AbstractMatrix{T}; tol::Union{Real,Nothing} = nothing) where {T<:Number}
+    dec = svd!(A)
     tol = isnothing(tol) ? maximum(dec.S) * _eps(T) * minimum(size(A)) : tol
     rank = sum(dec.S .> tol)
     return dec.U[:, 1:rank]
