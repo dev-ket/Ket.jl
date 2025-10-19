@@ -135,7 +135,7 @@ function pauli(::Type{T}, str::String) where {T<:Number}
         elseif c ∈ ['Z', 'z']
             push!(ind, 3)
         else
-            @warn "Unknown character"
+            @warn "Unknown character $c"
         end
     end
     return pauli(T, ind)
@@ -145,6 +145,8 @@ pauli(i::Integer) = pauli(ComplexF64, i)
 pauli(ind::Vector{<:Integer}) = pauli(ComplexF64, ind)
 pauli(str::String) = pauli(ComplexF64, str)
 pauli(c::Char) = pauli(ComplexF64, c)
+pauli(::Type{T}) where {T<:Number} = gellmann(T, 2)
+pauli() = pauli(ComplexF64)
 export pauli
 
 """
