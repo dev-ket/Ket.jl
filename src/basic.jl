@@ -1,9 +1,9 @@
 """
-    ket([T=Bool,] i::Integer, d::Integer = 2)
+    ket([T=Bool,] i::Integer, d::Integer)
 
 Produces a ket of dimension `d` with nonzero element `i`.
 """
-function ket(::Type{T}, i::Integer, d::Integer = 2) where {T<:Number}
+function ket(::Type{T}, i::Integer, d::Integer) where {T<:Number}
     psi = zeros(T, d)
     psi[i] = 1
     return psi
@@ -22,11 +22,11 @@ end
 export ketbra
 
 """
-    proj([T=Bool,] i::Integer, d::Integer = 2)
+    proj([T=Bool,] i::Integer, d::Integer)
 
 Produces a projector onto the basis state `i` in dimension `d`.
 """
-function proj(::Type{T}, i::Integer, d::Integer = 2) where {T<:Number}
+function proj(::Type{T}, i::Integer, d::Integer) where {T<:Number}
     pvec = zeros(T, d)
     pvec[i] = 1
     return Diagonal(pvec)
