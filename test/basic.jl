@@ -49,6 +49,15 @@
         @test gellmann(3, 3) == Diagonal([1, 1, -2] / sqrt(3))
         @test gellmann(1, 1, 4) == Matrix{Float64}(I, 4, 4)
     end
+    @testset "Bloch vector" begin
+        for R ∈ (Int, Float64, BigFloat)
+            @test bloch_vector(ketbra(R[1, 0])) == R[1, 0, 0, 1]
+            @test bloch_vector(ketbra(Complex{R}[1, 0])) == R[1, 0, 0, 1]
+            @test bloch_vector(proj(R, 1, 2)) == R[1, 0, 0, 1]
+            @test bloch_vector(proj(Complex{R}, 1, 2)) == R[1, 0, 0, 1]
+        end
+        @test bloch_vector(proj(Float64, 3, 3)) == [1, 0, 0, 0, 0, 0, 0, 0, -2/sqrt(3)]
+    end
     @testset "Cleanup" begin
         for R ∈ (Float64, BigFloat)
             a = zeros(R, 2, 2)

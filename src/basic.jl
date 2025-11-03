@@ -209,6 +209,21 @@ end
 export gellmann!
 
 """
+    bloch_vector(ρ::AbstractMatrix, basis = gellmann(checksquare(ρ)))
+
+Returns the coordinates of a `d × d` hermitian matrix in a specified basis,
+by default the generalised Gell-Mann basis.
+"""
+function bloch_vector(
+    ρ::AbstractMatrix{T},
+    basis = gellmann(complex(T), LinearAlgebra.checksquare(ρ))
+) where {T<:Number}
+    !ishermitian(ρ) && ArgumentError("Non-hermitian input matrix.")
+    return [dot(Hermitian(ρ), σ) for σ ∈ basis]
+end
+export bloch_vector
+
+"""
     cleanup!(M::AbstractArray{T}; tol = _eps(T))
 
 Zeroes out real or imaginary parts of `M` that are smaller than `tol`.

@@ -16,6 +16,7 @@ shiftclock
 pauli
 gellmann
 gellmann!
+bloch_vector
 cleanup!
 symmetric_projector
 symmetric_isometry

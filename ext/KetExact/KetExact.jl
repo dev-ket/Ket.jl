@@ -7,6 +7,8 @@ import LinearAlgebra as LA
 const TExact = CN.Cyc{Rational{BigInt}}
 export TExact
 
+Base.complex(::Type{CN.Cyc{R}}) where {R<:Real} = CN.Cyc{R}
+
 Ket._root_unity(::Type{CN.Cyc{R}}, n::Integer) where {R<:Real} = CN.E(Int64(n))
 Ket._sqrt(::Type{CN.Cyc{R}}, n::Integer) where {R<:Real} = CN.root(Int64(n))
 Ket._rtol(::Type{CN.Cyc{R}}) where {R<:Real} = sqrt(_eps(R))
