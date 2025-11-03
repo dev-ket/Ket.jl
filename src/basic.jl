@@ -8,7 +8,7 @@ function ket(::Type{T}, i::Integer, d::Integer) where {T<:Number}
     psi[i] = 1
     return psi
 end
-ket(i::Integer, d::Integer = 2) = ket(Bool, i, d)
+ket(i::Integer, d::Integer) = ket(Bool, i, d)
 export ket
 
 """
@@ -31,7 +31,7 @@ function proj(::Type{T}, i::Integer, d::Integer) where {T<:Number}
     pvec[i] = 1
     return Diagonal(pvec)
 end
-proj(i::Integer, d::Integer = 2) = proj(Bool, i, d)
+proj(i::Integer, d::Integer) = proj(Bool, i, d)
 export proj
 
 """
