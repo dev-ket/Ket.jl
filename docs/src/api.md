@@ -141,6 +141,7 @@ random_probability
 ## States
 
 ```@docs
+state_bloch
 state_bell_ket
 state_bell
 state_phiplus_ket

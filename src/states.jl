@@ -27,6 +27,29 @@ end
 export white_noise!
 
 """
+    state_bloch(v::AbstractVector, basis = gellmann(isqrt(length(vec) + 1)))
+
+Produces the state corresponding to the Bloch vector `v`, which must be
+of size `d²-1` or `d²`, depending whether the trace is provided or not.
+No checks are done on whether the result is a valid quantum state.
+"""
+function state_bloch(
+    vec::AbstractVector{T1},
+    basis::Vector{<:Hermitian{T2}} = gellmann(complex(float(T1)), isqrt(length(vec) + 1));
+    v::Real = 1
+) where {T1<:Number,T2<:Number}
+    d = size(basis[1], 1)
+    length(vec) ∈ (d^2 - 1, d^2) || throw(ArgumentError("The Bloch vector must have length d²-1 or d²."))
+    flag = length(vec) == d^2 - 1
+    ρ = Matrix{T2}((flag ? inv(tr(basis[1])) : vec[1] / 2) * basis[1])
+    for i ∈ 2:d^2
+        ρ .+= (vec[i-flag] / 2) .* basis[i]
+    end
+    return white_noise!(Hermitian(ρ), v)
+end
+export state_bloch
+
+"""
     state_bell_ket([T=ComplexF64,] a::Integer, b::Integer, d::Integer = 2)
 
 Produces the ket of the generalized Bell state ψ_`ab` of local dimension `d`.

@@ -153,7 +153,7 @@ export pauli
     gellmann([T=ComplexF64,], d::Integer = 3)
 
 Constructs the set `G` of generalized Gell-Mann matrices in dimension `d` such that
-`G₁ = I` and `Tr(GᵢGⱼ) = 2 δᵢⱼ`.
+`G₁ = √(2/d) I` and `Tr(GᵢGⱼ) = 2 δᵢⱼ`.
 
 Reference: [Generalizations of Pauli matrices](https://en.wikipedia.org/wiki/Generalizations_of_Pauli_matrices)
 """
@@ -213,6 +213,10 @@ export gellmann!
 
 Returns the coordinates of a `d × d` hermitian matrix in a specified basis,
 by default the generalised Gell-Mann basis.
+For valid density matrices, the resulting vector `vec` is such that
+`norm(vec[2:end]) ≤ sqrt((d-1) / (2d))`.
+
+Reference: Bertlmann and Krammer, [arXiv:0806.1174](https://arxiv.org/abs/0806.1174)
 """
 function bloch_vector(
     ρ::AbstractMatrix{T},
