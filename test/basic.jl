@@ -37,7 +37,6 @@
     end
     @testset "Gell-Mann" begin
         for R ∈ (Int, Float64, BigFloat)
-            @test gellmann(R, 1, 1) == Matrix{R}(I, 3, 3)
             @test gellmann(R, 1, 2) == [0 1 0; 1 0 0; 0 0 0]
             @test gellmann(R, 1, 3) == [0 0 1; 0 0 0; 1 0 0]
             @test gellmann(Complex{R}, 2, 1) == [0 -im 0; im 0 0; 0 0 0]
@@ -46,8 +45,9 @@
             @test gellmann(Complex{R}, 3, 1) == [0 0 -im; 0 0 0; im 0 0]
             @test gellmann(Complex{R}, 3, 2) == [0 0 0; 0 0 -im; 0 im 0]
         end
-        @test gellmann(3, 3) == Diagonal([1, 1, -2] / sqrt(3))
-        @test gellmann(1, 1, 4) == Matrix{Float64}(I, 4, 4)
+        @test gellmann(1, 1) ≈ Matrix{ComplexF64}(I, 3, 3) * sqrt(2 / 3)
+        @test gellmann(3, 3) ≈ Diagonal([1, 1, -2] / sqrt(3))
+        @test gellmann(1, 1, 4) ≈ Matrix{Float64}(I, 4, 4) / sqrt(2)
     end
     @testset "Bloch vector" begin
         for R ∈ (Int, Float64, BigFloat)
@@ -56,7 +56,7 @@
             @test bloch_vector(proj(R, 1, 2)) == R[1, 0, 0, 1]
             @test bloch_vector(proj(Complex{R}, 1, 2)) == R[1, 0, 0, 1]
         end
-        @test bloch_vector(proj(Float64, 3, 3)) == [1, 0, 0, 0, 0, 0, 0, 0, -2/sqrt(3)]
+        @test bloch_vector(proj(Float64, 3, 3)) ≈ [sqrt(2 / 3), 0, 0, 0, 0, 0, 0, 0, -2 / sqrt(3)]
     end
     @testset "Cleanup" begin
         for R ∈ (Float64, BigFloat)

@@ -193,7 +193,7 @@ function gellmann!(res::Hermitian{T}, i::Integer, j::Integer, d::Integer = 3) wh
         parent(res)[j, i] = -im
     elseif i == 1
         for k ∈ 1:d
-            res[k, k] = 1 # _sqrt(T, 2) / _sqrt(T, d) if we want a proper normalisation
+            res[k, k] = _sqrt(T, 2) / _sqrt(T, d)
         end
     elseif i == d
         tmp = _sqrt(T, 2) / _sqrt(T, d * (d - 1))
@@ -218,7 +218,7 @@ function bloch_vector(
     ρ::AbstractMatrix{T},
     basis = gellmann(complex(T), LinearAlgebra.checksquare(ρ))
 ) where {T<:Number}
-    !ishermitian(ρ) && ArgumentError("Non-hermitian input matrix.")
+    ishermitian(ρ) || throw(ArgumentError("State needs to be Hermitian"))
     return [dot(Hermitian(ρ), σ) for σ ∈ basis]
 end
 export bloch_vector
