@@ -214,16 +214,20 @@ export gellmann!
 Returns the coordinates of a `d × d` hermitian matrix in a specified basis,
 by default the generalised Gell-Mann basis.
 For valid density matrices, the resulting vector `vec` is such that
-`norm(vec[2:end]) ≤ sqrt((d-1) / (2d))`.
+`norm(vec[2:end]) ≤ 1`, with equality for pure states.
 
-Reference: Bertlmann and Krammer, [arXiv:0806.1174](https://arxiv.org/abs/0806.1174)
+Reference: Byrd and Khaneja, [arXiv:quant-ph/0302024](https://arxiv.org/abs/quant-ph/0302024)
 """
 function bloch_vector(
     ρ::AbstractMatrix{T},
     basis = gellmann(complex(T), LinearAlgebra.checksquare(ρ))
 ) where {T<:Number}
     ishermitian(ρ) || throw(ArgumentError("State needs to be Hermitian"))
-    return [dot(Hermitian(ρ), σ) for σ ∈ basis]
+    d = size(ρ, 1)
+    vec = [dot(Hermitian(ρ), σ) for σ ∈ basis]
+    normalization = _sqrt(T, d) / _sqrt(T, 2 * (d - 1))
+    vec .*= normalization
+    return vec
 end
 export bloch_vector
 

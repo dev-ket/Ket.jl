@@ -51,12 +51,12 @@
     end
     @testset "Bloch vector" begin
         for R ∈ (Int, Float64, BigFloat)
-            @test bloch_vector(ketbra(R[1, 0])) == R[1, 0, 0, 1]
-            @test bloch_vector(ketbra(Complex{R}[1, 0])) == R[1, 0, 0, 1]
-            @test bloch_vector(proj(R, 1, 2)) == R[1, 0, 0, 1]
-            @test bloch_vector(proj(Complex{R}, 1, 2)) == R[1, 0, 0, 1]
+            @test bloch_vector(ketbra(R[1, 0])) == [1, 0, 0, 1]
+            @test bloch_vector(ketbra(Complex{R}[1, 0])) == [1, 0, 0, 1]
+            @test bloch_vector(proj(R, 1, 2)) == [1, 0, 0, 1]
+            @test bloch_vector(proj(Complex{R}, 1, 2)) == [1, 0, 0, 1]
         end
-        @test bloch_vector(proj(Float64, 3, 3)) ≈ [sqrt(2 / 3), 0, 0, 0, 0, 0, 0, 0, -2 / sqrt(3)]
+        @test bloch_vector(proj(Float64, 3, 3)) ≈ [1 / sqrt(2), 0, 0, 0, 0, 0, 0, 0, -1]
     end
     @testset "Cleanup" begin
         for R ∈ (Float64, BigFloat)

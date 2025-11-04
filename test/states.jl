@@ -1,6 +1,9 @@
 @testset "States                " begin
+    state_bloch([0, 0, 1]) == proj(Int, 1, 2)
     for R ∈ [Float64, BigFloat]
         T = Complex{R}
+        ρ = random_state(R, 2, 1)
+        @test state_bloch(bloch_vector(ρ)) ≈ ρ
         ρ = random_state(T, 2, 1)
         @test state_bloch(bloch_vector(ρ)) ≈ ρ
         ρ = random_state(T, 3, 1)
