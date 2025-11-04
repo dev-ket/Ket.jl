@@ -224,8 +224,7 @@ function permute_systems(
     perm::AbstractVector{<:Integer},
     dims::AbstractVector{<:Integer} = _equal_sizes(X)
 ) where {T}
-    perm == 1:length(perm) && return X
-    X == 1:length(X) && return _idxperm!(X, perm, dims)
+    perm == 1:length(perm) && return copy(X)
     p = _idxperm(perm, dims)
     return X[p]
 end
