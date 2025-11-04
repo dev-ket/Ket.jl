@@ -17,6 +17,7 @@ pauli
 gellmann
 gellmann!
 bloch_vector
+bloch_operator
 cleanup!
 symmetric_projector
 symmetric_isometry
@@ -141,7 +142,6 @@ random_probability
 ## States
 
 ```@docs
-state_bloch
 state_bell_ket
 state_bell
 state_phiplus_ket
