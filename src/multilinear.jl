@@ -210,6 +210,7 @@ function _idxperm!(p::Vector{<:Integer}, perm::Vector{<:Integer}, dims::Vector{<
     step_sizes_perm = _step_sizes_subsystems(dims_view)
     @views subsystem_perm_step[perm] = step_sizes_perm[:]
     _step_iterator_rec!(p, dims, subsystem_perm_step, subsystem_og_step, 1, 1, 1)
+    return p
 end
 
 """
