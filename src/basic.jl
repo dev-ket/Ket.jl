@@ -213,8 +213,8 @@ export gellmann!
 
 Returns the coordinates of a `d × d` hermitian matrix in a specified basis,
 by default the generalised Gell-Mann basis.
-For valid density matrices, the resulting vector `vec` is such that
-`norm(vec[2:end]) ≤ 1`, with equality for pure states.
+For valid density matrices, the resulting vector `v` is such that
+`norm(v[2:end]) ≤ 1`, with equality for pure states.
 
 Reference: Byrd and Khaneja, [arXiv:quant-ph/0302024](https://arxiv.org/abs/quant-ph/0302024)
 """
@@ -224,12 +224,39 @@ function bloch_vector(
 ) where {T<:Number}
     ishermitian(ρ) || throw(ArgumentError("State needs to be Hermitian"))
     d = size(ρ, 1)
-    vec = [dot(Hermitian(ρ), σ) for σ ∈ basis]
+    v = [dot(Hermitian(ρ), σ) for σ ∈ basis]
     normalization = _sqrt(T, d) / _sqrt(T, 2 * (d - 1))
-    vec .*= normalization
-    return vec
+    v .*= normalization
+    return v
 end
 export bloch_vector
+
+"""
+    bloch_operator(v::AbstractVector, basis = gellmann(isqrt(length(v) + 1)))
+
+Produces the state corresponding to the Bloch vector `v`.
+If `v` has length `d²-1`, the output is `(I+√(d(d-1)/2)v⋅basis[2:end])/d`.
+If `v` has lengh `d²`, the output is `√((d-1)/(2d))v⋅basis`.
+No checks are done on whether the result is a valid quantum state.
+
+Reference: Byrd and Khaneja, [arXiv:quant-ph/0302024](https://arxiv.org/abs/quant-ph/0302024)
+"""
+function bloch_operator(
+    v::AbstractVector{T1},
+    basis::Vector{<:AbstractMatrix{T2}} = gellmann(complex(T1), isqrt(length(v) + 1))
+) where {T1<:Number,T2<:Number}
+    d = size(basis[1], 1)
+    length(v) ∈ (d^2 - 1, d^2) || throw(ArgumentError("The Bloch vector must have length d²-1 or d²."))
+    flag = length(v) == d^2 - 1
+    coef = _sqrt(T1, binomial(d, 2))
+    ρ = flag ? Matrix{T2}(I, d, d) : Matrix{T2}((coef * v[1]) * basis[1])
+    for i ∈ 2:d^2
+        ρ .+= (coef * v[i-flag]) .* basis[i]
+    end
+    ρ ./= d
+    return Hermitian(ρ)
+end
+export bloch_operator
 
 """
     cleanup!(M::AbstractArray{T}; tol = _eps(T))

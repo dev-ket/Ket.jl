@@ -27,34 +27,6 @@ end
 export white_noise!
 
 """
-    state_bloch(vec::AbstractVector, basis = gellmann(isqrt(length(vec) + 1)))
-
-Produces the state corresponding to the Bloch vector `vec`.
-If `vec` has length `d²-1`, the output is `(I+√(d(d-1)/2)vec⋅basis[2:end])/d`.
-If `vec` has lengh `d²`, the output is `√((d-1)/(2d))vec⋅basis`.
-No checks are done on whether the result is a valid quantum state.
-
-Reference: Byrd and Khaneja, [arXiv:quant-ph/0302024](https://arxiv.org/abs/quant-ph/0302024)
-"""
-function state_bloch(
-    vec::AbstractVector{T1},
-    basis::Vector{<:AbstractMatrix{T2}} = gellmann(complex(T1), isqrt(length(vec) + 1));
-    v::Real = 1
-) where {T1<:Number,T2<:Number}
-    d = size(basis[1], 1)
-    length(vec) ∈ (d^2 - 1, d^2) || throw(ArgumentError("The Bloch vector must have length d²-1 or d²."))
-    flag = length(vec) == d^2 - 1
-    coef = _sqrt(T1, binomial(d, 2))
-    ρ = flag ? Matrix{T2}(I, d, d) : Matrix{T2}((coef * vec[1]) * basis[1])
-    for i ∈ 2:d^2
-        ρ .+= (coef * vec[i-flag]) .* basis[i]
-    end
-    ρ ./= d
-    return white_noise!(Hermitian(ρ), v)
-end
-export state_bloch
-
-"""
     state_bell_ket([T=ComplexF64,] a::Integer, b::Integer, d::Integer = 2)
 
 Produces the ket of the generalized Bell state ψ_`ab` of local dimension `d`.

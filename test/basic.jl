@@ -58,6 +58,24 @@
         end
         @test bloch_vector(proj(Float64, 3, 3)) ≈ [1 / sqrt(2), 0, 0, 0, 0, 0, 0, 0, -1]
     end
+    @testset "Bloch operator" begin
+        bloch_operator([0, 0, 1]) == proj(Int, 1, 2)
+        for R ∈ (Float64, BigFloat)
+            T = Complex{R}
+            @test bloch_operator(zeros(T, 3)) == I / T(2)
+            @test bloch_operator(zeros(T, 4)) == zeros(T, 2, 2)
+            @test bloch_operator(zeros(T, 8)) == I / T(3)
+            @test bloch_operator(zeros(T, 9)) == zeros(T, 3, 3)
+            ρ = random_state(R, 2, 1)
+            @test bloch_operator(bloch_vector(ρ)) ≈ ρ
+            ρ = random_state(T, 2, 1)
+            @test bloch_operator(bloch_vector(ρ)) ≈ ρ
+            ρ = random_state(T, 3, 1)
+            @test bloch_operator(bloch_vector(ρ)) ≈ ρ
+            ρ = random_state(T, 4)
+            @test bloch_operator(bloch_vector(ρ)) ≈ ρ
+        end
+    end
     @testset "Cleanup" begin
         for R ∈ (Float64, BigFloat)
             a = zeros(R, 2, 2)
