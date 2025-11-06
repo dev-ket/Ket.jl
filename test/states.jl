@@ -14,9 +14,9 @@
         @test ketbra(ψ) ≈ state_w(T)
         coeff = T.([1, 2, 2]) / 9
         @test state_w_ket(T; coeff) == T.(ket(2, 8) + 2 * ket(3, 8) + 2 * ket(5, 8)) / 9
-        ψ = state_dicke_ket(T, 2, 3)
+        ψ = state_dicke_ket(T, 3, 2)
         @test ψ == inv(sqrt(R(3))) * (ket(4, 8) + ket(6, 8) + ket(7, 8))
-        @test ketbra(ψ) ≈ state_dicke(T, 2, 3)
+        @test ketbra(ψ) ≈ state_dicke(T, 3, 2)
         ψ = state_ghz_ket(T)
         @test ψ == inv(sqrt(R(2))) * (ket(1, 8) + ket(8, 8))
         @test ketbra(ψ) ≈ state_ghz(T)

@@ -23,7 +23,7 @@
     @testset "DPS hierarchy" begin
         for R ∈ (Float64, Double64), T ∈ (R, Complex{R})
             # outer DPS:
-            ρ = state_ghz(T, 2, 2)
+            ρ = state_phiplus(T)
             s, W = entanglement_robustness(ρ; noise = "white")
             @test eltype(W) == T
             @test s ≈ 0.5 atol = 1.0e-5 rtol = 1.0e-5
@@ -48,9 +48,9 @@
             @test Ket._jacobi_polynomial_zeros(R, 3, -1/2, -1/2) ≈ [-sqrt(3) / 2, 0, sqrt(3) / 2]
         end
         d = 3
-        @test isapprox(schmidt_number(state_ghz(ComplexF64, d, 2), 2), 1 / 15, atol = 1.0e-3, rtol = 1.0e-3)
+        @test isapprox(schmidt_number(state_phiplus(ComplexF64, d), 2), 1 / 15, atol = 1.0e-3, rtol = 1.0e-3)
         @test isapprox(
-            schmidt_number(state_ghz(Float64, d, 2), 2, [d, d], 2; solver = SCS.Optimizer),
+            schmidt_number(state_phiplus(Float64, d), 2, [d, d], 2; solver = SCS.Optimizer),
             1 / 15,
             atol = 1.0e-3,
             rtol = 1.0e-3
@@ -60,7 +60,7 @@
     end
     @testset "GME entanglement" begin
         for R ∈ (Float64, Double64)
-            ρ = state_ghz(R, 2, 3)
+            ρ = state_ghz(R)
 
             v, W = ppt_mixture(ρ, [2, 2, 2])
             @test isapprox(v, 0.4285, atol = 1.0e-3)

@@ -172,7 +172,7 @@ function schmidt_number(
     is_complex = (T <: Complex)
     wrapper = is_complex ? Hermitian : Symmetric
 
-    V = kron(I(dims[1]), SA.sparse(state_ghz_ket(T, s, 2; coeff = 1)), I(dims[2])) #this is an isometry up to normalization
+    V = kron(I(dims[1]), SA.sparse(state_phiplus_ket(T, s; coeff = 1)), I(dims[2])) #this is an isometry up to normalization
     lifted_dims = [dims[1] * s, dims[2] * s] # with the ancilla spaces A'B'...
 
     model = JuMP.GenericModel{_solver_type(T)}()
@@ -482,7 +482,7 @@ one can call
 
 ```julia-repl
 julia> two_body_basis = collect(Iterators.flatten(n_body_basis(i, 3) for i ∈ 0:2))
-julia> ppt_mixture(state_ghz(2, 3), [2, 2, 2], two_body_basis)
+julia> ppt_mixture(state_ghz(), [2, 2, 2], two_body_basis)
 ```
 
 Reference: Jungnitsch, Moroder, Gühne [arXiv:quant-ph/0401118](https://arxiv.org/abs/quant-ph/0401118)

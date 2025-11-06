@@ -62,7 +62,7 @@ export state_bell
 Produces the ket of the maximally entangled state ϕ⁺ of local dimension `d`.
 """
 function state_phiplus_ket(::Type{T}, d::Integer = 2; kwargs...) where {T<:Number}
-    return state_ghz_ket(T, d, 2; kwargs...)
+    return state_ghz_ket(T, 2, d; kwargs...)
 end
 state_phiplus_ket(d::Integer = 2; kwargs...) = state_phiplus_ket(ComplexF64, d; kwargs...)
 export state_phiplus_ket
@@ -107,28 +107,28 @@ state_psiminus(d::Integer = 2; v::Real = 1) = state_psiminus(ComplexF64, d; v)
 export state_psiminus
 
 """
-    state_ghz_ket([T=ComplexF64,] d::Integer = 2, N::Integer = 3; coeff = 1/√d)
+    state_ghz_ket([T=ComplexF64,] N::Integer = 3, d::Integer = 2; coeff = 1/√d)
 
 Produces the ket of the GHZ state with `N` parties and local dimension `d`.
 """
-function state_ghz_ket(::Type{T}, d::Integer = 2, N::Integer = 3; coeff = inv(_sqrt(T, d))) where {T<:Number}
+function state_ghz_ket(::Type{T}, N::Integer = 3, d::Integer = 2; coeff = inv(_sqrt(T, d))) where {T<:Number}
     psi = zeros(T, d^N)
     spacing = (1 - d^N) ÷ (1 - d)
     psi[1:spacing:d^N] .= coeff
     return psi
 end
-state_ghz_ket(d::Integer = 2, N::Integer = 3; kwargs...) = state_ghz_ket(ComplexF64, d, N; kwargs...)
+state_ghz_ket(N::Integer = 3, d::Integer = 2; kwargs...) = state_ghz_ket(ComplexF64, N, d; kwargs...)
 export state_ghz_ket
 
 """
-    state_ghz([T=ComplexF64,] d::Integer = 2, N::Integer = 3; v::Real = 1, coeff = 1/√d)
+    state_ghz([T=ComplexF64,] N::Integer = 3, d::Integer = 2; v::Real = 1, coeff = 1/√d)
 
 Produces the GHZ state with `N` parties, local dimension `d`, and visibility `v`.
 """
-function state_ghz(::Type{T}, d::Integer = 2, N::Integer = 3; v::Real = 1, kwargs...) where {T<:Number}
-    return white_noise!(ketbra(state_ghz_ket(T, d, N; kwargs...)), v)
+function state_ghz(::Type{T}, N::Integer = 3, d::Integer = 2; v::Real = 1, kwargs...) where {T<:Number}
+    return white_noise!(ketbra(state_ghz_ket(T, N, d; kwargs...)), v)
 end
-state_ghz(d::Integer = 2, N::Integer = 3; kwargs...) = state_ghz(ComplexF64, d, N; kwargs...)
+state_ghz(N::Integer = 3, d::Integer = 2; kwargs...) = state_ghz(ComplexF64, N, d; kwargs...)
 export state_ghz
 
 """
@@ -198,13 +198,13 @@ state_supersinglet(N::Integer = 3; kwargs...) = state_supersinglet(ComplexF64, N
 export state_supersinglet
 
 """
-    state_dicke_ket([T=ComplexF64,] k::Integer, N::Integer; coeff = 1/√Cᴺₖ)
+    state_dicke_ket([T=ComplexF64,] N::Integer, k::Integer; coeff = 1/√Cᴺₖ)
 
 Produces the ket of the `N`-partite Dicke state with `k` excitations.
 
 Reference: Robert H. Dicke [doi:10.1103/PhysRev.93.99](https://doi.org/10.1103/PhysRev.93.99)
 """
-function state_dicke_ket(::Type{T}, k::Integer, N::Integer; coeff = inv(_sqrt(T, binomial(N, k)))) where {T<:Number}
+function state_dicke_ket(::Type{T}, N::Integer, k::Integer; coeff = inv(_sqrt(T, binomial(N, k)))) where {T<:Number}
     N > 0 && 0 ≤ k ≤ N || throw(ArgumentError("Invalid number of excitations"))
     psi = zeros(T, 2^N)
     ind = zeros(Int8, N)
@@ -216,22 +216,22 @@ function state_dicke_ket(::Type{T}, k::Integer, N::Integer; coeff = inv(_sqrt(T,
     end
     return psi
 end
-state_dicke_ket(k::Integer, N::Integer; kwargs...) = state_dicke_ket(ComplexF64, k, N; kwargs...)
+state_dicke_ket(N::Integer, k::Integer; kwargs...) = state_dicke_ket(ComplexF64, N, k; kwargs...)
 export state_dicke_ket
 
 """
-    state_dicke([T=ComplexF64,] k::Integer, N::Integer; v::Real = 1)
+    state_dicke([T=ComplexF64,] N::Integer, k::Integer; v::Real = 1)
 
 Produces the `N`-partite Dicke state with `k` excitations.
 
 Reference: Robert H. Dicke [doi:10.1103/PhysRev.93.99](https://doi.org/10.1103/PhysRev.93.99)
 """
-function state_dicke(::Type{T}, k::Integer, N::Integer; v::Real = 1) where {T<:Number}
-    rho = ketbra(state_dicke_ket(T, k, N; coeff = one(T)))
+function state_dicke(::Type{T}, N::Integer, k::Integer; v::Real = 1) where {T<:Number}
+    rho = ketbra(state_dicke_ket(T, N, k; coeff = one(T)))
     parent(rho) ./= binomial(N, k)
     return white_noise!(rho, v)
 end
-state_dicke(k::Integer, N::Integer; kwargs...) = state_dicke(ComplexF64, k, N; kwargs...)
+state_dicke(N::Integer, k::Integer; kwargs...) = state_dicke(ComplexF64, N, k; kwargs...)
 export state_dicke
 
 """
