@@ -143,35 +143,6 @@ function povm(B::Vector{<:AbstractMatrix})
 end
 export povm
 
-"""
-    tensor_to_povm(A::Array{T,4}, o::Vector{Int})
-
-Converts a set of measurements in the common tensor format into a matrix of (hermitian) matrices.
-By default, the second argument is fixed by the size of `A`.
-It can also contain custom number of outcomes if there are measurements with less outcomes.
-"""
-function tensor_to_povm(Aax::Array{T,4}, o::Vector{Int} = fill(size(Aax, 3), size(Aax, 4))) where {T}
-    return [[Hermitian(Aax[:, :, a, x]) for a ∈ 1:o[x]] for x ∈ axes(Aax, 4)]
-end
-export tensor_to_povm
-
-"""
-    povm_to_tensor(Axa::Vector{<:Measurement})
-
-Converts a matrix of (hermitian) matrices into a set of measurements in the common tensor format.
-"""
-function povm_to_tensor(Axa::Vector{Measurement{T}}) where {T<:Number}
-    d, o, m = _measurements_parameters(Axa)
-    Aax = zeros(T, d, d, maximum(o), m)
-    for x ∈ eachindex(Axa)
-        for a ∈ eachindex(Axa[x])
-            Aax[:, :, a, x] .= Axa[x][a]
-        end
-    end
-    return Aax
-end
-export povm_to_tensor
-
 function _measurements_parameters(Axa::Vector{Measurement{T}}) where {T<:Number}
     @assert !isempty(Axa)
     # dimension on which the measurements act

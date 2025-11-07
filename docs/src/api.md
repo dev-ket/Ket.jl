@@ -87,8 +87,6 @@ test_sic
 test_povm
 dilate_povm
 povm
-tensor_to_povm
-povm_to_tensor
 mub
 test_mub
 discrimination_min_error
