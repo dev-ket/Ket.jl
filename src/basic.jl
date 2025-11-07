@@ -220,7 +220,7 @@ Reference: Byrd and Khaneja, [arXiv:quant-ph/0302024](https://arxiv.org/abs/quan
 """
 function bloch_vector(
     ρ::AbstractMatrix{T},
-    basis = gellmann(complex(T), LinearAlgebra.checksquare(ρ))
+    basis = gellmann(complex(T), checksquare(ρ))
 ) where {T<:Number}
     ishermitian(ρ) || throw(ArgumentError("State needs to be Hermitian"))
     d = size(ρ, 1)

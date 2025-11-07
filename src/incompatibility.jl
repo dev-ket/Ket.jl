@@ -85,12 +85,13 @@ function incompatibility_robustness(
     η = JuMP.objective_value(model)
     IR = 1 / η - 1
     if return_parent && JuMP.has_duals(model)
-        # the parent POVM is best represented in the tensor format as it has many outcomes
-        G = zeros(T, d, d, o...)
+        # type unstable, could turn A into an NTuple{N,Measurement{T}}
+        G = Array{Hermitian{T, Matrix{T}}}(undef, o...)
         for (j, c) ∈ zip(CartesianIndices(o), con)
-            G[:, :, j] .= JuMP.dual(c)
+            Gj = JuMP.dual(c)
+            cleanup!(Gj)
+            G[j] = Hermitian(Gj)
         end
-        cleanup!(G)
         return IR, G
     else
         # [[JuMP.value.(X[x][a]) for a ∈ 1:o[x]] for x ∈ 1:m]
