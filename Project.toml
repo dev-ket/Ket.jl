@@ -1,6 +1,6 @@
 name = "Ket"
 uuid = "412c778c-4733-41d8-b706-9e072557ba34"
-version = "0.7.0"
+version = "0.8.0"
 
 [deps]
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
