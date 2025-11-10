@@ -150,23 +150,22 @@ pauli() = pauli(ComplexF64)
 export pauli
 
 """
-    gellmann([T=ComplexF64,], d::Integer = 3)
+    gellmann([T=ComplexF64,], d::Integer = 3; coeff = √(d/2))
 
 Constructs the set `G` of generalized Gell-Mann matrices in dimension `d` such that
+`G₁ = I` and `Tr(GᵢGⱼ) = d δᵢⱼ`.
+Set `coeff = 1` to obtain the Gell-Mann matrices normalised such that
 `G₁ = √(2/d) I` and `Tr(GᵢGⱼ) = 2 δᵢⱼ`.
 
 Reference: [Generalizations of Pauli matrices](https://en.wikipedia.org/wiki/Generalizations_of_Pauli_matrices)
 """
-function gellmann(::Type{T}, d::Integer = 3) where {T<:Number}
-    return [gellmann(T, i, j, d) for j ∈ 1:d, i ∈ 1:d][:]
-    # d=2, ρ = 1/2(σ0 + n*σ)
-    # d=3, ρ = 1/3(I + √3 n*λ)
-    #      ρ = 1/d(I + sqrt(2/(d*(d-1))) n*λ)
+function gellmann(::Type{T}, d::Integer = 3; coeff = _sqrt(T, d) / _sqrt(T, 2)) where {T<:Number}
+    return [gellmann(T, i, j, d; coeff) for j ∈ 1:d, i ∈ 1:d][:]
     # SD: the next line would be for a potential KetSparse extension
     # SD: I Haven't thought yet how to deal with this.
     # return [gellmann(T, k, j, d, sparse(zeros(Complex{T}, d, d))) for j ∈ 1:d, k ∈ 1:d][:]
 end
-gellmann(d::Integer = 3) = gellmann(ComplexF64, d)
+gellmann(d::Integer = 3; coeff = sqrt(d / 2)) = gellmann(ComplexF64, d; coeff)
 export gellmann
 
 """
@@ -176,33 +175,33 @@ Constructs the set `i`,`j`th Gell-Mann matrix of dimension `d`.
 
 Reference: [Generalizations of Pauli matrices](https://en.wikipedia.org/wiki/Generalizations_of_Pauli_matrices)
 """
-function gellmann(::Type{T}, i::Integer, j::Integer, d::Integer = 3) where {T<:Number}
-    return gellmann!(Hermitian(zeros(T, d, d)), i, j, d)
+function gellmann(::Type{T}, i::Integer, j::Integer, d::Integer = 3; coeff = _sqrt(T, d) / _sqrt(T, 2)) where {T<:Number}
+    return gellmann!(Hermitian(zeros(T, d, d)), i, j, d; coeff)
 end
-gellmann(i::Integer, j::Integer, d::Integer = 3) = gellmann(ComplexF64, i, j, d)
+gellmann(i::Integer, j::Integer, d::Integer = 3; coeff = sqrt(d / 2)) = gellmann(ComplexF64, i, j, d; coeff)
 
 """
     gellmann!(res::AbstractMatrix{T}, i::Integer, j::Integer, d::Integer = 3)
 
 In-place version of `gellmann`.
 """
-function gellmann!(res::Hermitian{T}, i::Integer, j::Integer, d::Integer = 3) where {T<:Number}
+function gellmann!(res::Hermitian{T}, i::Integer, j::Integer, d::Integer = 3; coeff = _sqrt(T, d) / _sqrt(T, 2)) where {T<:Number}
     if i < j
-        parent(res)[i, j] = 1
+        parent(res)[i, j] = coeff
     elseif i > j
-        parent(res)[j, i] = -im
+        parent(res)[j, i] = -im * coeff
     elseif i == 1
         for k ∈ 1:d
-            res[k, k] = _sqrt(T, 2) / _sqrt(T, d)
+            res[k, k] = _sqrt(T, 2) / _sqrt(T, d) * coeff
         end
     elseif i == d
-        tmp = _sqrt(T, 2) / _sqrt(T, d * (d - 1))
+        tmp = _sqrt(T, 2) / _sqrt(T, d * (d - 1)) * coeff
         for k ∈ 1:d-1
             res[k, k] = tmp
         end
         res[d, d] = -(d - 1) * tmp
     else
-        gellmann!(res, i, j, d - 1)
+        gellmann!(res, i, j, d - 1; coeff)
     end
     return res
 end
@@ -214,7 +213,7 @@ export gellmann!
 Returns the coordinates of a `d × d` hermitian matrix in a specified basis,
 by default the generalised Gell-Mann basis.
 For valid density matrices, the resulting vector `v` is such that
-`norm(v[2:end]) ≤ 1`, with equality for pure states.
+`norm(v[2:end]) ≤ √(d*(d-1)/2)`, with equality for pure states.
 
 Reference: Byrd and Khaneja, [arXiv:quant-ph/0302024](https://arxiv.org/abs/quant-ph/0302024)
 """

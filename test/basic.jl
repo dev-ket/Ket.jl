@@ -37,17 +37,17 @@
     end
     @testset "Gell-Mann" begin
         for R ∈ (Int, Float64, BigFloat)
-            @test gellmann(R, 1, 2) == [0 1 0; 1 0 0; 0 0 0]
-            @test gellmann(R, 1, 3) == [0 0 1; 0 0 0; 1 0 0]
-            @test gellmann(Complex{R}, 2, 1) == [0 -im 0; im 0 0; 0 0 0]
-            @test gellmann(R, 2, 2) == [1 0 0; 0 -1 0; 0 0 0]
-            @test gellmann(R, 2, 3) == [0 0 0; 0 0 1; 0 1 0]
-            @test gellmann(Complex{R}, 3, 1) == [0 0 -im; 0 0 0; im 0 0]
-            @test gellmann(Complex{R}, 3, 2) == [0 0 0; 0 0 -im; 0 im 0]
+            @test gellmann(R, 1, 2; coeff = 1) == [0 1 0; 1 0 0; 0 0 0]
+            @test gellmann(R, 1, 3; coeff = 1) == [0 0 1; 0 0 0; 1 0 0]
+            @test gellmann(Complex{R}, 2, 1; coeff = 1) == [0 -im 0; im 0 0; 0 0 0]
+            @test gellmann(R, 2, 2; coeff = 1) == [1 0 0; 0 -1 0; 0 0 0]
+            @test gellmann(R, 2, 3; coeff = 1) == [0 0 0; 0 0 1; 0 1 0]
+            @test gellmann(Complex{R}, 3, 1; coeff = 1) == [0 0 -im; 0 0 0; im 0 0]
+            @test gellmann(Complex{R}, 3, 2; coeff = 1) == [0 0 0; 0 0 -im; 0 im 0]
         end
-        @test gellmann(1, 1) ≈ Matrix{ComplexF64}(I, 3, 3) * sqrt(2 / 3)
-        @test gellmann(3, 3) ≈ Diagonal([1, 1, -2] / sqrt(3))
-        @test gellmann(1, 1, 4) ≈ Matrix{Float64}(I, 4, 4) / sqrt(2)
+        @test gellmann(1, 1) ≈ Matrix{ComplexF64}(I, 3, 3)
+        @test gellmann(3, 3) ≈ Diagonal([1, 1, -2] / sqrt(2))
+        @test gellmann(1, 1, 4) ≈ Matrix{Float64}(I, 4, 4)
     end
     @testset "Bloch vector" begin
         for R ∈ (Int, Float64, BigFloat)
