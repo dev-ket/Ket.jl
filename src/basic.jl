@@ -152,18 +152,15 @@ export pauli
 """
     gellmann([T=ComplexF64,], d::Integer = 3; coeff = √(d/2))
 
-Constructs the set `G` of generalized Gell-Mann matrices in dimension `d` such that
-`G₁ = I` and `Tr(GᵢGⱼ) = d δᵢⱼ`.
-Set `coeff = 1` to obtain the Gell-Mann matrices normalised such that
-`G₁ = √(2/d) I` and `Tr(GᵢGⱼ) = 2 δᵢⱼ`.
+Constructs the set `G` of generalized `d`-dimensional Gell-Mann matrices
+normalized such that `G₁ = I` and `Tr(GᵢGⱼ) = d δᵢⱼ`.
+Set `coeff = 1` to obtain the generalized Gell-Mann matrices
+normalized such that `G₁ = √(2/d) I` and `Tr(GᵢGⱼ) = 2 δᵢⱼ`.
 
 Reference: [Generalizations of Pauli matrices](https://en.wikipedia.org/wiki/Generalizations_of_Pauli_matrices)
 """
 function gellmann(::Type{T}, d::Integer = 3; coeff = _sqrt(T, d) / _sqrt(T, 2)) where {T<:Number}
     return [gellmann(T, i, j, d; coeff) for j ∈ 1:d, i ∈ 1:d][:]
-    # SD: the next line would be for a potential KetSparse extension
-    # SD: I Haven't thought yet how to deal with this.
-    # return [gellmann(T, k, j, d, sparse(zeros(Complex{T}, d, d))) for j ∈ 1:d, k ∈ 1:d][:]
 end
 gellmann(d::Integer = 3; coeff = sqrt(d / 2)) = gellmann(ComplexF64, d; coeff)
 export gellmann
@@ -175,7 +172,13 @@ Constructs the set `i`,`j`th Gell-Mann matrix of dimension `d`.
 
 Reference: [Generalizations of Pauli matrices](https://en.wikipedia.org/wiki/Generalizations_of_Pauli_matrices)
 """
-function gellmann(::Type{T}, i::Integer, j::Integer, d::Integer = 3; coeff = _sqrt(T, d) / _sqrt(T, 2)) where {T<:Number}
+function gellmann(
+    ::Type{T},
+    i::Integer,
+    j::Integer,
+    d::Integer = 3;
+    coeff = _sqrt(T, d) / _sqrt(T, 2)
+) where {T<:Number}
     return gellmann!(Hermitian(zeros(T, d, d)), i, j, d; coeff)
 end
 gellmann(i::Integer, j::Integer, d::Integer = 3; coeff = sqrt(d / 2)) = gellmann(ComplexF64, i, j, d; coeff)
@@ -185,7 +188,13 @@ gellmann(i::Integer, j::Integer, d::Integer = 3; coeff = sqrt(d / 2)) = gellmann
 
 In-place version of `gellmann`.
 """
-function gellmann!(res::Hermitian{T}, i::Integer, j::Integer, d::Integer = 3; coeff = _sqrt(T, d) / _sqrt(T, 2)) where {T<:Number}
+function gellmann!(
+    res::Hermitian{T},
+    i::Integer,
+    j::Integer,
+    d::Integer = 3;
+    coeff = _sqrt(T, d) / _sqrt(T, 2)
+) where {T<:Number}
     if i < j
         parent(res)[i, j] = coeff
     elseif i > j
@@ -212,9 +221,9 @@ export gellmann!
     bloch_vector(ρ::AbstractMatrix, basis = gellmann(checksquare(ρ)))
 
 Returns the coordinates of a `d × d` hermitian matrix in a specified basis,
-by default the generalised Gell-Mann basis.
-For valid density matrices, the resulting vector `v` is such that
-`norm(v[2:end]) ≤ √(d*(d-1)/2)`, with equality for pure states.
+by default the generalized Gell-Mann basis (see `gellmann`).
+For density matrices, the resulting vector `v` is such that `v₁ = 1` and
+`norm(v[2:end]) ≤ √(d-1)` (with equality for pure states).
 """
 function bloch_vector(
     ρ::AbstractMatrix{T},
@@ -229,10 +238,17 @@ export bloch_vector
 """
     bloch_operator(v::AbstractVector, basis = gellmann(isqrt(length(v) + 1)))
 
-Produces the state corresponding to the Bloch vector `v`.
-If `v` has length `d²-1`, the output is `(I+v⋅basis[2:end])/d`.
-If `v` has lengh `d²`, the output is `v⋅basis/d`.
-No checks are done on whether the result is a valid quantum state.
+Produces the operator corresponding to the Bloch vector `v`.
+
+For qubits with the default `basis` (Pauli operators):
+ - if `v` has length `3`, the output is `½(I + v₁σ₁ + v₂σ₂ + v₃σ₃)`,
+ - if `v` has length `4`, the output is `½(v₁I + v₂σ₁ + v₃σ₂ + v₄σ₃)`.
+
+In general:
+ - if `v` has length `d²-1`, the output is `(I+v⋅basis[2:end])/d`,
+ - if `v` has lengh `d²`, the output is `v⋅basis/d`.
+
+No checks are performed on the result.
 """
 function bloch_operator(
     v::AbstractVector{T1},
@@ -241,7 +257,7 @@ function bloch_operator(
     d = size(basis[1], 1)
     length(v) ∈ (d^2 - 1, d^2) || throw(ArgumentError("The Bloch vector must have length d²-1 or d²."))
     flag = length(v) == d^2 - 1
-    # SD: do not assume that basis[1] == I
+    # SD: we do not assume that basis[1] == I
     ρ = flag ? Matrix{T2}(I, d, d) : Matrix{T2}(v[1] * basis[1])
     for i ∈ 2:d^2
         ρ .+= v[i-flag] .* basis[i]
