@@ -249,6 +249,8 @@ In general:
  - if `v` has lengh `d²`, the output is `v⋅basis/d`.
 
 No checks are performed on the result.
+
+Reference: Eltschka et al. [arXiv:2012.00587](https://arxiv.org/abs/2012.00587)
 """
 function bloch_operator(
     v::AbstractVector{T1},
