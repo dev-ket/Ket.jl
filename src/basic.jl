@@ -191,8 +191,9 @@ function gellmann!(res::Hermitian{T}, i::Integer, j::Integer, d::Integer = 3; co
     elseif i > j
         parent(res)[j, i] = -im * coeff
     elseif i == 1
+        tmp = _sqrt(T, 2) / _sqrt(T, d) * coeff
         for k ∈ 1:d
-            res[k, k] = _sqrt(T, 2) / _sqrt(T, d) * coeff
+            res[k, k] = tmp
         end
     elseif i == d
         tmp = _sqrt(T, 2) / _sqrt(T, d * (d - 1)) * coeff
@@ -214,8 +215,6 @@ Returns the coordinates of a `d × d` hermitian matrix in a specified basis,
 by default the generalised Gell-Mann basis.
 For valid density matrices, the resulting vector `v` is such that
 `norm(v[2:end]) ≤ √(d*(d-1)/2)`, with equality for pure states.
-
-Reference: Byrd and Khaneja, [arXiv:quant-ph/0302024](https://arxiv.org/abs/quant-ph/0302024)
 """
 function bloch_vector(
     ρ::AbstractMatrix{T},
@@ -223,10 +222,7 @@ function bloch_vector(
 ) where {T<:Number}
     ishermitian(ρ) || throw(ArgumentError("State needs to be Hermitian"))
     d = size(ρ, 1)
-    v = [dot(Hermitian(ρ), σ) for σ ∈ basis]
-    normalization = _sqrt(T, d) / _sqrt(T, 2 * (d - 1))
-    v .*= normalization
-    return v
+    return [dot(Hermitian(ρ), σ) for σ ∈ basis]
 end
 export bloch_vector
 
@@ -234,11 +230,9 @@ export bloch_vector
     bloch_operator(v::AbstractVector, basis = gellmann(isqrt(length(v) + 1)))
 
 Produces the state corresponding to the Bloch vector `v`.
-If `v` has length `d²-1`, the output is `(I+√(d(d-1)/2)v⋅basis[2:end])/d`.
-If `v` has lengh `d²`, the output is `√((d-1)/(2d))v⋅basis`.
+If `v` has length `d²-1`, the output is `(I+v⋅basis[2:end])/d`.
+If `v` has lengh `d²`, the output is `v⋅basis/d`.
 No checks are done on whether the result is a valid quantum state.
-
-Reference: Byrd and Khaneja, [arXiv:quant-ph/0302024](https://arxiv.org/abs/quant-ph/0302024)
 """
 function bloch_operator(
     v::AbstractVector{T1},
@@ -247,10 +241,10 @@ function bloch_operator(
     d = size(basis[1], 1)
     length(v) ∈ (d^2 - 1, d^2) || throw(ArgumentError("The Bloch vector must have length d²-1 or d²."))
     flag = length(v) == d^2 - 1
-    coef = _sqrt(T1, binomial(d, 2))
-    ρ = flag ? Matrix{T2}(I, d, d) : Matrix{T2}((coef * v[1]) * basis[1])
+    # SD: do not assume that basis[1] == I
+    ρ = flag ? Matrix{T2}(I, d, d) : Matrix{T2}(v[1] * basis[1])
     for i ∈ 2:d^2
-        ρ .+= (coef * v[i-flag]) .* basis[i]
+        ρ .+= v[i-flag] .* basis[i]
     end
     ρ ./= d
     return Hermitian(ρ)

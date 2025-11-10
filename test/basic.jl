@@ -56,7 +56,7 @@
             @test bloch_vector(proj(R, 1, 2)) == [1, 0, 0, 1]
             @test bloch_vector(proj(Complex{R}, 1, 2)) == [1, 0, 0, 1]
         end
-        @test bloch_vector(proj(Float64, 3, 3)) ≈ [1 / sqrt(2), 0, 0, 0, 0, 0, 0, 0, -1]
+        @test bloch_vector(proj(Float64, 3, 3)) ≈ [1, 0, 0, 0, 0, 0, 0, 0, -sqrt(2)]
     end
     @testset "Bloch operator" begin
         bloch_operator([0, 0, 1]) == proj(Int, 1, 2)
