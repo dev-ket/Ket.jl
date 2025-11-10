@@ -68,12 +68,15 @@
             @test bloch_operator(zeros(T, 9)) == zeros(T, 3, 3)
             ρ = random_state(R, 2, 1)
             @test bloch_operator(bloch_vector(ρ)) ≈ ρ
-            ρ = random_state(T, 2, 1)
-            @test bloch_operator(bloch_vector(ρ)) ≈ ρ
             ρ = random_state(T, 3, 1)
             @test bloch_operator(bloch_vector(ρ)) ≈ ρ
+            basis = gellmann(T; coeff = 1) # Tr(GᵢGⱼ) = 2δᵢⱼ
+            @test bloch_operator(bloch_vector(ρ, basis), basis) ≈ 2ρ / 3
             ρ = random_state(T, 4)
             @test bloch_operator(bloch_vector(ρ)) ≈ ρ
+            A = randn(T, 4, 4)
+            A .+= A'
+            @test bloch_operator(bloch_vector(A)) ≈ A
         end
     end
     @testset "Cleanup" begin
