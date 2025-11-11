@@ -253,8 +253,8 @@ No checks are performed on the result.
 Reference: Eltschka et al. [arXiv:2012.00587](https://arxiv.org/abs/2012.00587)
 """
 function bloch_operator(
-    v::AbstractVector{T1},
-    basis::Vector{<:AbstractMatrix{T2}} = gellmann(complex(T1), isqrt(length(v) + 1))
+    v::AbstractArray{T1},
+    basis::Array{<:AbstractMatrix{T2}} = gellmann(complex(T1), isqrt(length(v) + 1))
 ) where {T1<:Number,T2<:Number}
     d = size(basis[1], 1)
     length(v) ∈ (d^2 - 1, d^2) || throw(ArgumentError("The Bloch vector must have length d²-1 or d²."))
