@@ -87,6 +87,7 @@ test_sic
 test_povm
 dilate_povm
 povm
+povm_dichotomic
 mub
 test_mub
 discrimination_min_error

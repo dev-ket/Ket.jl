@@ -2,6 +2,7 @@
     @testset "POVMs" begin
         for T ∈ [Float64, BigFloat]
             E = random_povm(Complex{T}, 2, 3)
+            @test povm_dichotomic(E[1]) ≈ [E[1], E[2] + E[3]]
             V = dilate_povm(E)
             @test [V' * kron(I(2), proj(i, 3)) * V for i ∈ 1:3] ≈ E
             e = sic_povm(Complex{T}, 2)

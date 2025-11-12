@@ -143,6 +143,18 @@ function povm(B::Vector{<:AbstractMatrix})
 end
 export povm
 
+"""
+    povm_dichotomic(E::AbstractMatrix)
+
+Creates the dichotomic measurement [`E`, I - `E`]. 
+"""
+function povm_dichotomic(E::AbstractMatrix)
+    _ispossemidef(E) || @warn("E is not positive semidefinite.")
+    _ispossemidef(I - E) || @warn("I - E is not positive semidefinite.")
+    return [E, I - E]
+end
+export povm_dichotomic
+
 function _measurements_parameters(Axa::Vector{Measurement{T}}) where {T<:Number}
     @assert !isempty(Axa)
     # dimension on which the measurements act
