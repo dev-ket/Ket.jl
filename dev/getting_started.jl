@@ -37,7 +37,7 @@ After the installation is complete, you can check that Ket is working by running
 =#
 
 using Ket
-ket(1)
+ket(1,2)
 
 #=
 The `using Ket` command tells Julia to load the Ket package, and that make its functions available in the current session.
