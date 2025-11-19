@@ -146,7 +146,7 @@ export povm
 """
     povm_dichotomic(E::AbstractMatrix)
 
-Creates the dichotomic measurement [`E`, I - `E`]. 
+Creates the dichotomic measurement [`E`, I - `E`].
 """
 function povm_dichotomic(E::AbstractMatrix)
     _ispossemidef(E) || @warn("E is not positive semidefinite.")
