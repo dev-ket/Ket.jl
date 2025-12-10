@@ -12,6 +12,8 @@ Maximizes a bipartite Bell functional `CG` in Collins-Gisin notation using the s
 `scenario` is a vector detailing the number of inputs and outputs, in the order (`oa`, `ob`, `ia`, `ib`).
 `d` is an integer determining the local dimension of the strategy.
 
+Returns a tuple ω, ψ, A, B, where ω is the maximum found, ψ the state, and A,B Alice and Bob's vectors of POVMs.
+
 If `oa` = `ob` = 2 the heuristic reduces to a bunch of eigenvalue problems.
 Otherwise semidefinite programming is needed and we use the assemblage version of seesaw.
 
@@ -45,6 +47,14 @@ function seesaw(
         if ω > ω0
             ω0, ψ0, A0, B0 = ω, ψ, A, B
         end
+    end
+    for A ∈ A0
+        lastA = I - sum(A)
+        push!(A, lastA)
+    end
+    for B ∈ B0
+        lastB = I - sum(B)
+        push!(B, lastB)
     end
     return ω0, ψ0, A0, B0
 end

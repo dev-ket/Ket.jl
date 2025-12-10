@@ -89,7 +89,9 @@ end
 @testset "Seesaw                " begin
     Random.seed!(1337)
     cglmp_cg = tensor_collinsgisin(game_cglmp())
-    @test seesaw(cglmp_cg, (3, 3, 2, 2), 3)[1] ≈ (15 + sqrt(33)) / 24
+    ω, ψ, A, B = seesaw(cglmp_cg, (3, 3, 2, 2), 3)
+    behaviour_cg = tensor_collinsgisin(ketbra(ψ), A, B)
+    @test dot(behaviour_cg, cglmp_cg) ≈ ω ≈ (15 + sqrt(33)) / 24
     @test seesaw(game_inn22(), (2, 2, 3, 3), 2)[1] ≈ 1.25
 end
 
