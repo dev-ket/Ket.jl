@@ -16,7 +16,8 @@ function tsirelson_bound(
     solver = Hypatia.Optimizer{_solver_type(T)}
 ) where {T<:Number,N}
     @assert length(scenario) == 2N
-    CG = _solver_type(T).(CG)
+    CG = convert(AbstractArray{_solver_type(T)}, CG)
+
     if N == 2
         if level == 1
             return _tsirelson_bound_manual(CG, scenario, false; verbose, dualize = !dualize, solver)
