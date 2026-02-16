@@ -237,7 +237,7 @@ export state_dicke
 """
     state_horodecki33([T=ComplexF64,] a::Real)
 
-Produces the 3 × 3 bipartite PPT-entangled Horodecki state with parameter `a`.
+Produces the 3 × 3 bipartite PPT-entangled Horodecki state with parameter `a` ∈ [0,1], which is PPT-entangled for `a` ∈ (0,1).
 
 Reference: Paweł Horodecki, [arXiv:quant-ph/9703004](https://arxiv.org/abs/quant-ph/9703004)
 """
@@ -265,7 +265,7 @@ export state_horodecki33
 """
     state_horodecki24([T=ComplexF64,] b::Real)
 
-Produces the 2 × 4 bipartite PPT-entangled Horodecki state with parameter `b`.
+Produces the 2 × 4 bipartite PPT-entangled Horodecki state with parameter `b` ∈ [0,1], which is PPT-entangled for `b` ∈ (0,1).
 
 Reference: Paweł Horodecki, [arXiv:quant-ph/9703004](https://arxiv.org/abs/quant-ph/9703004)
 """
