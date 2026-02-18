@@ -93,6 +93,39 @@ end
     behaviour_cg = tensor_collinsgisin(ketbra(ψ), A, B)
     @test dot(behaviour_cg, cglmp_cg) ≈ ω ≈ (15 + sqrt(33)) / 24
     @test seesaw(game_inn22(), (2, 2, 3, 3), 2)[1] ≈ 1.25
+
+    Random.seed!(1337)
+    chsh_cg = tensor_collinsgisin(game_chsh())
+    ω, ψ, A, B = seesaw(chsh_cg, (2, 2, 2, 2), 2)
+    behaviour_cg = tensor_collinsgisin(ketbra(ψ), A, B)
+    @test dot(behaviour_cg, chsh_cg) ≈ ω ≈ cos(π / 8)^2
+    @test seesaw(game_inn22(), (2, 2, 3, 3), 2, 3)[1] ≈ 1.25
+
+    mermin_cg = tensor_collinsgisin(game_mermin(3))
+    ω, ψ, M1, M2, M3 = seesaw(mermin_cg, (2, 2, 2, 2, 2, 2), 2, 3)
+    behaviour_cg = tensor_collinsgisin(ketbra(ψ), M1, M2, M3)
+    @test dot(behaviour_cg, mermin_cg) ≈ ω
+    @test ω ≈ 1.0
+
+    gyni3_cg = tensor_collinsgisin(game_gyni(3))
+    ω, ψ, M1, M2, M3 = seesaw(gyni3_cg, (2, 2, 2, 2, 2, 2), 2, 3)
+    behaviour_cg = tensor_collinsgisin(ketbra(ψ), M1, M2, M3)
+    @test dot(behaviour_cg, gyni3_cg) ≈ ω rtol = 1e-5
+    @test ω ≈ 0.25 rtol = 1e-6
+
+    mermin4_cg = tensor_collinsgisin(game_mermin(4))
+    ω, ψ, Ms... = seesaw(mermin4_cg, (2, 2, 2, 2, 2, 2, 2, 2), 2, 3)
+    behaviour_cg = tensor_collinsgisin(ketbra(ψ), Ms...)
+    @test dot(behaviour_cg, mermin4_cg) ≈ ω
+    @test ω ≈ 1.0
+
+    gyni4_cg = tensor_collinsgisin(game_gyni(4))
+    ω, ψ, Ms... = seesaw(gyni4_cg, (2, 2, 2, 2, 2, 2, 2, 2), 2, 3)
+    @test ω ≈ 0.125 rtol = 1e-5
+
+    Random.seed!(42)
+    ω_sdp3 = seesaw(mermin_cg, (2, 2, 2, 2, 2, 2), 2; method = :sdp)[1]
+    @test ω_sdp3 ≈ 1.0 rtol = 1e-4
 end
 
 @testset "FP and FC notations   " begin
