@@ -18,6 +18,8 @@ end
     @test local_bound(game_braunsteincaves(Int)) == 5
     @test local_bound(game_mermin(Int, 3)) == 3
     @test local_bound(game_mermin(Int, 4)) == 6
+    @test local_bound(game_grandjean(Int, 3)) == -2
+    @test local_bound(game_grandjean(Int, 4)) == -3
     @test_throws OverflowError local_bound(game_chsh(Int, 16))
     @test_throws OverflowError local_bound(game_inn22(Int, 63))
     @test local_bound([1 2; 2 -2]; marg = false) == 5
@@ -84,6 +86,20 @@ end
         0 0 2; 0 1 -1; 0 -1 -1
     ]
     @test tsirelson_bound(Śliwa18, 2)[1] ≈ 2 * (7 - sqrt(17)) rtol = 1e-7
+end
+
+@testset "tensor_probability    " begin
+    X = pauli(1)
+    Z = pauli(3)
+    zr = Hermitian(zeros(ComplexF64, 2, 2))
+    A = [[(I(2) + Z)/2, (I(2) - Z)/2, zr], [(I(2) - X)/2, zr, (I(2) + X)/2]]
+    B = [[(I(2) - Z)/2, (I(2) + Z)/2, zr], [(I(2) + X)/2, zr, (I(2) - X)/2]]
+    C = [[(I(2) - X)/2, (I(2) + X)/2, zr], [(I(2) - Z)/2, (I(2) + Z)/2, zr]]
+    ψ = ((3-2sqrt(3))*kron(ket(1,2), ket(1,2), ket(1,2)) + kron(ket(1,2),ket(2,2),ket(2,2)) + kron(ket(2,2),ket(1,2),ket(2,2)) + kron(ket(2,2),ket(2,2),ket(1,2)))/(2sqrt(6 - 3sqrt(3)))
+    ρ = Hermitian(ψ * ψ')
+    P = tensor_probability(ρ, A, B, C)
+    M = game_grandjean(3)
+    @test dot(P, M) ≈ (3sqrt(3) - 7)/2
 end
 
 @testset "Seesaw                " begin

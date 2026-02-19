@@ -149,3 +149,25 @@ function game_mermin(::Type{T}, n::Integer = 3) where {T}
 end
 game_mermin(n::Integer = 3) = game_mermin(Float64, n)
 export game_mermin
+
+"""
+    game_grandjean([T=Float64,] k::Integer)
+
+Inequality (1) from Grandjean et al. in probability notation. Local bound 1 - `k`.
+
+Reference: Grandjean et al., [arXiv:1204.3829](https://arxiv.org/abs/1204.3829)
+"""
+function game_grandjean(::Type{T}, k::Integer = 3) where {T}
+    M = zeros(T, k, k, k, 2, 2, 2)
+    for j in 1:k-1
+        for a in 0:k-1, b in 0:k-1, c in 0:k-1
+            M[a + 1, b + 1, c + 1, 1, 1, 2] -= j * (mod(-a + b + c, k) == j)
+            M[a + 1, b + 1, c + 1, 1, 2, 1] -= j * (mod(a + b - c, k) == j)
+            M[a + 1, b + 1, c + 1, 2, 1, 1] -= j * (mod(a - b + c, k) == j)
+            M[a + 1, b + 1, c + 1, 2, 2, 2] -= j * (mod(-a - b - c - 1, k) == j)
+        end
+    end
+    return M
+end
+game_grandjean(k::Integer = 3) = game_grandjean(Float64, k)
+export game_grandjean
