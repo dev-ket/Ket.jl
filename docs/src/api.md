@@ -103,6 +103,7 @@ game_braunsteincaves
 game_inn22
 game_gyni
 game_mermin
+game_grandjean
 local_bound
 tsirelson_bound
 seesaw
