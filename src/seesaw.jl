@@ -310,7 +310,7 @@ function _seesaw_eigenvalue(CG::Array{R,N}, d, minimumincrease, maxiter) where {
     i = 0
     while true
         i += 1
-        ρ = ψ * ψ'
+        ρ = ketbra(ψ)
         for k ∈ 1:N
             _optimize_multi_projectors!(CG, ρ, Ms, k, dims)
         end
