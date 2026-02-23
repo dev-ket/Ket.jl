@@ -9,7 +9,7 @@
         method::Symbol = :auto)
 
 
-Maximizes a N-partite Bell functional `CG` in Collins-Gisin notation using the seesaw heuristic.
+Maximizes an N-partite Bell functional `CG` in Collins-Gisin notation using the seesaw heuristic.
 `scenario` is a vector detailing the number of inputs and outputs, in the order (`o1`, .... , `oN`, `i1`, ..., `iN`).
 `d` is an integer determining the local dimension of the strategy.
 
