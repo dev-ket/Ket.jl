@@ -6,7 +6,7 @@
         n_trials::Integer = 1;
         verbose::Bool = false,
         solver = Hypatia.Optimizer{_solver_type(T)},
-        method::Symbol = :auto)
+        method::Symbol = :assemblage)
 
 
 Maximizes a N-partite Bell functional `CG` in Collins-Gisin notation using the seesaw heuristic.
@@ -16,12 +16,9 @@ Maximizes a N-partite Bell functional `CG` in Collins-Gisin notation using the s
 Returns a tuple ω, ψ, all_measurements where ω is the maximum found, ψ the state,
 and all_measurement a list containing the POVMs of each party.
 
-If all outputs equal 2 the heuristic reduces to a bunch of eigenvalue problems.
-Otherwise semidefinite programming is needed and we use the assemblage version of seesaw.
-
-`method` controls which algorithm is used: `:auto` (default) selects eigenvalue when all outputs equal 2
-and SDP otherwise; `:eigenvalue` forces the eigenvalue path (requires all outputs equal 2);
-`:sdp` forces the SDP path regardless of the output cardinalities.
+`method` controls which algorithm is used:
+- `:assemblage` (default): assemblage SDP jointly optimizes party 1's assemblage and state; for binary outputs the fast eigenvalue path is used automatically.
+- `:standard`: standard seesaw — eigenvalue optimization for the state, d×d SDP per party.
 
 `verbose` prints solver output when `true`. `solver` overrides the default conic solver.
 
@@ -38,13 +35,11 @@ function seesaw(
     n_trials::Integer = 1;
     verbose = false,
     solver = Hypatia.Optimizer{_solver_type(T)},
-    method::Symbol = :auto
+    method::Symbol = :assemblage
 ) where {T<:Real,N}
     @assert length(scenario) == 2N
-    @assert method ∈ (:auto, :eigenvalue, :sdp)
+    @assert method ∈ (:assemblage, :standard)
     binary_outputs = all(scenario[1:N] .== 2)
-    method == :eigenvalue && !binary_outputs && throw(ArgumentError("method = :eigenvalue requires all outputs to equal 2"))
-    use_eigenvalue = method == :eigenvalue || (method == :auto && binary_outputs)
     R = _solver_type(T)
     CG = R.(CG)
     minimumincrease = _rtol(R)
@@ -53,10 +48,12 @@ function seesaw(
     local ψ0, all_measurements
 
     for _ ∈ 1:n_trials
-        if use_eigenvalue
+        if binary_outputs
             ω, ψ, temp_measurements = _seesaw_eigenvalue(CG, d, minimumincrease, maxiter)
+        elseif method == :standard
+            ω, ψ, temp_measurements = _seesaw_standard(CG, scenario, d, minimumincrease, maxiter; verbose, solver)
         else
-            ω, ψ, temp_measurements = _seesaw_sdp(CG, scenario, d, minimumincrease, maxiter; verbose, solver)
+            ω, ψ, temp_measurements = _seesaw_assemblage(CG, scenario, d, minimumincrease, maxiter; verbose, solver)
         end
         if ω > ω0
             ω0, ψ0, all_measurements = ω, ψ, temp_measurements
@@ -73,7 +70,87 @@ function seesaw(
 end
 export seesaw
 
-function _seesaw_sdp(CG::Array{R,N}, scenario, d, minimumincrease, maxiter; verbose, solver) where {R<:AbstractFloat,N}
+# === Shared helpers ===
+
+# Returns the operator for party p+1 at Collins-Gisin index cn, decoding (a, x) from cn:
+# identity for marginal (cn=1),
+# POVM element all_povms[p][x][a] otherwise
+function _cg_op(all_povms, p, cn, o_p, Id)
+    cn == 1 && return Id
+    a = (cn - 2) % (o_p - 1) + 1
+    x = (cn - 2) ÷ (o_p - 1) + 1
+    return Matrix(all_povms[p][x][a])
+end
+
+# Returns the assemblage element for party 1 at Collins-Gisin index c1:
+# ρ_rest for marginal (c1=1),
+# ρxa[x][a] otherwise.
+function _cg_state(c1, o1, ρxa, ρ_rest)
+    c1 == 1 && return ρ_rest
+    a = (c1 - 2) % (o1 - 1) + 1
+    x = (c1 - 2) ÷ (o1 - 1) + 1
+    return ρxa[x][a]
+end
+
+function _positive_projection!(M::AbstractMatrix{T}) where {T}
+    λ, U = eigen(M)
+    fill!(M.data, 0)
+    temp = similar(M.data)
+    for i ∈ 1:length(λ)
+        if λ[i] > _rtol(T)
+            @views mul!(temp, U[:, i], U[:, i]') #5-argument mul! doesn't call herk for Julia ≤ 1.11
+            M.data .+= temp
+        end
+    end
+    return M
+end
+
+function _solve_povm_sdp(
+    Γ::Vector{Vector{Matrix{Complex{R}}}},
+    constant::R,
+    ok,
+    ik,
+    d;
+    verbose = false,
+    solver = Hypatia.Optimizer{R}
+) where {R<:AbstractFloat}
+    model = JuMP.GenericModel{R}()
+    Mk = [[JuMP.@variable(model, [1:d, 1:d] ∈ JuMP.HermitianPSDCone()) for _ ∈ 1:ok-1] for _ ∈ 1:ik]
+    for xk ∈ 1:ik
+        JuMP.@constraint(model, I - sum(Mk[xk][ak] for ak ∈ 1:ok-1) ∈ JuMP.HermitianPSDCone())
+    end
+    ω = constant * one(JuMP.GenericAffExpr{R,JuMP.GenericVariableRef{R}})
+    for xk ∈ 1:ik, ak ∈ 1:ok-1
+        JuMP.add_to_expression!(ω, 1, real(dot(Γ[xk][ak], Mk[xk][ak])))
+    end
+    JuMP.@objective(model, Max, ω)
+    JuMP.set_optimizer(model, solver)
+    !verbose && JuMP.set_silent(model)
+    JuMP.optimize!(model)
+    JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
+    value_Mk = [[JuMP.value(Mk[xk][ak]) for ak ∈ 1:ok-1] for xk ∈ 1:ik]
+    return JuMP.value(ω)::R, value_Mk
+end
+
+function _optimize_state_standard(CG::Array{R,N}, scenario, all_povms, dims) where {R<:AbstractFloat,N}
+    outs = scenario[1:N]
+    D = prod(dims)
+    T2 = Complex{R}
+    Id = Matrix{T2}(I, dims[1], dims[1])
+    W = zeros(T2, D, D)
+    for ci ∈ CartesianIndices(size(CG))
+        coeff = CG[ci]
+        iszero(coeff) && continue
+        ops = [_cg_op(all_povms, k, ci[k], outs[k], Id) for k ∈ 1:N]
+        W .+= coeff .* kron(ops...)
+    end
+    vals, U = eigen(Hermitian(W))
+    return real(vals[end])::R, U[:, end]
+end
+
+# === Assemblage path ===
+
+function _seesaw_assemblage(CG::Array{R,N}, scenario, d, minimumincrease, maxiter; verbose, solver) where {R<:AbstractFloat,N}
     outs = scenario[1:N]
     ins = scenario[N+1:2N]
     T2 = Complex{R}
@@ -133,24 +210,40 @@ function _optimize_assemblage(
     return JuMP.value(ω)::R, value_ρxa, value_ρ_rest
 end
 
-# Returns the operator for party p+1 at Collins-Gisin index cn, decoding (a, x) from cn:
-# identity for marginal (cn=1),
-# POVM element all_povms[p][x][a] otherwise
-function _cg_op(all_povms, p, cn, o_p, Id)
-    cn == 1 && return Id
-    a = (cn - 2) % (o_p - 1) + 1
-    x = (cn - 2) ÷ (o_p - 1) + 1
-    return Matrix(all_povms[p][x][a])
-end
+function _compute_value_assemblage(CG::Array{R,N}, scenario, ρxa, ρ_rest, all_povms) where {R<:AbstractFloat,N}
+    outs = scenario[1:N]
+    ins = scenario[N+1:2N]
+    o1 = outs[1]
+    cgind(a, x, o) = 1 + a + (x - 1) * (o - 1)
+    d = size(all_povms[1][1][1], 1)
+    Id = Matrix{Complex{R}}(I, d, d)
 
-# Returns the assemblage element for party 1 at Collins-Gisin index c1:
-# ρ_rest for marginal (c1=1),
-# ρxa[x][a] otherwise.
-function _cg_state(c1, o1, ρxa, ρ_rest)
-    c1 == 1 && return ρ_rest
-    a = (c1 - 2) % (o1 - 1) + 1
-    x = (c1 - 2) ÷ (o1 - 1) + 1
-    return ρxa[x][a]
+    rest_sizes = Tuple(1 + ins[p+1] * (outs[p+1] - 1) for p ∈ 1:N-1)
+
+    ω = zero(JuMP.GenericAffExpr{R,JuMP.GenericVariableRef{R}})
+
+    for ct ∈ CartesianIndices(rest_sizes)
+        O_rest = _cg_op(all_povms, 1, ct[1], outs[2], Id)
+        for p ∈ 2:N-1
+            O_rest = kron(O_rest, _cg_op(all_povms, p, ct[p], outs[p+1], Id))
+        end
+
+        # party 1 marginal (c1 = 1)
+        coeff = CG[1, ct.I...]
+        if !iszero(coeff)
+            JuMP.add_to_expression!(ω, coeff, real(dot(O_rest, ρ_rest)))
+        end
+
+        # party 1 non-marginal terms
+        for x ∈ 1:ins[1], a ∈ 1:o1-1
+            coeff = CG[cgind(a, x, o1), ct.I...]
+            if !iszero(coeff)
+                JuMP.add_to_expression!(ω, coeff, real(dot(O_rest, ρxa[x][a])))
+            end
+        end
+    end
+
+    return ω
 end
 
 # Precomputes d×d effective operators Γ[xk][ak] and a scalar constant such that
@@ -192,42 +285,6 @@ function _effective_operators(CG::Array{R,N}, scenario, party_k, ρxa, ρ_rest, 
     return Γ, constant
 end
 
-function _compute_value_assemblage(CG::Array{R,N}, scenario, ρxa, ρ_rest, all_povms) where {R<:AbstractFloat,N}
-    outs = scenario[1:N]
-    ins = scenario[N+1:2N]
-    o1 = outs[1]
-    cgind(a, x, o) = 1 + a + (x - 1) * (o - 1)
-    d = size(all_povms[1][1][1], 1)
-    Id = Matrix{Complex{R}}(I, d, d)
-
-    rest_sizes = Tuple(1 + ins[p+1] * (outs[p+1] - 1) for p ∈ 1:N-1)
-
-    ω = zero(JuMP.GenericAffExpr{R,JuMP.GenericVariableRef{R}})
-
-    for ct ∈ CartesianIndices(rest_sizes)
-        O_rest = _cg_op(all_povms, 1, ct[1], outs[2], Id)
-        for p ∈ 2:N-1
-            O_rest = kron(O_rest, _cg_op(all_povms, p, ct[p], outs[p+1], Id))
-        end
-
-        # party 1 marginal (c1 = 1)
-        coeff = CG[1, ct.I...]
-        if !iszero(coeff)
-            JuMP.add_to_expression!(ω, coeff, real(dot(O_rest, ρ_rest)))
-        end
-
-        # party 1 non-marginal terms
-        for x ∈ 1:ins[1], a ∈ 1:o1-1
-            coeff = CG[cgind(a, x, o1), ct.I...]
-            if !iszero(coeff)
-                JuMP.add_to_expression!(ω, coeff, real(dot(O_rest, ρxa[x][a])))
-            end
-        end
-    end
-
-    return ω
-end
-
 function _optimize_party_povm(
     CG::Array{R,N},
     scenario,
@@ -241,28 +298,8 @@ function _optimize_party_povm(
     ok = scenario[party_k]
     ik = scenario[N + party_k]
     d = size(all_povms[1][1][1], 1)
-
     Γ, constant = _effective_operators(CG, scenario, party_k, ρxa, ρ_rest, all_povms)
-
-    # SDP with d×d POVM variables
-    model = JuMP.GenericModel{R}()
-    Mk = [[JuMP.@variable(model, [1:d, 1:d] ∈ JuMP.HermitianPSDCone()) for _ ∈ 1:ok-1] for _ ∈ 1:ik]
-    for xk ∈ 1:ik
-        JuMP.@constraint(model, I - sum(Mk[xk][ak] for ak ∈ 1:ok-1) ∈ JuMP.HermitianPSDCone())
-    end
-
-    ω = constant * one(JuMP.GenericAffExpr{R,JuMP.GenericVariableRef{R}})
-    for xk ∈ 1:ik, ak ∈ 1:ok-1
-        JuMP.add_to_expression!(ω, 1, real(dot(Γ[xk][ak], Mk[xk][ak])))
-    end
-    JuMP.@objective(model, Max, ω)
-
-    JuMP.set_optimizer(model, solver)
-    !verbose && JuMP.set_silent(model)
-    JuMP.optimize!(model)
-    JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
-    value_Mk = [[JuMP.value(Mk[xk][ak]) for ak ∈ 1:ok-1] for xk ∈ 1:ik]
-    return JuMP.value(ω)::R, value_Mk
+    return _solve_povm_sdp(Γ, constant, ok, ik, d; verbose, solver)
 end
 
 # Extracts state ψ ∈ C^{Dp^2} and party 1's Dp×Dp POVMs from the assemblage.
@@ -283,7 +320,88 @@ function _decompose_assemblage(scenario, ρxa, ρ_rest::AbstractMatrix{T}) where
     return ψ, M1
 end
 
-# Both eigenvalue seesaw, with different signatures for bipartite (and schmidt optimization) and multipartite
+# === Standard path ===
+
+function _seesaw_standard(
+    CG::Array{R,N},
+    scenario,
+    d,
+    minimumincrease,
+    maxiter;
+    verbose,
+    solver
+) where {R<:AbstractFloat,N}
+    outs = scenario[1:N]
+    ins = scenario[N+1:2N]
+    T2 = Complex{R}
+    dims = fill(d, N)
+
+    ψ = normalize!(complex.(randn(R, d^N), randn(R, d^N)))
+    all_povms = [[random_povm(T2, d, outs[n])[1:outs[n]-1] for _ ∈ 1:ins[n]] for n ∈ 1:N]
+
+    ω0 = typemin(R)
+    local ψ0, all_measurements0
+    i = 0
+    while true
+        i += 1
+        ρ = ψ * ψ'
+        for k ∈ 1:N
+            _, all_povms[k] = _optimize_party_povm_standard(CG, scenario, k, ρ, all_povms; verbose, solver)
+        end
+        ω, ψ = _optimize_state_standard(CG, scenario, all_povms, dims)
+        if ω - ω0 ≤ minimumincrease || i > maxiter
+            ω0 = ω
+            ψ0 = ψ
+            all_measurements0 = deepcopy(all_povms)
+            break
+        end
+        ω0 = ω
+    end
+    return ω0, ψ0, all_measurements0
+end
+
+function _optimize_party_povm_standard(
+    CG::Array{R,N},
+    scenario,
+    party_k,
+    ρ,
+    all_povms;
+    verbose = false,
+    solver = Hypatia.Optimizer{R}
+) where {R<:AbstractFloat,N}
+    outs = scenario[1:N]
+    ok = outs[party_k]
+    ik = scenario[N + party_k]
+    d = size(all_povms[1][1][1], 1)
+    T2 = Complex{R}
+    dims = fill(d, N)
+    Id = Matrix{T2}(I, d, d)
+    remove = collect(setdiff(1:N, party_k))
+
+    Γ = [[zeros(T2, d, d) for _ ∈ 1:ok-1] for _ ∈ 1:ik]
+    constant = zero(R)
+
+    for ci ∈ CartesianIndices(size(CG))
+        coeff = CG[ci]
+        iszero(coeff) && continue
+        ops = [j == party_k ? Id : _cg_op(all_povms, j, ci[j], outs[j], Id) for j ∈ 1:N]
+        M = partial_trace(ρ * kron(ops...), remove, dims)
+        ck = ci[party_k]
+        if ck == 1
+            constant += coeff * real(tr(M))
+        else
+            ak = (ck - 2) % (ok - 1) + 1
+            xk = (ck - 2) ÷ (ok - 1) + 1
+            Γ[xk][ak] .+= coeff .* M
+        end
+    end
+
+    return _solve_povm_sdp(Γ, constant, ok, ik, d; verbose, solver)
+end
+
+# === Eigenvalue path ===
+
+# two _seesaw_eigenvalue functions with different signatures for bipartite (and schmidt optimization) and multipartite
 
 function _seesaw_eigenvalue(CG::Array{R,N}, d, minimumincrease, maxiter) where {R<:AbstractFloat,N}
     T2 = Complex{R}
@@ -339,7 +457,6 @@ function _seesaw_eigenvalue(CG::Matrix{R}, d, minimumincrease, maxiter) where {R
     return ω0, ψ0, [A0, B0]
 end
 
-# Multipartite eigenvalues functions 
 function _optimize_multi_projectors!(CG::Array{R,N}, ρ, Ms, k, dims) where {R<:AbstractFloat,N}
     d = dims[k]
     T2 = Complex{R}
@@ -377,7 +494,6 @@ function _optimize_multi_state!(CG::Array{R,N}, Ms, dims) where {R<:AbstractFloa
     return real(vals[end])::R, U[:, end]
 end
 
-# Bipartite eigenvalues functions 
 
 function _optimize_alice_projectors!(CG::Matrix, λ::Vector, A, B)
     ia, ib = size(CG) .- 1
@@ -407,19 +523,6 @@ function _optimize_bob_projectors!(CG::Matrix, λ::Vector, A, B)
     end
 end
 
-function _positive_projection!(M::AbstractMatrix{T}) where {T}
-    λ, U = eigen(M)
-    fill!(M.data, 0)
-    temp = similar(M.data)
-    for i ∈ 1:length(λ)
-        if λ[i] > _rtol(T)
-            @views mul!(temp, U[:, i], U[:, i]') #5-argument mul! doesn't call herk for Julia ≤ 1.11
-            M.data .+= temp
-        end
-    end
-    return M
-end
-
 function _optimize_state!(CG::Matrix, λ::Vector{T}, A, B) where {T}
     ia, ib = size(CG) .- 1
     d = length(λ)
@@ -436,4 +539,8 @@ function _optimize_state!(CG::Matrix, λ::Vector{T}, A, B) where {T}
     vals, U = eigen!(M)
     λ .= U[:, d]
     return CG[1, 1] + vals[d]
+    #TODO: for large matrices it's perhaps better to do
+    #decomp, history = ArnoldiMethod.partialschur(M, nev = 1)
+    #λ = decomp.Q[:,1]
+    #SD: or to use Arpack.eigs, or LAPACK.syevr! with a custom range
 end
