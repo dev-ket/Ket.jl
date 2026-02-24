@@ -11,7 +11,8 @@
 
 Maximizes a N-partite Bell functional `CG` in Collins-Gisin notation using the seesaw heuristic.
 `scenario` is a vector detailing the number of inputs and outputs, in the order (`o1`, .... , `oN`, `i1`, ..., `iN`).
-`d` is an integer determining the local dimension of the strategy.
+`d` is an integer determining the local dimension of the strategy. 
+Note that when using the assemblage method, the dimension constraint on the first party is relaxed.
 
 Returns a tuple ω, ψ, all_measurements where ω is the maximum found, ψ the state,
 and all_measurement a list containing the POVMs of each party.

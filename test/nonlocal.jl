@@ -126,7 +126,7 @@ end
     gyni3_cg = tensor_collinsgisin(game_gyni(3))
     ω, ψ, M1, M2, M3 = seesaw(gyni3_cg, (2, 2, 2, 2, 2, 2), 2, 3)
     behaviour_cg = tensor_collinsgisin(ketbra(ψ), M1, M2, M3)
-    @test dot(behaviour_cg, gyni3_cg) ≈ ω rtol = 1e-5
+    @test dot(behaviour_cg, gyni3_cg) ≈ ω
     @test ω ≈ 0.25 rtol = 1e-6
 
     mermin4_cg = tensor_collinsgisin(game_mermin(4))
@@ -137,13 +137,27 @@ end
 
     gyni4_cg = tensor_collinsgisin(game_gyni(4))
     ω, ψ, Ms... = seesaw(gyni4_cg, (2, 2, 2, 2, 2, 2, 2, 2), 2, 3)
-    @test ω ≈ 0.125 rtol = 1e-5
+    @test ω ≈ 0.125
 
     grandjean3 = tensor_collinsgisin(game_grandjean(Int, 3))
     ω, ψ, Ms... = seesaw(grandjean3, (3, 3, 3, 2, 2, 2), 2, 3)
     behaviour_cg = tensor_collinsgisin(ketbra(ψ), Ms...)
     @test dot(behaviour_cg, grandjean3) ≈ ω
-    @test ω ≈ (3sqrt(3) - 7) / 2
+    @test ω ≈ (3sqrt(3) - 7) / 2 rtol = 1e-7
+
+    # standard path: bipartite non-binary
+    Random.seed!(1337)
+    ω, ψ, A, B = seesaw(cglmp_cg, (3, 3, 2, 2), 3, 3; method = :standard)
+    behaviour_cg = tensor_collinsgisin(ketbra(ψ), A, B)
+    @test dot(behaviour_cg, cglmp_cg) ≈ ω
+    @test ω ≈ (15 + sqrt(33)) / 24
+
+    # standard path: tripartite non-binary
+    Random.seed!(1337)
+    ω, ψ, Ms... = seesaw(grandjean3, (3, 3, 3, 2, 2, 2), 2, 3; method = :standard)
+    behaviour_cg = tensor_collinsgisin(ketbra(ψ), Ms...)
+    @test dot(behaviour_cg, grandjean3) ≈ ω
+    @test ω ≈ (3sqrt(3) - 7) / 2 rtol = 1e-7
 end
 
 @testset "FP and FC notations   " begin
