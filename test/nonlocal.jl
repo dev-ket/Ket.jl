@@ -139,9 +139,11 @@ end
     ω, ψ, Ms... = seesaw(gyni4_cg, (2, 2, 2, 2, 2, 2, 2, 2), 2, 3)
     @test ω ≈ 0.125 rtol = 1e-5
 
-    Random.seed!(42)
-    ω_sdp3 = seesaw(mermin_cg, (2, 2, 2, 2, 2, 2), 2; method = :sdp)[1]
-    @test ω_sdp3 ≈ 1.0 rtol = 1e-4
+    grandjean3 = tensor_collinsgisin(game_grandjean(Int, 3))
+    ω, ψ, Ms... = seesaw(grandjean3, (3, 3, 3, 2, 2, 2), 2, 3)
+    behaviour_cg = tensor_collinsgisin(ketbra(ψ), Ms...)
+    @test dot(behaviour_cg, grandjean3) ≈ ω
+    @test ω ≈ (3sqrt(3) - 7) / 2
 end
 
 @testset "FP and FC notations   " begin

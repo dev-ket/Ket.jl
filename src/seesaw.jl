@@ -91,7 +91,7 @@ function _seesaw_sdp(CG::Array{R,N}, scenario, d, minimumincrease, maxiter; verb
         end
         if ω - ω0 ≤ minimumincrease || i > maxiter
             ω0 = ω
-            ψ0, M1 = _decompose_assemblage(scenario, d, ρxa, ρ_rest)
+            ψ0, M1 = _decompose_assemblage(scenario, ρxa, ρ_rest)
             all_measurements0 = pushfirst!(copy(all_povms), M1)
             break
         end
@@ -111,7 +111,6 @@ function _optimize_assemblage(
     ins = scenario[N+1:2N]
     d = size(all_povms[1][1][1], 1)
     Dp = d^(N - 1)
-    T2 = Complex{R}
 
     model = JuMP.GenericModel{R}()
     ρxa = [[JuMP.@variable(model, [1:Dp, 1:Dp] ∈ JuMP.HermitianPSDCone()) for _ ∈ 1:outs[1]-1] for _ ∈ 1:ins[1]]
@@ -266,34 +265,21 @@ function _optimize_party_povm(
     return JuMP.value(ω)::R, value_Mk
 end
 
-# Extracts state ψ ∈ C^{d·Dp} and party 1's d×d POVMs from the assemblage.
-# Eigendecomposes ρ_rest, caps rank at d (party 1's local dimension).
-function _decompose_assemblage(scenario, d::Integer, ρxa, ρ_rest::AbstractMatrix{T}) where {T}
+# Extracts state ψ ∈ C^{Dp^2} and party 1's Dp×Dp POVMs from the assemblage.
+function _decompose_assemblage(scenario, ρxa, ρ_rest::AbstractMatrix{T}) where {T}
     N = length(scenario) ÷ 2
     o1, i1 = scenario[1], scenario[N+1]
     Dp = size(ρ_rest, 1)
 
     λ, U = eigen(ρ_rest) # ascending eigenvalues
-    r = min(d, count(x -> x ≥ _rtol(T), λ))
-    top = (Dp - r + 1):Dp # indices of r largest eigenvalues
-
-    ψ = zeros(T, d * Dp)
-    for (i, t) ∈ enumerate(top)
-        ψ[(i-1)*Dp+1:i*Dp] = sqrt(λ[t]) * U[:, t]
+    ψ = zeros(T, Dp^2)
+    for i ∈ 1:Dp
+        λ[i] ≥ _rtol(T) && (@views ψ .+= sqrt(λ[i]) * kron(conj(U[:, i]), U[:, i]))
     end
 
-    invrootλ = map(x -> x ≥ _rtol(T) ? 1 / sqrt(x) : zero(x), λ[top])
-    V = U[:, top] * Diagonal(invrootλ) # Dp×r
-    M1 = Vector{Measurement{T}}(undef, i1)
-    for x ∈ 1:i1
-        M1[x] = Measurement{T}(undef, o1 - 1)
-        for a ∈ 1:o1-1
-            small = Hermitian(conj(V' * ρxa[x][a] * V)) # r×r
-            padded = zeros(T, d, d)
-            padded[1:r, 1:r] = small
-            M1[x][a] = Hermitian(padded)
-        end
-    end
+    invrootλ = map(x -> x ≥ _rtol(T) ? 1 / sqrt(x) : zero(x), λ)
+    W = U * Diagonal(invrootλ) * U'  # Dp×Dp pseudo-inverse of √ρ_rest
+    M1 = [[Hermitian(conj(W * ρxa[x][a] * W)) for a ∈ 1:o1-1] for x ∈ 1:i1]
     return ψ, M1
 end
 
