@@ -71,7 +71,7 @@ function seesaw(
 end
 export seesaw
 
-# === Shared helpers ===
+# === helpers ===
 
 # Returns the operator for party p+1 at Collins-Gisin index cn, decoding (a, x) from cn:
 # identity for marginal (cn=1),
@@ -93,61 +93,6 @@ function _cg_state(c1, o1, ρxa, ρ_rest)
     return ρxa[x][a]
 end
 
-function _positive_projection!(M::AbstractMatrix{T}) where {T}
-    λ, U = eigen(M)
-    fill!(M.data, 0)
-    temp = similar(M.data)
-    for i ∈ 1:length(λ)
-        if λ[i] > _rtol(T)
-            @views mul!(temp, U[:, i], U[:, i]') #5-argument mul! doesn't call herk for Julia ≤ 1.11
-            M.data .+= temp
-        end
-    end
-    return M
-end
-
-function _solve_povm_sdp(
-    Γ::Vector{Vector{Matrix{Complex{R}}}},
-    constant::R,
-    ok,
-    ik,
-    d;
-    verbose = false,
-    solver = Hypatia.Optimizer{R}
-) where {R<:AbstractFloat}
-    model = JuMP.GenericModel{R}()
-    Mk = [[JuMP.@variable(model, [1:d, 1:d] ∈ JuMP.HermitianPSDCone()) for _ ∈ 1:ok-1] for _ ∈ 1:ik]
-    for xk ∈ 1:ik
-        JuMP.@constraint(model, I - sum(Mk[xk][ak] for ak ∈ 1:ok-1) ∈ JuMP.HermitianPSDCone())
-    end
-    ω = constant * one(JuMP.GenericAffExpr{R,JuMP.GenericVariableRef{R}})
-    for xk ∈ 1:ik, ak ∈ 1:ok-1
-        JuMP.add_to_expression!(ω, 1, real(dot(Γ[xk][ak], Mk[xk][ak])))
-    end
-    JuMP.@objective(model, Max, ω)
-    JuMP.set_optimizer(model, solver)
-    !verbose && JuMP.set_silent(model)
-    JuMP.optimize!(model)
-    JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
-    value_Mk = [[JuMP.value(Mk[xk][ak]) for ak ∈ 1:ok-1] for xk ∈ 1:ik]
-    return JuMP.value(ω)::R, value_Mk
-end
-
-function _optimize_state_standard(CG::Array{R,N}, scenario, all_povms, dims) where {R<:AbstractFloat,N}
-    outs = scenario[1:N]
-    D = prod(dims)
-    T2 = Complex{R}
-    Id = Matrix{T2}(I, dims[1], dims[1])
-    W = zeros(T2, D, D)
-    for ci ∈ CartesianIndices(size(CG))
-        coeff = CG[ci]
-        iszero(coeff) && continue
-        ops = [_cg_op(all_povms, k, ci[k], outs[k], Id) for k ∈ 1:N]
-        W .+= coeff .* kron(ops...)
-    end
-    vals, U = eigen(Hermitian(W))
-    return real(vals[end])::R, U[:, end]
-end
 
 # === Assemblage path ===
 
@@ -249,7 +194,44 @@ end
 
 # Precomputes d×d effective operators Γ[xk][ak] and a scalar constant such that
 # the Bell value equals constant + Σ_{xk,ak} tr(Mk[xk][ak] * Γ[xk][ak]).
-function _effective_operators(CG::Array{R,N}, scenario, party_k, ρxa, ρ_rest, all_povms) where {R<:AbstractFloat,N}
+function _solve_povm_sdp(
+    Γ::Vector{Vector{Matrix{Complex{R}}}},
+    constant::R,
+    ok,
+    ik,
+    d;
+    verbose = false,
+    solver = Hypatia.Optimizer{R}
+) where {R<:AbstractFloat}
+    model = JuMP.GenericModel{R}()
+    Mk = [[JuMP.@variable(model, [1:d, 1:d] ∈ JuMP.HermitianPSDCone()) for _ ∈ 1:ok-1] for _ ∈ 1:ik]
+    for xk ∈ 1:ik
+        JuMP.@constraint(model, I - sum(Mk[xk][ak] for ak ∈ 1:ok-1) ∈ JuMP.HermitianPSDCone())
+    end
+    ω = constant * one(JuMP.GenericAffExpr{R,JuMP.GenericVariableRef{R}})
+    for xk ∈ 1:ik, ak ∈ 1:ok-1
+        JuMP.add_to_expression!(ω, 1, real(dot(Γ[xk][ak], Mk[xk][ak])))
+    end
+    JuMP.@objective(model, Max, ω)
+    JuMP.set_optimizer(model, solver)
+    !verbose && JuMP.set_silent(model)
+    JuMP.optimize!(model)
+    JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
+    value_Mk = [[JuMP.value(Mk[xk][ak]) for ak ∈ 1:ok-1] for xk ∈ 1:ik]
+    return JuMP.value(ω)::R, value_Mk
+end
+
+
+function _optimize_party_povm(
+    CG::Array{R,N},
+    scenario,
+    party_k,
+    ρxa,
+    ρ_rest,
+    all_povms;
+    verbose = false,
+    solver = Hypatia.Optimizer{R}
+) where {R<:AbstractFloat,N}
     outs = scenario[1:N]
     ins = scenario[N+1:2N]
     o1, ok, ik = outs[1], outs[party_k], ins[party_k]
@@ -283,23 +265,6 @@ function _effective_operators(CG::Array{R,N}, scenario, party_k, ρxa, ρ_rest, 
         end
     end
 
-    return Γ, constant
-end
-
-function _optimize_party_povm(
-    CG::Array{R,N},
-    scenario,
-    party_k,
-    ρxa,
-    ρ_rest,
-    all_povms;
-    verbose = false,
-    solver = Hypatia.Optimizer{R}
-) where {R<:AbstractFloat,N}
-    ok = scenario[party_k]
-    ik = scenario[N + party_k]
-    d = size(all_povms[1][1][1], 1)
-    Γ, constant = _effective_operators(CG, scenario, party_k, ρxa, ρ_rest, all_povms)
     return _solve_povm_sdp(Γ, constant, ok, ik, d; verbose, solver)
 end
 
@@ -398,7 +363,36 @@ function _optimize_party_povm_standard(
     return _solve_povm_sdp(Γ, constant, ok, ik, d; verbose, solver)
 end
 
+function _optimize_state_standard(CG::Array{R,N}, scenario, all_povms, dims) where {R<:AbstractFloat,N}
+    outs = scenario[1:N]
+    D = prod(dims)
+    T2 = Complex{R}
+    Id = Matrix{T2}(I, dims[1], dims[1])
+    W = zeros(T2, D, D)
+    for ci ∈ CartesianIndices(size(CG))
+        coeff = CG[ci]
+        iszero(coeff) && continue
+        ops = [_cg_op(all_povms, k, ci[k], outs[k], Id) for k ∈ 1:N]
+        W .+= coeff .* kron(ops...)
+    end
+    vals, U = eigen(Hermitian(W))
+    return real(vals[end])::R, U[:, end]
+end
+
 # === Eigenvalue path ===
+
+function _positive_projection!(M::AbstractMatrix{T}) where {T}
+    λ, U = eigen(M)
+    fill!(M.data, 0)
+    temp = similar(M.data)
+    for i ∈ 1:length(λ)
+        if λ[i] > _rtol(T)
+            @views mul!(temp, U[:, i], U[:, i]') #5-argument mul! doesn't call herk for Julia ≤ 1.11
+            M.data .+= temp
+        end
+    end
+    return M
+end
 
 # two _seesaw_eigenvalue functions with different signatures for bipartite (and schmidt optimization) and multipartite
 
