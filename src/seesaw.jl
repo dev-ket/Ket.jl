@@ -345,7 +345,7 @@ function _seesaw_standard(
     i = 0
     while true
         i += 1
-        ρ = ψ * ψ'
+        ρ = ketbra(ψ)
         for k ∈ 1:N
             _, all_povms[k] = _optimize_party_povm_standard(CG, scenario, k, ρ, all_povms; verbose, solver)
         end
