@@ -18,8 +18,8 @@ Returns a tuple ω, ψ, all_measurements where ω is the maximum found, ψ the s
 and all_measurement a list containing the POVMs of each party.
 
 `method` controls which algorithm is used:
-- `:assemblage` (default): assemblage SDP jointly optimizes party 1's assemblage and state; for binary outputs the fast eigenvalue path is used automatically.
-- `:standard`: standard seesaw — eigenvalue optimization for the state, d×d SDP per party.
+- `:assemblage`: assemblage SDP jointly optimizes party 1's assemblage and state; for binary outputs the fast eigenvalue path is used automatically.
+- `:standard` (default): standard seesaw — eigenvalue optimization for the state, d×d SDP per party.
 
 `verbose` prints solver output when `true`. `solver` overrides the default conic solver.
 
@@ -36,7 +36,7 @@ function seesaw(
     n_trials::Integer = 1;
     verbose = false,
     solver = Hypatia.Optimizer{_solver_type(T)},
-    method::Symbol = :assemblage
+    method::Symbol = :standard
 ) where {T<:Real,N}
     @assert length(scenario) == 2N
     @assert method ∈ (:assemblage, :standard)
@@ -337,11 +337,11 @@ function _seesaw_standard(
     T2 = Complex{R}
     dims = fill(d, N)
 
-    ψ = normalize!(complex.(randn(R, d^N), randn(R, d^N)))
     all_povms = [[random_povm(T2, d, outs[n])[1:outs[n]-1] for _ ∈ 1:ins[n]] for n ∈ 1:N]
 
+    ψ = random_state_ket(T2, prod(dims))
     ω0 = typemin(R)
-    local ψ0, all_measurements0
+    local ω, all_measurements0
     i = 0
     while true
         i += 1
@@ -351,14 +351,12 @@ function _seesaw_standard(
         end
         ω, ψ = _optimize_state_standard(CG, scenario, all_povms, dims)
         if ω - ω0 ≤ minimumincrease || i > maxiter
-            ω0 = ω
-            ψ0 = ψ
             all_measurements0 = deepcopy(all_povms)
             break
         end
         ω0 = ω
     end
-    return ω0, ψ0, all_measurements0
+    return ω, ψ, all_measurements0
 end
 
 function _optimize_party_povm_standard(

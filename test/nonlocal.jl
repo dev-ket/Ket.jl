@@ -105,7 +105,7 @@ end
 @testset "Seesaw                " begin
     Random.seed!(1337)
     cglmp_cg = tensor_collinsgisin(game_cglmp())
-    ω, ψ, A, B = seesaw(cglmp_cg, (3, 3, 2, 2), 3)
+    ω, ψ, A, B = seesaw(cglmp_cg, (3, 3, 2, 2), 3; method = :assemblage)
     behaviour_cg = tensor_collinsgisin(ketbra(ψ), A, B)
     @test dot(behaviour_cg, cglmp_cg) ≈ ω ≈ (15 + sqrt(33)) / 24
     @test seesaw(game_inn22(), (2, 2, 3, 3), 2)[1] ≈ 1.25
@@ -140,21 +140,19 @@ end
     @test ω ≈ 0.125
 
     grandjean3 = tensor_collinsgisin(game_grandjean(Int, 3))
-    ω, ψ, Ms... = seesaw(grandjean3, (3, 3, 3, 2, 2, 2), 2, 3)
+    ω, ψ, Ms... = seesaw(grandjean3, (3, 3, 3, 2, 2, 2), 2, 3; method = :assemblage)
     behaviour_cg = tensor_collinsgisin(ketbra(ψ), Ms...)
     @test dot(behaviour_cg, grandjean3) ≈ ω
     @test ω ≈ (3sqrt(3) - 7) / 2 rtol = 1e-7
 
-    # standard path: bipartite non-binary
     Random.seed!(1337)
-    ω, ψ, A, B = seesaw(cglmp_cg, (3, 3, 2, 2), 3, 3; method = :standard)
+    ω, ψ, A, B = seesaw(cglmp_cg, (3, 3, 2, 2), 3, 3)
     behaviour_cg = tensor_collinsgisin(ketbra(ψ), A, B)
     @test dot(behaviour_cg, cglmp_cg) ≈ ω
     @test ω ≈ (15 + sqrt(33)) / 24
 
-    # standard path: tripartite non-binary
     Random.seed!(1337)
-    ω, ψ, Ms... = seesaw(grandjean3, (3, 3, 3, 2, 2, 2), 2, 3; method = :standard)
+    ω, ψ, Ms... = seesaw(grandjean3, (3, 3, 3, 2, 2, 2), 2, 3)
     behaviour_cg = tensor_collinsgisin(ketbra(ψ), Ms...)
     @test dot(behaviour_cg, grandjean3) ≈ ω
     @test ω ≈ (3sqrt(3) - 7) / 2 rtol = 1e-7
