@@ -9,7 +9,7 @@
         method::Symbol = :assemblage)
 
 
-Maximizes a N-partite Bell functional `CG` in Collins-Gisin notation using the seesaw heuristic.
+Maximizes an N-partite Bell functional `CG` in Collins-Gisin notation using the seesaw heuristic.
 `scenario` is a vector detailing the number of inputs and outputs, in the order (`o1`, .... , `oN`, `i1`, ..., `iN`).
 `d` is an integer determining the local dimension of the strategy. 
 Note that when using the assemblage method, the dimension constraint on the first party is relaxed.
@@ -413,7 +413,7 @@ function _seesaw_eigenvalue(CG::Array{R,N}, d, minimumincrease, maxiter) where {
     i = 0
     while true
         i += 1
-        ρ = ψ * ψ'
+        ρ = ketbra(ψ)
         for k ∈ 1:N
             _optimize_multi_projectors!(CG, ρ, Ms, k, dims)
         end
