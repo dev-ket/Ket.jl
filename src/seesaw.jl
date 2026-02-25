@@ -192,8 +192,6 @@ function _compute_value_assemblage(CG::Array{R,N}, scenario, ρxa, ρ_rest, all_
     return ω
 end
 
-# Precomputes d×d effective operators Γ[xk][ak] and a scalar constant such that
-# the Bell value equals constant + Σ_{xk,ak} tr(Mk[xk][ak] * Γ[xk][ak]).
 function _solve_povm_sdp(
     Γ::Vector{Vector{Matrix{Complex{R}}}},
     constant::R,
