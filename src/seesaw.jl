@@ -18,7 +18,7 @@ Returns a tuple ω, ψ, all_measurements where ω is the maximum found, ψ the s
 and all_measurement a list containing the POVMs of each party.
 
 `method` controls which algorithm is used:
-- `:assemblage`: assemblage SDP jointly optimizes party 1's assemblage and state; for binary outputs the fast eigenvalue path is used automatically.
+- `:assemblage`: assemblage SDP jointly optimizes Alice's assemblage and state; for binary outputs the fast eigenvalue path is used automatically.
 - `:standard` (default): standard seesaw — eigenvalue optimization for the state, d×d SDP per party.
 
 `verbose` prints solver output when `true`. `solver` overrides the default conic solver.
