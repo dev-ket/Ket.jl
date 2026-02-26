@@ -144,7 +144,6 @@ end
     @test dot(behaviour_cg, grandjean3) ≈ ω
     @test ω ≈ (3sqrt(3) - 7) / 2 rtol = 1e-7
 
-    Random.seed!(1337)
     ω, ψ, A, B = seesaw(cglmp_cg, (3, 3, 2, 2), 3, 3)
     behaviour_cg = tensor_collinsgisin(ketbra(ψ), A, B)
     @test dot(behaviour_cg, cglmp_cg) ≈ ω
