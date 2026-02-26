@@ -1,6 +1,6 @@
 """
     seesaw(
-        CG::AbstractArray,
+        CG::Array{T,N},
         scenario::Tuple,
         d::Integer,
         n_trials::Integer = 1;
