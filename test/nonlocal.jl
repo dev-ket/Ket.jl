@@ -105,10 +105,54 @@ end
 @testset "Seesaw                " begin
     Random.seed!(1337)
     cglmp_cg = tensor_collinsgisin(game_cglmp())
-    ω, ψ, A, B = seesaw(cglmp_cg, (3, 3, 2, 2), 3)
+    ω, ψ, A, B = seesaw(cglmp_cg, (3, 3, 2, 2), 3; method = :assemblage)
     behaviour_cg = tensor_collinsgisin(ketbra(ψ), A, B)
     @test dot(behaviour_cg, cglmp_cg) ≈ ω ≈ (15 + sqrt(33)) / 24
     @test seesaw(game_inn22(), (2, 2, 3, 3), 2)[1] ≈ 1.25
+
+    chsh_cg = tensor_collinsgisin(game_chsh())
+    ω, ψ, A, B = seesaw(chsh_cg, (2, 2, 2, 2), 2, 3; method = :assemblage)
+    behaviour_cg = tensor_collinsgisin(ketbra(ψ), A, B)
+    @test dot(behaviour_cg, chsh_cg) ≈ ω ≈ cos(π / 8)^2
+    @test seesaw(game_inn22(), (2, 2, 3, 3), 2, 3)[1] ≈ 1.25
+
+    mermin_cg = tensor_collinsgisin(game_mermin(3))
+    ω, ψ, M1, M2, M3 = seesaw(mermin_cg, (2, 2, 2, 2, 2, 2), 2, 3)
+    behaviour_cg = tensor_collinsgisin(ketbra(ψ), M1, M2, M3)
+    @test dot(behaviour_cg, mermin_cg) ≈ ω
+    @test ω ≈ 1.0
+
+    gyni3_cg = tensor_collinsgisin(game_gyni(3))
+    ω, ψ, M1, M2, M3 = seesaw(gyni3_cg, (2, 2, 2, 2, 2, 2), 2, 3)
+    behaviour_cg = tensor_collinsgisin(ketbra(ψ), M1, M2, M3)
+    @test dot(behaviour_cg, gyni3_cg) ≈ ω
+    @test ω ≈ 0.25 rtol = 1e-6
+
+    mermin4_cg = tensor_collinsgisin(game_mermin(4))
+    ω, ψ, Ms... = seesaw(mermin4_cg, (2, 2, 2, 2, 2, 2, 2, 2), 2, 3)
+    behaviour_cg = tensor_collinsgisin(ketbra(ψ), Ms...)
+    @test dot(behaviour_cg, mermin4_cg) ≈ ω
+    @test ω ≈ 1.0
+
+    gyni4_cg = tensor_collinsgisin(game_gyni(4))
+    ω, ψ, Ms... = seesaw(gyni4_cg, (2, 2, 2, 2, 2, 2, 2, 2), 2, 3)
+    @test ω ≈ 0.125
+
+    grandjean3 = tensor_collinsgisin(game_grandjean(Int, 3))
+    ω, ψ, Ms... = seesaw(grandjean3, (3, 3, 3, 2, 2, 2), 2, 3; method = :assemblage)
+    behaviour_cg = tensor_collinsgisin(ketbra(ψ), Ms...)
+    @test dot(behaviour_cg, grandjean3) ≈ ω
+    @test ω ≈ (3sqrt(3) - 7) / 2 rtol = 1e-7
+
+    ω, ψ, A, B = seesaw(cglmp_cg, (3, 3, 2, 2), 3, 3)
+    behaviour_cg = tensor_collinsgisin(ketbra(ψ), A, B)
+    @test dot(behaviour_cg, cglmp_cg) ≈ ω
+    @test ω ≈ (15 + sqrt(33)) / 24
+
+    ω, ψ, Ms... = seesaw(grandjean3, (3, 3, 3, 2, 2, 2), 2, 3)
+    behaviour_cg = tensor_collinsgisin(ketbra(ψ), Ms...)
+    @test dot(behaviour_cg, grandjean3) ≈ ω
+    @test ω ≈ (3sqrt(3) - 7) / 2 rtol = 1e-7
 end
 
 @testset "FP and FC notations   " begin

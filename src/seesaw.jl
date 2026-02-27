@@ -1,21 +1,27 @@
 """
     seesaw(
-        CG::Matrix,
+        CG::Array{T,N},
         scenario::Tuple,
         d::Integer,
         n_trials::Integer = 1;
         verbose::Bool = false,
-        solver = Hypatia.Optimizer{_solver_type(T)})
+        solver = Hypatia.Optimizer{_solver_type(T)},
+        method::Symbol = :assemblage)
 
 
-Maximizes a bipartite Bell functional `CG` in Collins-Gisin notation using the seesaw heuristic.
-`scenario` is a vector detailing the number of inputs and outputs, in the order (`oa`, `ob`, `ia`, `ib`).
-`d` is an integer determining the local dimension of the strategy.
+Maximizes an N-partite Bell functional `CG` in Collins-Gisin notation using the seesaw heuristic.
+`scenario` is a vector detailing the number of inputs and outputs, in the order (`o1`, .... , `oN`, `i1`, ..., `iN`).
+`d` is an integer determining the local dimension of the strategy. 
+Note that when using the assemblage method, the dimension constraint on the first party is relaxed.
 
-Returns a tuple ω, ψ, A, B, where ω is the maximum found, ψ the state, and A,B Alice and Bob's vectors of POVMs.
+Returns a tuple ω, ψ, all_measurements where ω is the maximum found, ψ the state,
+and all_measurement a list containing the POVMs of each party.
 
-If `oa` = `ob` = 2 the heuristic reduces to a bunch of eigenvalue problems.
-Otherwise semidefinite programming is needed and we use the assemblage version of seesaw.
+`method` controls which algorithm is used:
+- `:assemblage`: assemblage SDP jointly optimizes Alice's assemblage and state; for binary outputs the fast eigenvalue path is used automatically.
+- `:standard` (default): standard seesaw — eigenvalue optimization for the state, d×d SDP per party.
+
+`verbose` prints solver output when `true`. `solver` overrides the default conic solver.
 
 The heuristic is executed `n_trials` times, and the best result is returned.
 
@@ -24,41 +30,397 @@ References:
 - Tavakoli et al., [arXiv:2307.02551](https://arxiv.org/abs/2307.02551) (Sec. II.B.1)
 """
 function seesaw(
-    CG::Matrix{T},
+    CG::Array{T,N},
     scenario::Tuple,
     d::Integer,
     n_trials::Integer = 1;
     verbose = false,
-    solver = Hypatia.Optimizer{_solver_type(T)}
-) where {T<:Real}
+    solver = Hypatia.Optimizer{_solver_type(T)},
+    method::Symbol = :standard
+) where {T<:Real,N}
+    @assert length(scenario) == 2N
+    @assert method ∈ (:assemblage, :standard)
+    binary_outputs = all(scenario[1:N] .== 2)
     R = _solver_type(T)
     CG = R.(CG)
     minimumincrease = _rtol(R)
     maxiter = 100
     ω0 = typemin(R)
-    local ψ0, A0, B0
+    local ψ0, all_measurements
 
     for _ ∈ 1:n_trials
-        if all(scenario[1:2] .== 2)
-            ω, ψ, A, B = _seesaw_eigenvalue(CG, d, minimumincrease, maxiter)
+        if method == :assemblage
+            ω, ψ, temp_measurements = _seesaw_assemblage(CG, scenario, d, minimumincrease, maxiter; verbose, solver)
+        elseif binary_outputs
+            ω, ψ, temp_measurements = _seesaw_eigenvalue(CG, d, minimumincrease, maxiter)
         else
-            ω, ψ, A, B = _seesaw_sdp(CG, scenario, d, minimumincrease, maxiter; verbose, solver)
+            ω, ψ, temp_measurements = _seesaw_standard(CG, scenario, d, minimumincrease, maxiter; verbose, solver)
         end
         if ω > ω0
-            ω0, ψ0, A0, B0 = ω, ψ, A, B
+            ω0, ψ0, all_measurements = ω, ψ, temp_measurements
         end
     end
-    for A ∈ A0
-        lastA = I - sum(A)
-        push!(A, lastA)
+
+    for party_povms ∈ all_measurements
+        for POVM ∈ party_povms
+            last_element = I - sum(POVM)
+            push!(POVM, last_element)
+        end
     end
-    for B ∈ B0
-        lastB = I - sum(B)
-        push!(B, lastB)
-    end
-    return ω0, ψ0, A0, B0
+    return ω0, ψ0, all_measurements...
 end
 export seesaw
+
+# === helpers ===
+
+# Returns the operator for party p+1 at Collins-Gisin index cn, decoding (a, x) from cn:
+# identity for marginal (cn=1),
+# POVM element all_povms[p][x][a] otherwise
+function _cg_op(all_povms, p, cn, o_p, Id)
+    cn == 1 && return Id
+    a = (cn - 2) % (o_p - 1) + 1
+    x = (cn - 2) ÷ (o_p - 1) + 1
+    return Matrix(all_povms[p][x][a])
+end
+
+# Returns the assemblage element for party 1 at Collins-Gisin index c1:
+# ρ_rest for marginal (c1=1),
+# ρxa[x][a] otherwise.
+function _cg_state(c1, o1, ρxa, ρ_rest)
+    c1 == 1 && return ρ_rest
+    a = (c1 - 2) % (o1 - 1) + 1
+    x = (c1 - 2) ÷ (o1 - 1) + 1
+    return ρxa[x][a]
+end
+
+
+# === Assemblage path ===
+
+function _seesaw_assemblage(CG::Array{R,N}, scenario, d, minimumincrease, maxiter; verbose, solver) where {R<:AbstractFloat,N}
+    outs = scenario[1:N]
+    ins = scenario[N+1:2N]
+    T2 = Complex{R}
+
+    all_povms = [[random_povm(T2, d, outs[n])[1:outs[n]-1] for _ ∈ 1:ins[n]] for n ∈ 2:N]
+
+    local ψ0, all_measurements0
+    ω0 = typemin(R)
+    i = 0
+    while true
+        i += 1
+        ω, ρxa, ρ_rest = _optimize_assemblage(CG, scenario, all_povms; verbose, solver)
+        for k ∈ 1:N-1
+            ω, all_povms[k] = _optimize_party_povm(CG, scenario, k + 1, ρxa, ρ_rest, all_povms; verbose, solver)
+        end
+        if ω - ω0 ≤ minimumincrease || i > maxiter
+            ω0 = ω
+            ψ0, M1 = _decompose_assemblage(scenario, ρxa, ρ_rest)
+            all_measurements0 = pushfirst!(copy(all_povms), M1)
+            break
+        end
+        ω0 = ω
+    end
+    return ω0, ψ0, all_measurements0
+end
+
+function _optimize_assemblage(
+    CG::Array{R,N},
+    scenario,
+    all_povms;
+    verbose = false,
+    solver = Hypatia.Optimizer{R}
+) where {R<:AbstractFloat,N}
+    outs = scenario[1:N]
+    ins = scenario[N+1:2N]
+    d = size(all_povms[1][1][1], 1)
+    Dp = d^(N - 1)
+
+    model = JuMP.GenericModel{R}()
+    ρxa = [[JuMP.@variable(model, [1:Dp, 1:Dp] ∈ JuMP.HermitianPSDCone()) for _ ∈ 1:outs[1]-1] for _ ∈ 1:ins[1]]
+    ρ_rest = JuMP.@variable(model, [1:Dp, 1:Dp], Hermitian)
+
+    JuMP.@constraint(model, tr(ρ_rest) == 1)
+    for x ∈ 1:ins[1]
+        JuMP.@constraint(model, ρ_rest - sum(ρxa[x][a] for a ∈ 1:outs[1]-1) ∈ JuMP.HermitianPSDCone())
+    end
+
+    ω = _compute_value_assemblage(CG, scenario, ρxa, ρ_rest, all_povms)
+    JuMP.@objective(model, Max, ω)
+
+    JuMP.set_optimizer(model, solver)
+    !verbose && JuMP.set_silent(model)
+    JuMP.optimize!(model)
+    JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
+    value_ρxa = [[JuMP.value(ρxa[x][a]) for a ∈ 1:outs[1]-1] for x ∈ 1:ins[1]]
+    value_ρ_rest = JuMP.value(ρ_rest)
+    return JuMP.value(ω)::R, value_ρxa, value_ρ_rest
+end
+
+function _compute_value_assemblage(CG::Array{R,N}, scenario, ρxa, ρ_rest, all_povms) where {R<:AbstractFloat,N}
+    outs = scenario[1:N]
+    ins = scenario[N+1:2N]
+    o1 = outs[1]
+    cgind(a, x, o) = 1 + a + (x - 1) * (o - 1)
+    d = size(all_povms[1][1][1], 1)
+    Id = Matrix{Complex{R}}(I, d, d)
+
+    rest_sizes = Tuple(1 + ins[p+1] * (outs[p+1] - 1) for p ∈ 1:N-1)
+
+    ω = zero(JuMP.GenericAffExpr{R,JuMP.GenericVariableRef{R}})
+
+    for ct ∈ CartesianIndices(rest_sizes)
+        O_rest = _cg_op(all_povms, 1, ct[1], outs[2], Id)
+        for p ∈ 2:N-1
+            O_rest = kron(O_rest, _cg_op(all_povms, p, ct[p], outs[p+1], Id))
+        end
+
+        # party 1 marginal (c1 = 1)
+        coeff = CG[1, ct.I...]
+        if !iszero(coeff)
+            JuMP.add_to_expression!(ω, coeff, real(dot(O_rest, ρ_rest)))
+        end
+
+        # party 1 non-marginal terms
+        for x ∈ 1:ins[1], a ∈ 1:o1-1
+            coeff = CG[cgind(a, x, o1), ct.I...]
+            if !iszero(coeff)
+                JuMP.add_to_expression!(ω, coeff, real(dot(O_rest, ρxa[x][a])))
+            end
+        end
+    end
+
+    return ω
+end
+
+function _solve_povm_sdp(
+    Γ::Vector{Vector{Matrix{Complex{R}}}},
+    constant::R,
+    ok,
+    ik,
+    d;
+    verbose = false,
+    solver = Hypatia.Optimizer{R}
+) where {R<:AbstractFloat}
+    model = JuMP.GenericModel{R}()
+    Mk = [[JuMP.@variable(model, [1:d, 1:d] ∈ JuMP.HermitianPSDCone()) for _ ∈ 1:ok-1] for _ ∈ 1:ik]
+    for xk ∈ 1:ik
+        JuMP.@constraint(model, I - sum(Mk[xk][ak] for ak ∈ 1:ok-1) ∈ JuMP.HermitianPSDCone())
+    end
+    ω = constant * one(JuMP.GenericAffExpr{R,JuMP.GenericVariableRef{R}})
+    for xk ∈ 1:ik, ak ∈ 1:ok-1
+        JuMP.add_to_expression!(ω, 1, real(dot(Γ[xk][ak], Mk[xk][ak])))
+    end
+    JuMP.@objective(model, Max, ω)
+    JuMP.set_optimizer(model, solver)
+    !verbose && JuMP.set_silent(model)
+    JuMP.optimize!(model)
+    JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
+    value_Mk = [[JuMP.value(Mk[xk][ak]) for ak ∈ 1:ok-1] for xk ∈ 1:ik]
+    return JuMP.value(ω)::R, value_Mk
+end
+
+
+function _optimize_party_povm(
+    CG::Array{R,N},
+    scenario,
+    party_k,
+    ρxa,
+    ρ_rest,
+    all_povms;
+    verbose = false,
+    solver = Hypatia.Optimizer{R}
+) where {R<:AbstractFloat,N}
+    outs = scenario[1:N]
+    ins = scenario[N+1:2N]
+    o1, ok, ik = outs[1], outs[party_k], ins[party_k]
+    d = size(all_povms[1][1][1], 1)
+    T2 = Complex{R}
+    Id = Matrix{T2}(I, d, d)
+
+    k_rest = party_k - 1
+    remove = collect(setdiff(1:N-1, k_rest))
+    dims_rest = fill(d, N - 1)
+
+    Γ = [[zeros(T2, d, d) for _ ∈ 1:ok-1] for _ ∈ 1:ik]
+    constant = zero(R)
+
+    for ci ∈ CartesianIndices(size(CG))
+        coeff = CG[ci]
+        iszero(coeff) && continue
+
+        state = _cg_state(ci[1], o1, ρxa, ρ_rest)
+        ops = [p == k_rest ? Id : _cg_op(all_povms, p, ci[p+1], outs[p+1], Id) for p ∈ 1:N-1]
+        O_others = length(ops) == 1 ? ops[1] : kron(ops...)
+        M = partial_trace(state * O_others, remove, dims_rest)
+
+        ck = ci[party_k]
+        if ck == 1
+            constant += coeff * real(tr(M))
+        else
+            ak = (ck - 2) % (ok - 1) + 1
+            xk = (ck - 2) ÷ (ok - 1) + 1
+            Γ[xk][ak] .+= coeff .* M
+        end
+    end
+
+    return _solve_povm_sdp(Γ, constant, ok, ik, d; verbose, solver)
+end
+
+# Extracts state ψ ∈ C^{Dp^2} and party 1's Dp×Dp POVMs from the assemblage.
+function _decompose_assemblage(scenario, ρxa, ρ_rest::AbstractMatrix{T}) where {T}
+    N = length(scenario) ÷ 2
+    o1, i1 = scenario[1], scenario[N+1]
+    Dp = size(ρ_rest, 1)
+
+    λ, U = eigen(ρ_rest) # ascending eigenvalues
+    ψ = zeros(T, Dp^2)
+    for i ∈ 1:Dp
+        λ[i] ≥ _rtol(T) && (@views ψ .+= sqrt(λ[i]) * kron(conj(U[:, i]), U[:, i]))
+    end
+
+    invrootλ = map(x -> x ≥ _rtol(T) ? 1 / sqrt(x) : zero(x), λ)
+    W = U * Diagonal(invrootλ) * U'  # Dp×Dp pseudo-inverse of √ρ_rest
+    M1 = [[Hermitian(conj(W * ρxa[x][a] * W)) for a ∈ 1:o1-1] for x ∈ 1:i1]
+    return ψ, M1
+end
+
+# === Standard path ===
+
+function _seesaw_standard(
+    CG::Array{R,N},
+    scenario,
+    d,
+    minimumincrease,
+    maxiter;
+    verbose,
+    solver
+) where {R<:AbstractFloat,N}
+    outs = scenario[1:N]
+    ins = scenario[N+1:2N]
+    T2 = Complex{R}
+    dims = fill(d, N)
+
+    all_povms = [[random_povm(T2, d, outs[n])[1:outs[n]-1] for _ ∈ 1:ins[n]] for n ∈ 1:N]
+
+    ψ = random_state_ket(T2, prod(dims))
+    ω0 = typemin(R)
+    local ω, all_measurements0
+    i = 0
+    while true
+        i += 1
+        ρ = ketbra(ψ)
+        for k ∈ 1:N
+            _, all_povms[k] = _optimize_party_povm_standard(CG, scenario, k, ρ, all_povms; verbose, solver)
+        end
+        ω, ψ = _optimize_state_standard(CG, scenario, all_povms, dims)
+        if ω - ω0 ≤ minimumincrease || i > maxiter
+            all_measurements0 = deepcopy(all_povms)
+            break
+        end
+        ω0 = ω
+    end
+    return ω, ψ, all_measurements0
+end
+
+function _optimize_party_povm_standard(
+    CG::Array{R,N},
+    scenario,
+    party_k,
+    ρ,
+    all_povms;
+    verbose = false,
+    solver = Hypatia.Optimizer{R}
+) where {R<:AbstractFloat,N}
+    outs = scenario[1:N]
+    ok = outs[party_k]
+    ik = scenario[N + party_k]
+    d = size(all_povms[1][1][1], 1)
+    T2 = Complex{R}
+    dims = fill(d, N)
+    Id = Matrix{T2}(I, d, d)
+    remove = collect(setdiff(1:N, party_k))
+
+    Γ = [[zeros(T2, d, d) for _ ∈ 1:ok-1] for _ ∈ 1:ik]
+    constant = zero(R)
+
+    for ci ∈ CartesianIndices(size(CG))
+        coeff = CG[ci]
+        iszero(coeff) && continue
+        ops = [j == party_k ? Id : _cg_op(all_povms, j, ci[j], outs[j], Id) for j ∈ 1:N]
+        M = partial_trace(ρ * kron(ops...), remove, dims)
+        ck = ci[party_k]
+        if ck == 1
+            constant += coeff * real(tr(M))
+        else
+            ak = (ck - 2) % (ok - 1) + 1
+            xk = (ck - 2) ÷ (ok - 1) + 1
+            Γ[xk][ak] .+= coeff .* M
+        end
+    end
+
+    return _solve_povm_sdp(Γ, constant, ok, ik, d; verbose, solver)
+end
+
+function _optimize_state_standard(CG::Array{R,N}, scenario, all_povms, dims) where {R<:AbstractFloat,N}
+    outs = scenario[1:N]
+    D = prod(dims)
+    T2 = Complex{R}
+    Id = Matrix{T2}(I, dims[1], dims[1])
+    W = zeros(T2, D, D)
+    for ci ∈ CartesianIndices(size(CG))
+        coeff = CG[ci]
+        iszero(coeff) && continue
+        ops = [_cg_op(all_povms, k, ci[k], outs[k], Id) for k ∈ 1:N]
+        W .+= coeff .* kron(ops...)
+    end
+    vals, U = eigen(Hermitian(W))
+    return real(vals[end])::R, U[:, end]
+end
+
+# === Eigenvalue path ===
+
+function _positive_projection!(M::AbstractMatrix{T}) where {T}
+    λ, U = eigen(M)
+    fill!(M.data, 0)
+    temp = similar(M.data)
+    for i ∈ 1:length(λ)
+        if λ[i] > _rtol(T)
+            @views mul!(temp, U[:, i], U[:, i]') #5-argument mul! doesn't call herk for Julia ≤ 1.11
+            M.data .+= temp
+        end
+    end
+    return M
+end
+
+# two _seesaw_eigenvalue functions with different signatures for bipartite (and schmidt optimization) and multipartite
+
+function _seesaw_eigenvalue(CG::Array{R,N}, d, minimumincrease, maxiter) where {R<:AbstractFloat,N}
+    T2 = Complex{R}
+    dims = fill(d, N)
+    D = d^N
+    ψ = normalize!(complex.(randn(R, D), randn(R, D)))
+    Ms = [[random_povm(T2, d, 2)[1] for _ ∈ 1:size(CG, k)-1] for k ∈ 1:N]
+    ω0 = typemin(R)
+    local ψ0, Ms0
+    i = 0
+    while true
+        i += 1
+        ρ = ketbra(ψ)
+        for k ∈ 1:N
+            _optimize_multi_projectors!(CG, ρ, Ms, k, dims)
+        end
+        ω, ψ = _optimize_multi_state!(CG, Ms, dims)
+        if ω - ω0 ≤ minimumincrease || i > maxiter
+            ω0 = ω
+            ψ0 = ψ
+            Ms0 = deepcopy(Ms)
+            break
+        end
+        ω0 = ω
+    end
+    all_measurements = [[[Ms0[k][xk]] for xk ∈ 1:size(CG, k)-1] for k ∈ 1:N]
+    return ω0, ψ0, all_measurements
+end
 
 function _seesaw_eigenvalue(CG::Matrix{R}, d, minimumincrease, maxiter) where {R<:AbstractFloat}
     ia, ib = size(CG) .- 1
@@ -77,134 +439,52 @@ function _seesaw_eigenvalue(CG::Matrix{R}, d, minimumincrease, maxiter) where {R
         if ω - ω0 ≤ minimumincrease || i > maxiter
             ω0 = ω
             ψ0 = state_phiplus_ket(T2, d; coeff = λ)
-            A0 = [[A[x]] for x ∈ 1:ia] #rather inconvenient format
-            B0 = [[B[y]] for y ∈ 1:ib] #but consistent with the general case
+            A0 = [[A[x]] for x ∈ 1:ia] # rather inconvenient format
+            B0 = [[B[y]] for y ∈ 1:ib] # but consistent with the general case
             break
         end
         ω0 = ω
     end
-    return ω0, ψ0, A0, B0
+    return ω0, ψ0, [A0, B0]
 end
 
-function _seesaw_sdp(CG::Matrix{R}, scenario, d, minimumincrease, maxiter; verbose, solver) where {R<:AbstractFloat}
-    oa, ob, ia, ib = scenario
+function _optimize_multi_projectors!(CG::Array{R,N}, ρ, Ms, k, dims) where {R<:AbstractFloat,N}
+    d = dims[k]
     T2 = Complex{R}
-    B0 = Vector{Measurement{T2}}(undef, ib)
-    for y ∈ 1:ib
-        B0[y] = random_povm(T2, d, ob)[1:ob-1]
-    end
-    local ψ0, A0
-    ω0 = typemin(R)
-    i = 0
-    while true
-        i += 1
-        ω, ρxa, ρ_B = _optimize_alice_assemblage(CG, scenario, B0; verbose, solver)
-        ω, B0 = _optimize_bob_povm(CG, scenario, ρxa, ρ_B; verbose, solver)
-        if ω - ω0 ≤ minimumincrease || i > maxiter
-            ω0 = ω
-            ψ0, A0 = _decompose_assemblage(scenario, ρxa, ρ_B)
-            break
+    Id = Matrix{T2}(I, d, d)
+    remove = collect(setdiff(1:N, k))
+    ins_k = size(CG, k) - 1
+    for xk ∈ 1:ins_k
+        Γ = zeros(T2, d, d)
+        for ci ∈ CartesianIndices(size(CG))
+            ci[k] == xk + 1 || continue
+            coeff = CG[ci]
+            iszero(coeff) && continue
+            O = kron([j == k ? Id : (ci[j] == 1 ? Id : Ms[j][ci[j]-1]) for j ∈ 1:N]...)
+            Γ .+= coeff .* partial_trace(ρ * O, remove, dims)
         end
-        ω0 = ω
+        Γh = Hermitian(Γ)
+        _positive_projection!(Γh)
+        Ms[k][xk] = Γh
     end
-    return ω0, ψ0, A0, B0
 end
 
-function _optimize_alice_assemblage(
-    CG::Matrix{R},
-    scenario,
-    B;
-    verbose = false,
-    solver = Hypatia.Optimizer{R}
-) where {R<:AbstractFloat}
-    oa, ob, ia, ib = scenario
-    d = size(B[1][1], 1)
-
-    model = JuMP.GenericModel{R}()
-    ρxa = [[JuMP.@variable(model, [1:d, 1:d] ∈ JuMP.HermitianPSDCone()) for _ ∈ 1:oa-1] for _ ∈ 1:ia] #assemblage
-    ρ_B = JuMP.@variable(model, [1:d, 1:d], Hermitian) #auxiliary quantum state
-
-    JuMP.@constraint(model, tr(ρ_B) == 1)
-    for x ∈ 1:ia
-        JuMP.@constraint(model, ρ_B - sum(ρxa[x][a] for a ∈ 1:oa-1) ∈ JuMP.HermitianPSDCone())
+function _optimize_multi_state!(CG::Array{R,N}, Ms, dims) where {R<:AbstractFloat,N}
+    d = dims[1]
+    D = prod(dims)
+    T2 = Complex{R}
+    Id = Matrix{T2}(I, d, d)
+    W = zeros(T2, D, D)
+    for ci ∈ CartesianIndices(size(CG))
+        coeff = CG[ci]
+        iszero(coeff) && continue
+        ops = [ci[k] == 1 ? Id : Ms[k][ci[k]-1] for k ∈ 1:N]
+        W .+= coeff .* kron(ops...)
     end
-
-    ω = _compute_value_assemblage(CG, scenario, ρxa, ρ_B, B)
-    JuMP.@objective(model, Max, ω)
-
-    JuMP.set_optimizer(model, solver)
-    !verbose && JuMP.set_silent(model)
-    JuMP.optimize!(model)
-    JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
-    value_ρxa = [[JuMP.value(ρxa[x][a]) for a ∈ 1:oa-1] for x ∈ 1:ia]::typeof(B)
-    value_ρB = JuMP.value(ρ_B)::typeof(B[1][1])
-    return JuMP.value(ω)::R, value_ρxa, value_ρB
+    vals, U = eigen(Hermitian(W))
+    return real(vals[end])::R, U[:, end]
 end
 
-function _optimize_bob_povm(
-    CG::Matrix{R},
-    scenario,
-    ρxa,
-    ρ_B;
-    verbose = false,
-    solver = Hypatia.Optimizer{R}
-) where {R<:AbstractFloat}
-    oa, ob, ia, ib = scenario
-    d = size(ρ_B, 1)
-
-    model = JuMP.GenericModel{R}()
-    B = [[JuMP.@variable(model, [1:d, 1:d] ∈ JuMP.HermitianPSDCone()) for _ ∈ 1:ob-1] for _ ∈ 1:ib] #povm
-    for y ∈ 1:ib
-        JuMP.@constraint(model, I - sum(B[y][b] for b ∈ 1:ob-1) ∈ JuMP.HermitianPSDCone())
-    end
-
-    ω = _compute_value_assemblage(CG, scenario, ρxa, ρ_B, B)
-    JuMP.@objective(model, Max, ω)
-
-    JuMP.set_optimizer(model, solver)
-    !verbose && JuMP.set_silent(model)
-    JuMP.optimize!(model)
-    JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
-    value_B = [[JuMP.value(B[y][b]) for b ∈ 1:ob-1] for y ∈ 1:ib]::typeof(ρxa)
-    return JuMP.value(ω)::R, value_B
-end
-
-function _compute_value_assemblage(CG::Matrix{R}, scenario, ρxa, ρ_B, B) where {R<:AbstractFloat}
-    oa, ob, ia, ib = scenario
-    aind(a, x) = 1 + a + (x - 1) * (oa - 1)
-    bind(b, y) = 1 + b + (y - 1) * (ob - 1)
-
-    ω = CG[1, 1] * one(JuMP.GenericAffExpr{R,JuMP.GenericVariableRef{R}})
-    for a ∈ 1:oa-1, x ∈ 1:ia
-        tempB = sum(CG[aind(a, x), bind(b, y)] * B[y][b] for b ∈ 1:ob-1 for y ∈ 1:ib)
-        JuMP.add_to_expression!(ω, 1, real(dot(tempB, ρxa[x][a])))
-    end
-    for a ∈ 1:oa-1, x ∈ 1:ia
-        JuMP.add_to_expression!(ω, CG[aind(a, x), 1], real(tr(ρxa[x][a])))
-    end
-    for b ∈ 1:ob-1, y ∈ 1:ib
-        JuMP.add_to_expression!(ω, CG[1, bind(b, y)], real(dot(B[y][b], ρ_B)))
-    end
-    return ω
-end
-
-#rather unstable
-function _decompose_assemblage(scenario, ρxa, ρ_B::AbstractMatrix{T}) where {T}
-    oa, ob, ia, ib = scenario
-
-    d = size(ρ_B, 1)
-    λ, U = eigen(ρ_B)
-    ψ = zeros(T, d^2)
-    for i ∈ 1:d
-        if λ[i] ≥ _rtol(T)
-            @views ψ .+= sqrt(λ[i]) * kron(conj(U[:, i]), U[:, i])
-        end
-    end
-    invrootλ = map(x -> x ≥ _rtol(T) ? 1 / sqrt(x) : zero(x), λ)
-    W = U * Diagonal(invrootλ) * U'
-    A = [[Hermitian(conj(W * ρxa[x][a] * W)) for a ∈ 1:oa-1] for x ∈ 1:ia]
-    return ψ, A
-end
 
 function _optimize_alice_projectors!(CG::Matrix, λ::Vector, A, B)
     ia, ib = size(CG) .- 1
@@ -232,19 +512,6 @@ function _optimize_bob_projectors!(CG::Matrix, λ::Vector, A, B)
         end
         _positive_projection!(B[y])
     end
-end
-
-function _positive_projection!(M::AbstractMatrix{T}) where {T}
-    λ, U = eigen(M)
-    fill!(M.data, 0)
-    temp = similar(M.data)
-    for i ∈ 1:length(λ)
-        if λ[i] > _rtol(T)
-            @views mul!(temp, U[:, i], U[:, i]') #5-argument mul! doesn't call herk for Julia ≤ 1.11
-            M.data .+= temp
-        end
-    end
-    return M
 end
 
 function _optimize_state!(CG::Matrix, λ::Vector{T}, A, B) where {T}
