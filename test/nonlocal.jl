@@ -222,8 +222,8 @@ end
 @testset "Nonlocality robustness" begin
     for T ∈ [Float64, Double64]
         prbox = 2 * game_chsh(T)
-        @test nonlocality_robustness(prbox; noise = "white") ≈ T(1)
-        @test nonlocality_robustness(prbox; noise = "local") ≈ T(1) / 2
-        @test nonlocality_robustness(prbox; noise = "general") ≈ T(1) / 3 rtol = 1e-7
+        @test nonlocality_robustness(prbox; noise = :white) ≈ T(1)
+        @test nonlocality_robustness(prbox; noise = :local) ≈ T(1) / 2
+        @test nonlocality_robustness(prbox; noise = :general) ≈ T(1) / 3 rtol = 1e-7
     end
 end

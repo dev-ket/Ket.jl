@@ -199,14 +199,14 @@ export schmidt_number
         ρ::AbstractMatrix{T},
         dims::AbstractVector = _equal_sizes(ρ),
         n::Integer = 1;
-        noise::String = "white"
+        noise::Symbol = :white
         ppt::Bool = true,
         inner::Bool = false,
         verbose::Bool = false,
         dualize::Bool = false,
         solver = Hypatia.Optimizer{_solver_type(T)})
 
-Lower (or upper) bounds the entanglement robustness of state `ρ` with subsystem dimensions `dims` using level `n` of the DPS hierarchy (or inner DPS, when `inner = true`). Argument `noise` indicates the kind of noise to be used: "white" (default), "separable", or "general". Argument `ppt` indicates whether to include the partial transposition constraints. Argument `dualize` determines whether the dual problem is solved instead. WARNING: This is critical for performance, and the correct choice depends on the solver.
+Lower (or upper) bounds the entanglement robustness of state `ρ` with subsystem dimensions `dims` using level `n` of the DPS hierarchy (or inner DPS, when `inner = true`). Argument `noise` indicates the kind of noise to be used: `:white` (default), `:separable`, or `:general`. Argument `ppt` indicates whether to include the partial transposition constraints. Argument `dualize` determines whether the dual problem is solved instead. WARNING: This is critical for performance, and the correct choice depends on the solver.
 
 Returns the robustness and a witness W (note that for `inner = true`, this might not be a valid entanglement witness).
 """
@@ -214,7 +214,7 @@ function entanglement_robustness(
     ρ::AbstractMatrix{T},
     dims::AbstractVector = _equal_sizes(ρ),
     n::Integer = 1;
-    noise::String = "white",
+    noise::Symbol = :white,
     ppt::Bool = true,
     inner::Bool = false,
     verbose::Bool = false,
@@ -222,7 +222,7 @@ function entanglement_robustness(
     solver = Hypatia.Optimizer{_solver_type(T)}
 ) where {T<:Number}
     ishermitian(ρ) || throw(ArgumentError("State must be Hermitian"))
-    @assert noise ∈ ["white", "separable", "general"]
+    @assert noise ∈ (:white, :separable, :general)
 
     is_complex = (T <: Complex)
     psd_cone, wrapper, = _sdp_parameters(is_complex)
@@ -231,7 +231,7 @@ function entanglement_robustness(
 
     model = JuMP.GenericModel{_solver_type(T)}()
 
-    if noise == "white"
+    if noise == :white
         JuMP.@variable(model, λ)
         noisy_state = wrapper(ρ + λ * I(d))
         JuMP.@objective(model, Min, λ)
@@ -239,7 +239,7 @@ function entanglement_robustness(
         JuMP.@variable(model, σ[1:d, 1:d] ∈ psd_cone)
         noisy_state = wrapper(ρ + σ)
         JuMP.@objective(model, Min, real(tr(σ)) / d)
-        if noise == "separable"
+        if noise == :separable
             _sep!(model, σ, dims, n; ppt, is_complex)
         end
     end

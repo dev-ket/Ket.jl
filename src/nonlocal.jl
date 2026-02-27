@@ -572,19 +572,19 @@ function _tensor_correlation_collinsgisin(
 end
 
 """
-    nonlocality_robustness(FP::Array; noise::String = "white", verbose::Bool = false, solver = Hypatia.Optimizer{_solver_type(T)})
+    nonlocality_robustness(FP::Array; noise::Symbol = :white, verbose::Bool = false, solver = Hypatia.Optimizer{_solver_type(T)})
 
-Computes the nonlocality robustness of the behaviour `FP`. Argument `noise` indicates the kind of noise to be used: "white" (default), "local", or "general".
+Computes the nonlocality robustness of the behaviour `FP`. Argument `noise` indicates the kind of noise to be used: `:white` (default), `:local`, or `:general`.
 
 Reference: Baek, Ryu, Lee, [arxiv:2311.07077](https://arxiv.org/abs/2311.07077)
 """
 function nonlocality_robustness(
     FP::Array{T,N2};
-    noise::String = "white",
+    noise::Symbol = :white,
     verbose = false,
     solver = Hypatia.Optimizer{_solver_type(T)}
 ) where {T<:Real,N2}
-    @assert noise ∈ ["white", "local", "general"]
+    @assert noise ∈ (:white, :local, :general)
 
     @assert iseven(N2)
     N = N2 ÷ 2
@@ -621,7 +621,7 @@ function nonlocality_robustness(
     end
 
     q = Vector{Matrix{typeof(t)}}(undef, 0)
-    if noise == "local"
+    if noise == :local
         JuMP.@variable(model, ξ[1:total_num_strategies])
         resize!(q, total_num_strategies)
         for i ∈ eachindex(q)
@@ -649,21 +649,21 @@ function nonlocality_robustness(
             for x ∈ 1:ins[1]
                 for a ∈ 1:outs[1]-1
                     JuMP.add_to_expression!(local_model[a, b..., x, y], p[λ][a, x])
-                    noise == "local" && JuMP.add_to_expression!(local_noise[a, b..., x, y], q[λ][a, x])
+                    noise == :local && JuMP.add_to_expression!(local_noise[a, b..., x, y], q[λ][a, x])
                 end
                 JuMP.add_to_expression!(local_model[outs[1], b..., x, y], last_p[λ, x])
-                noise == "local" && JuMP.add_to_expression!(local_noise[outs[1], b..., x, y], last_q[λ, x])
+                noise == :local && JuMP.add_to_expression!(local_noise[outs[1], b..., x, y], last_q[λ, x])
             end
         end
     end
 
-    if noise == "white"
+    if noise == :white
         JuMP.@constraint(model, FP .+ t * normalization / prod(outs) == local_model)
     else
-        if noise == "local"
+        if noise == :local
             JuMP.@constraint(model, FP + local_noise == local_model)
             JuMP.@constraint(model, last_q .≥ 0)
-        elseif noise == "general"
+        elseif noise == :general
             JuMP.@constraint(model, FP - local_model .≤ 0)
         end
         JuMP.@constraint(model, sum(π) == (1 + t) * normalization)

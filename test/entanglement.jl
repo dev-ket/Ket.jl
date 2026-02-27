@@ -24,11 +24,11 @@
         for R ∈ (Float64, Double64), T ∈ (R, Complex{R})
             # outer DPS:
             ρ = state_phiplus(T)
-            s, W = entanglement_robustness(ρ; noise = "white")
+            s, W = entanglement_robustness(ρ; noise = :white)
             @test eltype(W) == T
             @test s ≈ 0.5 atol = 1.0e-5 rtol = 1.0e-5
             @test dot(ρ, W) ≈ -s atol = 1.0e-5 rtol = 1.0e-5
-            s, W = entanglement_robustness(ρ; noise = "general")
+            s, W = entanglement_robustness(ρ; noise = :general)
             @test eltype(W) == T
             @test s ≈ 0.25 atol = 1.0e-5 rtol = 1.0e-5
             @test dot(ρ, W) ≈ -s atol = 1.0e-5 rtol = 1.0e-5
