@@ -89,10 +89,10 @@ print(@doc entanglement_robustness) #hide
 #=
 These are not *positional* arguments such as the ones that come before the `;`.
 Instead, they must be passed by their names.
-So, for example, `entanglement_robustness(ρ; noise = "separable")` is a valid call for any matrix ρ:
+So, for example, `entanglement_robustness(ρ; noise = :separable)` is a valid call for any matrix ρ:
 =#
 
-λ, W = entanglement_robustness(state_ghz(2, 2); noise = "separable")
+λ, W = entanglement_robustness(state_ghz(2, 2); noise = :separable)
 λ #hide
 #-
 W #hide
