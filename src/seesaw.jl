@@ -392,55 +392,60 @@ function _positive_projection!(M::AbstractMatrix{T}) where {T}
     return M
 end
 
-# N==2 uses the Schmidt optimisation: state kept as λ ∈ ℂ^d
-# N>2 uses the full density matrix ρ = ketbra(ψ)
+# two _seesaw_eigenvalue functions with different signatures for bipartite (and schmidt optimization) and multipartite
 
 function _seesaw_eigenvalue(CG::Array{R,N}, d, minimumincrease, maxiter) where {R<:AbstractFloat,N}
     T2 = Complex{R}
+    dims = fill(d, N)
+    D = d^N
+    ψ = normalize!(complex.(randn(R, D), randn(R, D)))
+    Ms = [[random_povm(T2, d, 2)[1] for _ ∈ 1:size(CG, k)-1] for k ∈ 1:N]
     ω0 = typemin(R)
-    local ψ0, all_measurements0
+    local ψ0, Ms0
     i = 0
-    if N == 2
-        ia, ib = size(CG) .- 1
-        λ = T2.(sqrt.(random_probability(R, d)))
-        B = [random_povm(T2, d, 2)[1] for _ ∈ 1:ib]::Measurement{T2}
-        A = [Hermitian(zeros(T2, d, d)) for _ ∈ 1:ia]::Measurement{T2}
-        while true
-            i += 1
-            _optimize_alice_projectors!(CG, λ, A, B)
-            _optimize_bob_projectors!(CG, λ, A, B)
-            ω = _optimize_state!(CG, λ, A, B)
-            if ω - ω0 ≤ minimumincrease || i > maxiter
-                ω0 = ω
-                ψ0 = state_phiplus_ket(T2, d; coeff = λ)
-                all_measurements0 = [[[A[x]] for x ∈ 1:ia], [[B[y]] for y ∈ 1:ib]]
-                break
-            end
-            ω0 = ω
+    while true
+        i += 1
+        ρ = ketbra(ψ)
+        for k ∈ 1:N
+            _optimize_multi_projectors!(CG, ρ, Ms, k, dims)
         end
-    else
-        dims = fill(d, N)
-        ψ = normalize!(complex.(randn(R, d^N), randn(R, d^N)))
-        Ms = [[random_povm(T2, d, 2)[1] for _ ∈ 1:size(CG, k)-1] for k ∈ 1:N]
-        local Ms0
-        while true
-            i += 1
-            ρ = ketbra(ψ)
-            for k ∈ 1:N
-                _optimize_multi_projectors!(CG, ρ, Ms, k, dims)
-            end
-            ω, ψ = _optimize_multi_state!(CG, Ms, dims)
-            if ω - ω0 ≤ minimumincrease || i > maxiter
-                ω0 = ω
-                ψ0 = ψ
-                Ms0 = deepcopy(Ms)
-                break
-            end
+        ω, ψ = _optimize_multi_state!(CG, Ms, dims)
+        if ω - ω0 ≤ minimumincrease || i > maxiter
             ω0 = ω
+            ψ0 = ψ
+            Ms0 = deepcopy(Ms)
+            break
         end
-        all_measurements0 = [[[Ms0[k][xk]] for xk ∈ 1:size(CG, k)-1] for k ∈ 1:N]
+        ω0 = ω
     end
-    return ω0, ψ0, all_measurements0
+    all_measurements = [[[Ms0[k][xk]] for xk ∈ 1:size(CG, k)-1] for k ∈ 1:N]
+    return ω0, ψ0, all_measurements
+end
+
+function _seesaw_eigenvalue(CG::Matrix{R}, d, minimumincrease, maxiter) where {R<:AbstractFloat}
+    ia, ib = size(CG) .- 1
+    T2 = Complex{R}
+    λ = T2.(sqrt.(random_probability(R, d)))
+    B = [random_povm(T2, d, 2)[1] for _ ∈ 1:ib]::Measurement{T2}
+    A = [Hermitian(zeros(T2, d, d)) for _ ∈ 1:ia]::Measurement{T2}
+    local ψ0, A0, B0
+    ω0 = typemin(R)
+    i = 0
+    while true
+        i += 1
+        _optimize_alice_projectors!(CG, λ, A, B)
+        _optimize_bob_projectors!(CG, λ, A, B)
+        ω = _optimize_state!(CG, λ, A, B)
+        if ω - ω0 ≤ minimumincrease || i > maxiter
+            ω0 = ω
+            ψ0 = state_phiplus_ket(T2, d; coeff = λ)
+            A0 = [[A[x]] for x ∈ 1:ia] # rather inconvenient format
+            B0 = [[B[y]] for y ∈ 1:ib] # but consistent with the general case
+            break
+        end
+        ω0 = ω
+    end
+    return ω0, ψ0, [A0, B0]
 end
 
 function _optimize_multi_projectors!(CG::Array{R,N}, ρ, Ms, k, dims) where {R<:AbstractFloat,N}
