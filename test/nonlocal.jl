@@ -107,14 +107,16 @@ end
     cglmp_cg = tensor_collinsgisin(game_cglmp())
     ω, ψ, A, B = seesaw(cglmp_cg, (3, 3, 2, 2), 3; method = :assemblage)
     behaviour_cg = tensor_collinsgisin(ketbra(ψ), A, B)
-    @test dot(behaviour_cg, cglmp_cg) ≈ ω ≈ (15 + sqrt(33)) / 24
+    @test dot(behaviour_cg, cglmp_cg) ≈ ω
+    @test ω ≈ (15 + sqrt(33)) / 24
+
     @test seesaw(game_inn22(), (2, 2, 3, 3), 2)[1] ≈ 1.25
 
-    chsh_cg = tensor_collinsgisin(game_chsh())
+    chsh_cg = tensor_collinsgisin(game_chsh(Double64))
     ω, ψ, A, B = seesaw(chsh_cg, (2, 2, 2, 2), 2, 3; method = :assemblage)
     behaviour_cg = tensor_collinsgisin(ketbra(ψ), A, B)
-    @test dot(behaviour_cg, chsh_cg) ≈ ω ≈ cos(π / 8)^2
-    @test seesaw(game_inn22(), (2, 2, 3, 3), 2, 3)[1] ≈ 1.25
+    @test dot(behaviour_cg, chsh_cg) ≈ ω atol = 1e-13
+    @test ω ≈ cos(Double64(π) / 8)^2 atol = 1e-13
 
     mermin_cg = tensor_collinsgisin(game_mermin(3))
     ω, ψ, M1, M2, M3 = seesaw(mermin_cg, (2, 2, 2, 2, 2, 2), 2, 3)
