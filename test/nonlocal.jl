@@ -111,7 +111,7 @@ end
     @test seesaw(game_inn22(), (2, 2, 3, 3), 2)[1] ≈ 1.25
 
     chsh_cg = tensor_collinsgisin(game_chsh())
-    ω, ψ, A, B = seesaw(chsh_cg, (2, 2, 2, 2), 2, 3; method = :assemblage)
+    ω, ψ, A, B = seesaw(chsh_cg, (2, 2, 2, 2), 2)
     behaviour_cg = tensor_collinsgisin(ketbra(ψ), A, B)
     @test dot(behaviour_cg, chsh_cg) ≈ ω ≈ cos(π / 8)^2
     @test seesaw(game_inn22(), (2, 2, 3, 3), 2, 3)[1] ≈ 1.25

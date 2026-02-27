@@ -49,12 +49,12 @@ function seesaw(
     local ψ0, all_measurements
 
     for _ ∈ 1:n_trials
-        if method == :assemblage
-            ω, ψ, temp_measurements = _seesaw_assemblage(CG, scenario, d, minimumincrease, maxiter; verbose, solver)
-        elseif binary_outputs
+        if binary_outputs
             ω, ψ, temp_measurements = _seesaw_eigenvalue(CG, d, minimumincrease, maxiter)
-        else
+        elseif method == :standard
             ω, ψ, temp_measurements = _seesaw_standard(CG, scenario, d, minimumincrease, maxiter; verbose, solver)
+        else
+            ω, ψ, temp_measurements = _seesaw_assemblage(CG, scenario, d, minimumincrease, maxiter; verbose, solver)
         end
         if ω > ω0
             ω0, ψ0, all_measurements = ω, ψ, temp_measurements
