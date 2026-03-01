@@ -114,7 +114,7 @@ automatically generate Kronecker products of the corresponding
 operators.
 """
 function pauli(::Type{T}, i::Integer) where {T<:Number}
-    return gellmann(T, i ÷ 2 + 1, i % 2 + 1, 2)
+    return gellmann(T, i ÷ 2 + 1, i % 2 + 1, 2; coeff = T(1))
 end
 function pauli(::Type{T}, ind::Vector{<:Integer}) where {T<:Number}
     if length(ind) == 1
@@ -159,7 +159,7 @@ normalized such that `G₁ = √(2/d) I` and `Tr(GᵢGⱼ) = 2 δᵢⱼ`.
 
 Reference: [Generalizations of Pauli matrices](https://en.wikipedia.org/wiki/Generalizations_of_Pauli_matrices)
 """
-function gellmann(::Type{T}, d::Integer = 3; coeff = _sqrt(T, d) / _sqrt(T, 2)) where {T<:Number}
+function gellmann(::Type{T}, d::Integer = 3; coeff = d == 2 ? T(1) : _sqrt(T, d) / _sqrt(T, 2)) where {T<:Number}
     return [gellmann(T, i, j, d; coeff) for j ∈ 1:d, i ∈ 1:d][:]
 end
 gellmann(d::Integer = 3; coeff = sqrt(d / 2)) = gellmann(ComplexF64, d; coeff)
@@ -177,7 +177,7 @@ function gellmann(
     i::Integer,
     j::Integer,
     d::Integer = 3;
-    coeff = _sqrt(T, d) / _sqrt(T, 2)
+    coeff = d == 2 ? T(1) : _sqrt(T, d) / _sqrt(T, 2)
 ) where {T<:Number}
     return gellmann!(Hermitian(zeros(T, d, d)), i, j, d; coeff)
 end
@@ -193,19 +193,19 @@ function gellmann!(
     i::Integer,
     j::Integer,
     d::Integer = 3;
-    coeff = _sqrt(T, d) / _sqrt(T, 2)
+    coeff = d == 2 ? T(1) : _sqrt(T, d) / _sqrt(T, 2)
 ) where {T<:Number}
     if i < j
         parent(res)[i, j] = coeff
     elseif i > j
         parent(res)[j, i] = -im * coeff
     elseif i == 1
-        tmp = _sqrt(T, 2) / _sqrt(T, d) * coeff
+        tmp = d == 2 ? coeff : _sqrt(T, 2) / _sqrt(T, d) * coeff
         for k ∈ 1:d
             res[k, k] = tmp
         end
     elseif i == d
-        tmp = _sqrt(T, 2) / _sqrt(T, d * (d - 1)) * coeff
+        tmp = d == 2 ? coeff : _sqrt(T, 2) / _sqrt(T, d * (d - 1)) * coeff
         for k ∈ 1:d-1
             res[k, k] = tmp
         end
