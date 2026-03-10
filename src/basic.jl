@@ -229,7 +229,6 @@ function bloch_vector(
     ρ::AbstractMatrix{T},
     basis = gellmann(complex(T), checksquare(ρ))
 ) where {T<:Number}
-    ishermitian(ρ) || throw(ArgumentError("State needs to be Hermitian"))
     d = size(ρ, 1)
     return [dot(Hermitian(ρ), σ) for σ ∈ basis]
 end
