@@ -224,12 +224,13 @@ Returns the coordinates of a `d × d` hermitian matrix in a specified basis,
 by default the generalized Gell-Mann basis (see `gellmann`).
 For density matrices, the resulting vector `v` is such that `v₁ = 1` and
 `norm(v[2:end]) ≤ √(d-1)` (with equality for pure states).
+
+For efficiency, `ρ` is not checked to be hermitian.
 """
 function bloch_vector(
     ρ::AbstractMatrix{T},
     basis = gellmann(complex(T), checksquare(ρ))
 ) where {T<:Number}
-    d = size(ρ, 1)
     return [dot(Hermitian(ρ), σ) for σ ∈ basis]
 end
 export bloch_vector
