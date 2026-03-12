@@ -26,7 +26,7 @@ function _local_bound_correlation(G::Array{T,N}; marg::Bool = true) where {T<:Re
         ins = ins[perm]::NTuple{N,Int}
         G = permutedims(G, perm)
     end
-    new_num_strategies = Base.checked_pow.(Ref(2), ins[2:N])
+    new_num_strategies = Base.Checked.checked_pow.(Ref(2), ins[2:N])
     chunks = _partition(new_num_strategies[end], Threads.nthreads())
     G2 = G #workaround for https://github.com/JuliaLang/julia/issues/15276
     tasks = map(chunks) do chunk
@@ -111,8 +111,8 @@ function _local_bound_probability(G::Array{T,N2}) where {T<:Real,N2}
     end
     permutedG = permutedims(G, [1; N + 1; 2:N; N+2:2N])
     squareG = reshape(permutedG, outs[1] * ins[1], prod(outs[2:N]) * prod(ins[2:N]))
-    new_num_strategies = Base.checked_pow.(outs[2:N], ins[2:N])
-    total_num_strategies = reduce(Base.checked_mul, new_num_strategies)
+    new_num_strategies = Base.Checked.checked_pow.(outs[2:N], ins[2:N])
+    total_num_strategies = reduce(Base.Checked.checked_mul, new_num_strategies)
     chunks = _partition(total_num_strategies, Threads.nthreads())
     outs2 = outs
     ins2 = ins #workaround for https://github.com/JuliaLang/julia/issues/15276
@@ -603,8 +603,8 @@ function nonlocality_robustness(
         FP = permutedims(FP, [perm; perm .+ N])
     end
     outs, ins = temp_outs, temp_ins #workaround for https://github.com/JuliaLang/julia/issues/15276
-    new_num_strategies = Base.checked_pow.(outs[2:N], ins[2:N])
-    total_num_strategies = reduce(Base.checked_mul, new_num_strategies)
+    new_num_strategies = Base.Checked.checked_pow.(outs[2:N], ins[2:N])
+    total_num_strategies = reduce(Base.Checked.checked_mul, new_num_strategies)
 
     stT = _solver_type(T)
     model = JuMP.GenericModel{stT}()
