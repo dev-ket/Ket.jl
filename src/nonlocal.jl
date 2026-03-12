@@ -299,7 +299,7 @@ function _tensor_collinsgisin_probability(p::AbstractArray{T,N2}, behaviour::Boo
     outs = scenario[1:N]
     ins = scenario[N+1:2N]
     cgindex(a, x) = (a .!= outs) .* (a .+ (x .- 1) .* (outs .- 1)) .+ 1
-    CG = zeros(_solver_type(T), ins .* (outs .- 1) .+ 1)
+    CG = zeros(Base.promote_op(/, T, T), ins .* (outs .- 1) .+ 1)
 
     if !behaviour
         for x ∈ CartesianIndices(ins)
@@ -326,7 +326,7 @@ end
 
 function _tensor_collinsgisin_correlation(FC::AbstractArray{T}, behaviour::Bool = false) where {T}
     dims = size(FC)
-    CG = zeros(_solver_type(T), dims)
+    CG = zeros(Base.promote_op(/, T, T), dims)
     if !behaviour
         for x ∈ CartesianIndices(dims)
             n = sum(x.I .!= 1)
@@ -364,7 +364,7 @@ Takes a multipartite Bell functional `CG` in Collins-Gisin notation and transfor
 If `behaviour` is `true` do instead the transformation for behaviours. Doesn't assume normalization.
 """
 function tensor_probability(CG::AbstractArray{T,N}, scenario::Tuple, behaviour::Bool = false) where {T,N}
-    p = zeros(_solver_type(T), scenario)
+    p = zeros(Base.promote_op(/, T, T), scenario)
     outs = scenario[1:N]
     ins = scenario[N+1:2N]
     cgindex(a, x) = (a .!= outs) .* (a .+ (x .- 1) .* (outs .- 1)) .+ 1
@@ -514,7 +514,7 @@ function _tensor_correlation_probability(
     @assert all(o .== 2)
     m = size(p)[N+1:end] # numbers of inputs per party
     size_FC = marg ? m .+ 1 : m
-    FC = zeros(_solver_type(T), size_FC)
+    FC = zeros(Base.promote_op(/, T, T), size_FC)
     cia = CartesianIndices(o)
     cix = CartesianIndices(size_FC)
     for x ∈ cix
@@ -545,7 +545,7 @@ function _tensor_correlation_collinsgisin(
 ) where {T,N}
     m = size(CG) .- 1
     size_FC = marg ? m .+ 1 : m
-    FC = zeros(_solver_type(T), size_FC)
+    FC = zeros(Base.promote_op(/, T, T), size_FC)
     if !behaviour
         if !marg
             for x ∈ CartesianIndices(size_FC)
