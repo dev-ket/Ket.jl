@@ -17,7 +17,7 @@ Applies the CP map given by the Kraus operators `K` to the matrix `M`. Preserves
 """
 function applymap(K::Vector{<:AbstractMatrix{T}}, M::AbstractMatrix{S}) where {T,S}
     dout, din = size(K[1])
-    TS = Base.promote_op(*, T, S)
+    TS = typeof(K[1][1] * M[1])
     if all(SA.issparse.(K)) && SA.issparse(M)
         temp = SA.spzeros(TS, dout, din)
         result = SA.spzeros(TS, dout, dout)
@@ -57,7 +57,7 @@ function applymap(Φ::AbstractMatrix{T}, M::AbstractMatrix{S}) where {T,S}
     dtotal = checksquare(Φ)
     dout = dtotal ÷ din
     @assert dtotal == din * dout
-    TS = Base.promote_op(*, T, S)
+    TS = typeof(Φ[1] * M[1])
     if SA.issparse(Φ) && SA.issparse(M)
         result = SA.spzeros(TS, dout, dout)
     else

@@ -384,7 +384,7 @@ function applymap_subsystem(
     perm = vcat(keep, subsystems)
     ψ_perm = permute_systems(ψ, perm, dims)
 
-    Y_type = Base.promote_op(*, eltype(op), eltype(ψ))
+    Y_type = typeof(op[1] * ψ[1])
     Y = Vector{Y_type}(undef, Y_length)
 
     if eltype(ψ) <: JuMP.AbstractJuMPScalar
@@ -447,8 +447,7 @@ function applymap_subsystem(
     perm = vcat(keep, subsystems)
     ρ_perm = permute_systems(ρ, perm, dims)
 
-    kraus_type = eltype(eltype(K))
-    Y_type = Base.promote_op(*, kraus_type, eltype(ρ))
+    Y_type = typeof(K[1][1] * ρ[1])
     Y = Matrix{Y_type}(undef, Y_size, Y_size)
     for i ∈ eachindex(Y)
         Y[i] = 0
@@ -480,7 +479,7 @@ function applymap_subsystem(
         contiguous_subsystems ? vcat(ones(eltype(dims), length(subsystems) - 1), [output_size]) : dims[subsystems] # either contiguous subsystems or square operators
     dims_perm_output = vcat(dims_keep, output_dims) # The dims of the subsystem when applying the inverse permutation
     result = permute_systems(Y, inv_perm, dims_perm_output)
-    return _wrapper_applymap(ρ, kraus_type)(result)
+    return _wrapper_applymap(ρ, Y_type)(result)
 end
 """
     applymap_subsystem(K::AbstractVector{<:AbstractSparseArray}, ρ::AbstractSparseArray, subsystems::Union{Integer, AbstractVector{<:Integer}}, dims::AbstractVector = _equal_sizes(ρ))
@@ -527,8 +526,7 @@ function applymap_subsystem(
     perm = vcat(keep, subsystems)
     ρ_perm = permute_systems(ρ, perm, dims)
 
-    kraus_type = eltype(eltype(K))
-    Y_type = Base.promote_op(*, kraus_type, eltype(ρ))
+    Y_type = typeof(K[1][1] * ρ[1])
     Y = SA.spzeros(Y_type, Y_size, Y_size)
     spI = SA.sparse(I, keep_size, keep_size)
     if eltype(ρ) <: JuMP.AbstractJuMPScalar
@@ -550,5 +548,5 @@ function applymap_subsystem(
         contiguous_subsystems ? vcat(ones(eltype(dims), length(subsystems) - 1), [output_size]) : dims[subsystems] # either contiguous subsystems or square operators
     dims_perm_output = vcat(dims_keep, output_dims) # The dims of the subsystem when applying the inverse permutation
     result = permute_systems(Y, inv_perm, dims_perm_output)
-    return _wrapper_applymap(ρ, kraus_type)(result)
+    return _wrapper_applymap(ρ, Y_type)(result)
 end
