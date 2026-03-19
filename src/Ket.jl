@@ -11,7 +11,8 @@ import Dualization
 import GenericLinearAlgebra
 import Hypatia
 import JuMP
-import Nemo
+import FiniteFields
+import Primes
 import QuantumNPA
 import SparseArrays as SA
 

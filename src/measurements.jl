@@ -39,23 +39,22 @@ function mub_prime_power(::Type{T}, p::Integer, r::Integer) where {T<:Number}
     inv_sqrt_d = inv(_sqrt(T, d))
     B = [zeros(T, d, d) for _ ∈ 1:d+1]
     B[1] .= I(d)
-    f, x = Nemo.finite_field(p, r, "x")
-    pow = [x^i for i ∈ 0:r-1]
-    el = [sum(digits(i; base = p, pad = r) .* pow) for i ∈ 0:d-1]
+    F = FiniteFields.GF(d)
+    el = FiniteFields.elements(F)
     if p == 2
         for i ∈ 1:d, k ∈ 0:d-1, q ∈ 0:d-1
             aux = one(T)
             q_bin = digits(q; base = 2, pad = r)
             for m ∈ 0:r-1, n ∈ 0:r-1
-                aux *= conj(im^_tr_ff(el[i] * el[q_bin[m+1]*2^m+1] * el[q_bin[n+1]*2^n+1]))
+                aux *= conj(im^_tr_ff(el[i] * el[q_bin[m+1]*2^m+1] * el[q_bin[n+1]*2^n+1], r))
             end
-            B[i+1][:, k+1] += (-1)^_tr_ff(el[q+1] * el[k+1]) * aux * B[1][:, q+1] * inv_sqrt_d
+            B[i+1][:, k+1] += (-1)^_tr_ff(el[q+1] * el[k+1], r) * aux * B[1][:, q+1] * inv_sqrt_d
         end
     else
-        inv_two = inv(2 * one(f))
+        inv_two = inv(2 * one(el[1]))
         for i ∈ 1:d, k ∈ 0:d-1, q ∈ 0:d-1
             B[i+1][:, k+1] +=
-                γ^_tr_ff(-el[q+1] * el[k+1]) * γ^_tr_ff(el[i] * el[q+1] * el[q+1] * inv_two) * B[1][:, q+1] * inv_sqrt_d
+                γ^_tr_ff(-el[q+1] * el[k+1], r) * γ^_tr_ff(el[i] * el[q+1] * el[q+1] * inv_two, r) * B[1][:, q+1] * inv_sqrt_d
         end
     end
     return B
@@ -63,8 +62,13 @@ end
 mub_prime_power(p::Integer, r::Integer) = mub_prime_power(ComplexF64, p, r)
 
 # auxiliary function to compute the trace in finite fields as an Int
-function _tr_ff(a::Nemo.FqFieldElem)
-    Int(Nemo.lift(Nemo.ZZ, Nemo.absolute_tr(a)))
+function _tr_ff(x::FiniteFields.FFE{p}, n::Integer) where {p}
+    res = zero(x)
+    for _ in 1:n
+        res += x
+        x = x^p
+    end
+    return mod(Int(res), p)
 end
 
 """
@@ -78,7 +82,7 @@ Reference: Durt, Englert, Bengtsson, Życzkowski, [arXiv:1004.3348](https://arxi
 function mub(::Type{T}, d::Integer) where {T<:Number}
     # the dimension d can be any integer greater than two
     @assert d ≥ 2
-    f = collect(Nemo.factor(d))
+    f = collect(Primes.factor(d))
     p = f[1][1]
     r = f[1][2]
     if length(f) > 1 # different prime factors
