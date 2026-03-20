@@ -46,15 +46,15 @@ function mub_prime_power(::Type{T}, p::Integer, r::Integer) where {T<:Number}
             aux = one(T)
             q_bin = digits(q; base = 2, pad = r)
             for m ∈ 0:r-1, n ∈ 0:r-1
-                aux *= conj(im^_tr_ff(el[i] * el[q_bin[m+1]*2^m+1] * el[q_bin[n+1]*2^n+1], r))
+                aux *= conj(im^_tr_ff(el[i] * el[q_bin[m+1]*2^m+1] * el[q_bin[n+1]*2^n+1], F))
             end
-            B[i+1][:, k+1] += (-1)^_tr_ff(el[q+1] * el[k+1], r) * aux * B[1][:, q+1] * inv_sqrt_d
+            B[i+1][:, k+1] += (-1)^_tr_ff(el[q+1] * el[k+1], F) * aux * B[1][:, q+1] * inv_sqrt_d
         end
     else
-        inv_two = inv(2 * one(el[1]))
+        inv_two = inv(2 * one(F))
         for i ∈ 1:d, k ∈ 0:d-1, q ∈ 0:d-1
             B[i+1][:, k+1] +=
-                γ^_tr_ff(-el[q+1] * el[k+1], r) * γ^_tr_ff(el[i] * el[q+1] * el[q+1] * inv_two, r) * B[1][:, q+1] * inv_sqrt_d
+                γ^_tr_ff(-el[q+1] * el[k+1], F) * γ^_tr_ff(el[i] * el[q+1] * el[q+1] * inv_two, F) * B[1][:, q+1] * inv_sqrt_d
         end
     end
     return B
@@ -62,13 +62,8 @@ end
 mub_prime_power(p::Integer, r::Integer) = mub_prime_power(ComplexF64, p, r)
 
 # auxiliary function to compute the trace in finite fields as an Int
-function _tr_ff(x::FiniteFields.FFE{p}, n::Integer) where {p}
-    res = zero(x)
-    for _ in 1:n
-        res += x
-        x = x^p
-    end
-    return mod(Int(res), p)
+function _tr_ff(x::FiniteFields.FFE{p}, F::FiniteFields.GF) where {p}
+    return mod(Int(tr(x, F)), p)
 end
 
 """
