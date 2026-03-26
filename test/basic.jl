@@ -121,7 +121,7 @@
         end
     end
     @testset "Orthonormal range" begin
-        for T ∈ (Float64, Float64x2, ComplexF64)
+        for R ∈ (Float64, Float64x2), T ∈ (R, Complex{R})
             for _ ∈ 1:10
                 d1 = rand(5:20)
                 d2 = rand(5:20)
@@ -129,7 +129,7 @@
                 s = orthonormal_range(a)
                 @test size(s, 2) == rank(a)
                 @test rank(hcat(s, a)) == size(s, 2)
-                if T == Float64 || T == ComplexF64
+                if R <: Float64
                     q = orthonormal_range(SparseArrays.sparse(a))
                     @test issparse(q)
                     @test size(s, 2) == size(q, 2)
