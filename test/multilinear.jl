@@ -8,7 +8,7 @@
             res[1:2] .= H * ψ[1:2]
             res[3:4] .= H * ψ[3:4]
             @test applymap_subsystem(H, ψ, 2, [2, 2]) == res
-            for R ∈ (Float64, BigFloat), T ∈ (R, Complex{R})
+            for R ∈ (Float64, Float64x2), T ∈ (R, Complex{R})
                 a = randn(T, 2, 2)
                 b = randn(T, 2, 2)
                 c = randn(T, 3, 3)
@@ -42,7 +42,7 @@
                       permute_systems(abc, [2, 1, 3], [2, 2, 3]) * v123
                 @test applymap_subsystem(d, v123, 3, [2, 2, 1, 3]) ≈ v123 .* d[1, 1]
             end
-            for R ∈ (Float64, BigFloat), (T, S) ∈ [(R, Complex{R}), (Complex{R}, R)]
+            for R ∈ (Float64, Float64x2), (T, S) ∈ [(R, Complex{R}), (Complex{R}, R)]
                 I2 = Matrix(one(T) * I, (2, 2))
                 op = randn(T, 6, 6)
                 v = randn(S, 12)
@@ -57,7 +57,7 @@
             res[1:2] .= H * ψ[1:2]
             res[3:4] .= H * ψ[3:4]
             @test applymap_subsystem(H, ψ, 2, [2, 2]) == res
-            for R ∈ (Float64, BigFloat), T ∈ (R, Complex{R})
+            for R ∈ (Float64, Float64x2), T ∈ (R, Complex{R})
                 a = randn(T, 3, 2)
                 b = randn(T, 2, 3)
                 c = randn(T, 4, 6)
@@ -79,7 +79,7 @@
                 @test applymap_subsystem(e, v16, [2, 3], [2, 2, 2, 2]) ≈ kron(I2, e, I2) * v16
                 @test applymap_subsystem(f, v4, [2], [2, 1, 2]) ≈ kron(I2, f, I2) * v4
             end
-            for R ∈ (Float64, BigFloat), (T, S) ∈ [(R, Complex{R}), (Complex{R}, R)]
+            for R ∈ (Float64, Float64x2), (T, S) ∈ [(R, Complex{R}), (Complex{R}, R)]
                 I2 = Matrix(one(T) * I, (2, 2))
                 op = randn(T, 7, 6)
                 v = randn(S, 12)
@@ -97,7 +97,7 @@
             res[3:4, 3:4] = H * ρ[3:4, 3:4] * H'
             @test applymap_subsystem([H], ρ, 2, [2, 2]) == Hermitian(res)
             d1, d2, d3 = 2, 2, 3
-            for R ∈ (Float64, BigFloat), T ∈ (R, Complex{R})
+            for R ∈ (Float64, Float64x2), T ∈ (R, Complex{R})
                 a = randn(T, d1, d1)
                 b = randn(T, d2, d2)
                 c = randn(T, d3, d3)
@@ -143,7 +143,7 @@
                 @test applymap_subsystem([a], M, 1, [2, 2, 3]) ≈ applymap_subsystem([a], x, 1, [2, 2, 3])
                 @test applymap_subsystem([b], M, [1, 3], [2, 2, 3]) ≈ applymap_subsystem([b], x, [1, 3], [2, 2, 3])
             end
-            for R ∈ (Float64, BigFloat), (T, S) ∈ [(R, Complex{R}), (Complex{R}, R)]
+            for R ∈ (Float64, Float64x2), (T, S) ∈ [(R, Complex{R}), (Complex{R}, R)]
                 I2 = Matrix(one(T) * I, (2, 2))
                 k = randn(T, 6, 6)
                 ρ = randn(S, 12, 12)
@@ -161,7 +161,7 @@
             res[4:6, 4:6] = k * ρ[3:4, 3:4] * k'
             @test applymap_subsystem([k], ρ, 2, [2, 2]) == Hermitian(res)
             d1, d2 = 2, 3
-            for R ∈ (Float64, BigFloat), T ∈ (R, Complex{R})
+            for R ∈ (Float64, Float64x2), T ∈ (R, Complex{R})
                 k1 = randn(T, d1, d2)
                 k2 = randn(T, d1, d2)
                 k3 = randn(T, d2, d1)
@@ -210,7 +210,7 @@
                 @test applymap_subsystem([k3, k4], SparseM, [2, 3], [3, 3, 3, 3]) ≈
                       applymap_subsystem([k3, k4], StdM, [2, 3], [3, 3, 3, 3])
             end
-            for R ∈ (Float64, BigFloat), (T, S) ∈ [(R, Complex{R}), (Complex{R}, R)]
+            for R ∈ (Float64, Float64x2), (T, S) ∈ [(R, Complex{R}), (Complex{R}, R)]
                 I2 = Matrix(one(T) * I, (2, 2))
                 k = randn(T, 7, 6)
                 ρ = randn(S, 12, 12)
@@ -232,7 +232,7 @@
         ptrace = [tr(σ[1:2, 1:2]) tr(σ[1:2, 3:4]); tr(σ[3:4, 1:2]) tr(σ[3:4, 3:4])]
         @test partial_trace(σ, 2, [2, 2]) == ptrace
         d1, d2, d3 = 2, 2, 3
-        for R ∈ (Float64, BigFloat), T ∈ (R, Complex{R})
+        for R ∈ (Float64, Float64x2), T ∈ (R, Complex{R})
             a = randn(T, d1, d1)
             b = randn(T, d2, d2)
             c = randn(T, d3, d3)
@@ -270,7 +270,7 @@
         ptrans = [transpose(σ[1:2, 1:2]) transpose(σ[1:2, 3:4]); transpose(σ[3:4, 1:2]) transpose(σ[3:4, 3:4])]
         @test partial_transpose(σ, 2, [2, 2]) == ptrans
         d1, d2, d3 = 2, 2, 3
-        for R ∈ (Float64, BigFloat), T ∈ (R, Complex{R})
+        for R ∈ (Float64, Float64x2), T ∈ (R, Complex{R})
             a = randn(T, d1, d1)
             b = randn(T, d2, d2)
             c = randn(T, d3, d3)
@@ -306,7 +306,7 @@
     @testset "Permute systems    " begin
         @testset "Vectors" begin
             d1, d2, d3 = 2, 2, 3
-            for R ∈ (Float64, BigFloat), T ∈ (R, Complex{R})
+            for R ∈ (Float64, Float64x2), T ∈ (R, Complex{R})
                 u = randn(T, d1)
                 v = randn(T, d2)
                 w = randn(T, d3)
@@ -330,7 +330,7 @@
 
         @testset "Square matrices" begin
             d1, d2, d3 = 2, 2, 3
-            for R ∈ (Float64, BigFloat), T ∈ (R, Complex{R})
+            for R ∈ (Float64, Float64x2), T ∈ (R, Complex{R})
                 a = randn(T, d1, d1)
                 b = randn(T, d2, d2)
                 c = randn(T, d3, d3)
@@ -376,7 +376,7 @@
 
         @testset "Rectangular matrices" begin
             d1, d2, d3 = 2, 3, 4
-            for R ∈ (Float64, BigFloat), T ∈ (R, Complex{R})
+            for R ∈ (Float64, Float64x2), T ∈ (R, Complex{R})
                 a = randn(T, d1, d2)
                 b = randn(T, d1, d3)
                 c = randn(T, d2, d3)
@@ -417,7 +417,7 @@
         ]
         @test trace_replace(a, 2) == trrp
         d1, d2, d3 = 2, 2, 3
-        for R ∈ (Float64, BigFloat), T ∈ (R, Complex{R})
+        for R ∈ (Float64, Float64x2), T ∈ (R, Complex{R})
             a = randn(T, d1, d1)
             b = randn(T, d2, d2)
             c = randn(T, d3, d3)

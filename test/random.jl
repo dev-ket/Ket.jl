@@ -4,7 +4,7 @@
         @test isa(ρ, Hermitian{ComplexF64})
         ψ = random_state_ket(3)
         @test isa(ψ, Vector{ComplexF64})
-        for R ∈ (Float64, BigFloat), T ∈ (R, Complex{R})
+        for R ∈ (Float64, Float64x2), T ∈ (R, Complex{R})
             Random.seed!(1337) #make ranks behave
             ψ = random_state_ket(T, 3)
             @test ψ' * ψ ≈ 1
@@ -27,7 +27,7 @@
         V = random_isometry(3, 2)
         @test eltype(U) <: ComplexF64
         @test eltype(V) <: ComplexF64
-        for R ∈ (Float64, Double64, BigFloat), T ∈ (R, Complex{R})
+        for R ∈ (Float64, Float64x2), T ∈ (R, Complex{R})
             U = random_unitary(T, 3)
             V = random_isometry(T, 3, 2)
             @test U * U' ≈ I(3)
@@ -37,7 +37,7 @@
     @testset "Probability" begin
         p = random_probability(3)
         @test isa(p, Vector{Float64})
-        for T ∈ (Float64, BigFloat)
+        for T ∈ (Float64, Float64x2)
             p = random_probability(T, 5)
             @test sum(p) ≈ 1
             @test minimum(p) ≥ 0
@@ -45,7 +45,7 @@
         end
     end
     @testset "POVM" begin
-        for R ∈ (Float64, BigFloat), T ∈ (R, Complex{R})
+        for R ∈ (Float64, Float64x2), T ∈ (R, Complex{R})
             E = random_povm(T, 2, 3)
             @test test_povm(E)
             for i ∈ 1:length(E)

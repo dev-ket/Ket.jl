@@ -1,5 +1,5 @@
 @testset "Channels              " begin
-    for R ∈ (Float64, Double64), T ∈ (R, Complex{R}) #BigFloat takes too long
+    for R ∈ (Float64, Float64x2), T ∈ (R, Complex{R})
         ρ = random_state(T, 2)
         p = R(7) / 10
         γ = R(8) / 10

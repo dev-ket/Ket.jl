@@ -2,7 +2,7 @@
     @testset "Kets" begin
         @test isa(ket(1, 3), Vector{Bool})
         @test isa(proj(1, 3), Diagonal{Bool})
-        for R ∈ (Int, Float64, BigFloat), T ∈ (R, Complex{R})
+        for R ∈ (Int, Float64, Float64x2), T ∈ (R, Complex{R})
             ψ = ket(T, 2, 3)
             P = proj(T, 2, 3)
             @test ψ == [0, 1, 0]
@@ -15,7 +15,7 @@
         @test isa(shift(4), Matrix{ComplexF64})
         @test clock(4) == Diagonal([1, im, -1, -im])
         @test isa(clock(4), Diagonal{ComplexF64})
-        for R ∈ (Float64, Double64, BigFloat)
+        for R ∈ (Float64, Float64x2)
             T = Complex{R}
             @test shift(T, 3) == [0 0 1; 1 0 0; 0 1 0]
             @test clock(T, 3) ≈ Diagonal([1, exp(2 * T(π) * im / 3), exp(-2 * T(π) * im / 3)])
@@ -26,7 +26,7 @@
         end
     end
     @testset "Pauli" begin
-        for R ∈ (Int, Float64, BigFloat)
+        for R ∈ (Int, Float64, Float64x2)
             @test pauli(R, 0) == Matrix{R}(I, 2, 2)
             @test pauli(R, "x") == [0 1; 1 0]
             @test pauli(Complex{R}, 2) == [0 -im; im 0]
@@ -36,7 +36,7 @@
         end
     end
     @testset "Gell-Mann" begin
-        for R ∈ (Int, Float64, BigFloat)
+        for R ∈ (Int, Float64, Float64x2)
             @test gellmann(R, 1, 2; coeff = 1) == [0 1 0; 1 0 0; 0 0 0]
             @test gellmann(R, 1, 3; coeff = 1) == [0 0 1; 0 0 0; 1 0 0]
             @test gellmann(Complex{R}, 2, 1; coeff = 1) == [0 -im 0; im 0 0; 0 0 0]
@@ -50,7 +50,7 @@
         @test gellmann(1, 1, 4) ≈ Matrix{Float64}(I, 4, 4)
     end
     @testset "Bloch vector" begin
-        for R ∈ (Int, Float64, BigFloat)
+        for R ∈ (Int, Float64, Float64x2)
             @test bloch_vector(ketbra(R[1, 0])) == [1, 0, 0, 1]
             @test bloch_vector(ketbra(Complex{R}[1, 0])) == [1, 0, 0, 1]
             @test bloch_vector(proj(R, 1, 2)) == [1, 0, 0, 1]
@@ -60,7 +60,7 @@
     end
     @testset "Bloch operator" begin
         bloch_operator([0, 0, 1]) == proj(Int, 1, 2)
-        for R ∈ (Float64, BigFloat)
+        for R ∈ (Float64, Float64x2)
             T = Complex{R}
             @test bloch_operator(zeros(T, 3)) == I / T(2)
             @test bloch_operator(zeros(T, 4)) == zeros(T, 2, 2)
@@ -87,7 +87,7 @@
         end
     end
     @testset "Cleanup" begin
-        for R ∈ (Float64, BigFloat)
+        for R ∈ (Float64, Float64x2)
             a = zeros(R, 2, 2)
             a[1] = 0.5 * _eps(R)
             a[4] = 1
@@ -121,7 +121,7 @@
         end
     end
     @testset "Orthonormal range" begin
-        for T ∈ (Float64, BigFloat, ComplexF64)
+        for T ∈ (Float64, Float64x2, ComplexF64)
             for _ ∈ 1:10
                 d1 = rand(5:20)
                 d2 = rand(5:20)

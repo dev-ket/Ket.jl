@@ -1,6 +1,6 @@
 @testset "Entanglement          " begin
     @testset "Schmidt decomposition" begin
-        for R ∈ (Float64, BigFloat)
+        for R ∈ (Float64, Float64x2)
             T = Complex{R}
             ψ = random_state_ket(T, 6)
             λ, U, V = schmidt_decomposition(ψ, [2, 3])
@@ -11,7 +11,7 @@
         end
     end
     @testset "Entanglement entropy" begin
-        for R ∈ (Float64, Double64), T ∈ (R, Complex{R}) #BigFloat takes too long
+        for R ∈ (Float64, Float64x2), T ∈ (R, Complex{R})
             Random.seed!(8) #makes all states entangled
             ψ = random_state_ket(T, 6)
             @test entanglement_entropy(ψ, [2, 3]) ≈ entanglement_entropy(white_noise!(ketbra(ψ),0.9999), [2, 3])[1] atol = 1e-3 rtol = 1e-3
@@ -21,7 +21,7 @@
         end
     end
     @testset "DPS hierarchy" begin
-        for R ∈ (Float64, Double64), T ∈ (R, Complex{R})
+        for R ∈ (Float64, Float64x2), T ∈ (R, Complex{R})
             # outer DPS:
             ρ = state_phiplus(T)
             s, W = entanglement_robustness(ρ; noise = :white)
@@ -38,7 +38,7 @@
             @test s ≈ 0.5 atol = 1.0e-5 rtol = 1.0e-5
             @test dot(ρ, W) ≈ -s atol = 1.0e-5 rtol = 1.0e-5
         end
-        for R ∈ (Float32, Float64, BigFloat)
+        for R ∈ (Float32, Float64, Float64x2)
             # Legendre
             @test Ket._jacobi_polynomial_zeros(R, 1, 0, 0) ≈ [0]
             @test Ket._jacobi_polynomial_zeros(R, 2, 0, 0) ≈ [-1 / sqrt(3), 1 / sqrt(3)]
@@ -59,7 +59,7 @@
         @test schmidt_number(random_state(Float64, 6), 2, [2, 3], 1; solver = SCS.Optimizer) ≤ 0
     end
     @testset "GME entanglement" begin
-        for R ∈ (Float64, Double64)
+        for R ∈ (Float64, Float64x2)
             ρ = state_ghz(R)
 
             v, W = ppt_mixture(ρ, [2, 2, 2])

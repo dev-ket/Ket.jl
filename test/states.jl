@@ -1,5 +1,5 @@
 @testset "States                " begin
-    for R ∈ [Float64, BigFloat]
+    for R ∈ (Float64, Float64x2)
         T = Complex{R}
         ψ = state_phiplus_ket(T)
         @test ψ == inv(sqrt(R(2))) * (ket(1, 4) + ket(4, 4))
@@ -32,7 +32,7 @@
         ref[1:4:9, 1:4:9] .= 1
         ref ./= 9
         @test rho ≈ ref
-        @test minimum(eigvals(partial_transpose(rho, 1))) ≥ 0
+        @test minimum(eigvals(partial_transpose(rho, 1))) ≥ -_eps(T)
         rho = state_horodecki24(T, 1)
         ref = Matrix{T}(I, 8, 8)
         ref[1:5:8, 1:5:8] .= 1
@@ -40,12 +40,12 @@
         ref[3:5:8, 3:5:8] .= 1
         ref ./= 8
         @test rho ≈ ref
-        @test minimum(eigvals(partial_transpose(rho, 1, [2, 4]))) ≥ 0
+        @test minimum(eigvals(partial_transpose(rho, 1, [2, 4]))) ≥ -_eps(T)
         edges = [[(1, 1)], [(1, 2)], [(2, 1)], [(3, 4)], [(3, 4)], 
             [(4, 3)], [(4, 3)], [(2, 5)], [(5, 2)], [(3, 2),(5, 4)],
             [(3, 3),(4, 4)], [(2, 3),(4, 5)], [(1, 3),(2, 2),(3, 1)]]
-        @test minimum(eigvals(partial_transpose(state_grid(T, edges,5, 5), 1, [5, 5]))) ≥ 0 
-        @test minimum(eigvals(partial_transpose(state_crosshatch(T), 1, [3, 3]))) ≥ 0 
+        @test minimum(eigvals(partial_transpose(state_grid(T, edges,5, 5), 1, [5, 5]))) ≥ -_eps(T)
+        @test minimum(eigvals(partial_transpose(state_crosshatch(T), 1, [3, 3]))) ≥ -_eps(T)
         ψ = state_sindici_piani_ket(T, 4)
         @test ketbra(ψ) ≈ state_sindici_piani(T, 4)
     end

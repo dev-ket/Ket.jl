@@ -4,7 +4,7 @@
         @test binary_entropy(1) == binary_entropy(1, 3) == 0
         @test entropy([0.0, 1.0]) == entropy([0.0, 1.0], 0.9) == 0
         @test entropy([1.0, 0.0]) == entropy([1.0, 0.0], 1.1) == 0
-        for R ∈ (Float64, Double64)
+        for R ∈ (Float64, Float64x2)
             α = R(0.8)
             ρ = random_state(Complex{R}, 3, 2)
             @test isa(entropy(ρ), R)
@@ -29,7 +29,7 @@
     end
 
     @testset "Relative" begin
-        for R ∈ (Float64, Double64)
+        for R ∈ (Float64, Float64x2)
             α = R(0.8)
             ρ = random_state(Complex{R}, 3, 2)
             σ = random_state(Complex{R}, 3)
@@ -57,7 +57,7 @@
         @test conditional_entropy(Diagonal(ones(2) / 2), 0.9) == 0.0
         @test conditional_entropy(ones(2, 2) / 4) == 1.0
         @test conditional_entropy(ones(2, 2) / 4, 0.9) ≈ 1.0
-        for R ∈ (Float64, Double64)
+        for R ∈ (Float64, Float64x2)
             α = R(0.8)
             p = random_probability(R, 2)
             pAB = [zeros(2) p]

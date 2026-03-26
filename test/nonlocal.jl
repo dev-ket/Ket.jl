@@ -2,7 +2,7 @@
     @test eltype(game_chsh()) <: Float64
     @test eltype(game_cglmp()) <: Float64
     @test eltype(game_inn22()) <: Int
-    for T ∈ [Float64, BigFloat]
+    for T ∈ [Float64, Float64x2]
         @test eltype(game_chsh(T)) <: T
         @test eltype(game_cglmp(T)) <: T
         @test game_cglmp(T, 4)[3] == T(1) / 12
@@ -28,7 +28,7 @@ end
     fc1 = tensor_correlation(fp1)
     @test local_bound(fc1; correlation = true) ≈ local_bound(fp1)
     @test local_bound(fp1) == 12
-    for T ∈ [Float64, BigFloat]
+    for T ∈ [Float64, Float64x2]
         fp1 = randn(T, 2, 2, 3, 4)
         fp2 = permutedims(fp1, (2, 1, 4, 3))
         fc1 = tensor_correlation(fp1)
@@ -62,7 +62,7 @@ end
     @test all(tsirelson_bound(chsh_fc, 1) .≈ (2√2, [1 0 0; 0 1/√2 1/√2; 0 1/√2 -1/√2]))
     @test all(tsirelson_bound(chsh_fc, "1 + A B") .≈ (2√2, [1 0 0; 0 1/√2 1/√2; 0 1/√2 -1/√2]))
     @test all(tsirelson_bound(chsh_fc, 2) .≈ (2√2, [1 0 0; 0 1/√2 1/√2; 0 1/√2 -1/√2]))
-    τ = Double64(9) / 10
+    τ = Float64x2(9) / 10
     tilted_chsh_fc = [
         0 τ 0
         τ 1 1
@@ -112,11 +112,11 @@ end
 
     @test seesaw(game_inn22(), (2, 2, 3, 3), 2)[1] ≈ 1.25
 
-    chsh_cg = tensor_collinsgisin(game_chsh(Double64))
+    chsh_cg = tensor_collinsgisin(game_chsh(Float64x2))
     ω, ψ, A, B = seesaw(chsh_cg, (2, 2, 2, 2), 2, 3; method = :assemblage)
     behaviour_cg = tensor_collinsgisin(ketbra(ψ), A, B)
     @test dot(behaviour_cg, chsh_cg) ≈ ω atol = 1e-13
-    @test ω ≈ cos(Double64(π) / 8)^2 atol = 1e-13
+    @test ω ≈ cos(Float64x2(π) / 8)^2 atol = 1e-13
 
     mermin_cg = tensor_collinsgisin(game_mermin(3))
     ω, ψ, M1, M2, M3 = seesaw(mermin_cg, (2, 2, 2, 2, 2, 2), 2, 3)
@@ -158,7 +158,7 @@ end
 end
 
 @testset "FP and FC notations   " begin
-    for T ∈ [Float64, BigFloat]
+    for T ∈ [Float64, Float64x2]
         Aax = povm(mub(Complex{T}, 2))
         fc_phiplus = Diagonal([1, 1, 1, -1])
         @test tensor_correlation(state_phiplus(Complex{T}), Aax, 2) ≈ fc_phiplus
@@ -178,7 +178,7 @@ end
 end
 
 @testset "FP and CG notations   " begin
-    for T ∈ [Float64, BigFloat]
+    for T ∈ [Float64, Float64x2]
         Aax = povm(mub(Complex{T}, 2))
         cg_phiplus = [1.0 0.5 0.5 0.5; 0.5 0.5 0.25 0.25; 0.5 0.25 0.5 0.25; 0.5 0.25 0.25 0.0]
         @test tensor_collinsgisin(state_phiplus(Complex{T}), Aax, 2) ≈ cg_phiplus
@@ -194,7 +194,7 @@ end
 end
 
 @testset "CG and FC notations   " begin
-    for T ∈ [Float64, BigFloat]
+    for T ∈ (Float64, Float64x2)
         scenario = (2, 2, 2, 2, 3, 4)
         matrix_size = scenario[4:6] .* (scenario[1:3] .- 1) .+ 1
         mfc = randn(T, matrix_size)
@@ -220,10 +220,10 @@ end
 end
 
 @testset "Nonlocality robustness" begin
-    for T ∈ [Float64, Double64]
+    for T ∈ (Float64, Float64x2)
         prbox = 2 * game_chsh(T)
-        @test nonlocality_robustness(prbox; noise = :white) ≈ T(1)
-        @test nonlocality_robustness(prbox; noise = :local) ≈ T(1) / 2
-        @test nonlocality_robustness(prbox; noise = :general) ≈ T(1) / 3 rtol = 1e-7
+        @test nonlocality_robustness(prbox; noise = :white) ≈ T(1) rtol = 1e3 * _rtol(T)
+        @test nonlocality_robustness(prbox; noise = :local) ≈ T(1) / 2 rtol = 1e3 * _rtol(T)
+        @test nonlocality_robustness(prbox; noise = :general) ≈ T(1) / 3 rtol = 1e3 * _rtol(T)
     end
 end

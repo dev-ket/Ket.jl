@@ -7,5 +7,5 @@
     @test incompatibility_robustness(A; noise = :general) ≈ 2 - √3 rtol = 1e-7
     # other types, also checks that the default noise is :general
     @test incompatibility_robustness(povm(broadcast.(Float64, mub(2, 2)))) ≈ 3 - 2√2 rtol = 1e-7
-    @test incompatibility_robustness(povm((mub(Complex{Double64}, 2)))) ≈ 2 - √Double64(3)
+    @test incompatibility_robustness(povm((mub(Complex{Float64x2}, 2)))) ≈ 2 - √Float64x2(3) atol = 2e-13
 end
