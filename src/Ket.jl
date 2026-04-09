@@ -13,7 +13,6 @@ import Hypatia
 import JuMP
 import FiniteFields
 import Primes
-import QuantumNPA
 import SparseArrays as SA
 
 const MOI = JuMP.MOI
@@ -53,6 +52,7 @@ include("random.jl")
 include("seesaw.jl")
 include("sic-povm.jl")
 include("states.jl")
+include("moment.jl")
 include("tsirelson.jl")
 
 end # module Ket

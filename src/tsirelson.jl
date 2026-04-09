@@ -1,16 +1,18 @@
+import .Moment
+
 """
     tsirelson_bound(CG::Array, scenario::Tuple, level; verbose::Bool = false, dualize::Bool = false, solver = Hypatia.Optimizer{_solver_type(T)})
 
 Upper bounds the Tsirelson bound of a multipartite Bell funcional `CG`, written in Collins-Gisin notation.
 `scenario` is a tuple detailing the number of inputs and outputs, in the order (oa, ob, ..., ia, ib, ...).
-`level` is an integer or a string like "1 + A B" determining the level of the NPA hierarchy.
+`level` is an integer or a string like "1 + A B +ABC" determining the level of the NPA hierarchy.
 `verbose` determines whether solver output is printed.
 `dualize` determines whether the dual problem is solved instead. WARNING: This is critical for performance, and the correct choice depends on the solver.
 """
 function tsirelson_bound(
     CG::Array{T,N},
     scenario::Tuple,
-    level;
+    level::Union{Integer,String};
     verbose::Bool = false,
     dualize::Bool = false,
     solver = Hypatia.Optimizer{_solver_type(T)}
@@ -18,26 +20,19 @@ function tsirelson_bound(
     @assert length(scenario) == 2N
     CG = convert(AbstractArray{_solver_type(T)}, CG)
 
-    if N == 2
-        if level == 1
+    level_int, additional = Moment.parse_level(Val(N), level)
+    if N == 2 && level_int == 1
+        if isempty(additional)
             return _tsirelson_bound_manual(CG, scenario, false; verbose, dualize = !dualize, solver)
-        elseif level == "1 + A B" || level == "1+ A B" || level == "1 +A B" || level == "1+A B"
-            if max(scenario[3], scenario[4]) ≥ 3 #heuristic for when it's faster
-                return _tsirelson_bound_manual(CG, scenario, true; verbose, dualize = !dualize, solver)
-            end
+        elseif additional == [[1, 1]] && max(scenario[3], scenario[4]) ≥ 3 #heuristic for when it's faster
+            return _tsirelson_bound_manual(CG, scenario, true; verbose, dualize = !dualize, solver)
         end
     end
     outs = scenario[1:N]
     ins = scenario[N+1:2N]
-    Π = [[[QuantumNPA.Id for _ ∈ 1:outs[n]-1] QuantumNPA.projector(n, 1:outs[n]-1, 1:ins[n])] for n ∈ 1:N]
-    cgindex(a, x) = (x .!= 1) .* (a .+ (x .- 2) .* (outs .- 1)) .+ 1
-    behaviour_operator = Array{QuantumNPA.Monomial,N}(undef, size(CG))
-    for x ∈ CartesianIndices(ins .+ 1)
-        for a ∈ CartesianIndices((x.I .!= 1) .* (outs .- 2) .+ 1)
-            behaviour_operator[cgindex(a.I, x.I)...] = prod(Π[n][a.I[n], x.I[n]] for n ∈ 1:N)
-        end
-    end
-    Q, behaviour = _npa(CG, behaviour_operator, level; verbose, solver, dualize)
+    max_length = 2 * max(level_int, maximum(length.(additional); init = 0))
+    Q, behaviour =
+        _npa(CG, Moment.Projector, Val(max_length), outs, ins, level_int, additional; verbose, solver, dualize)
     return Q, behaviour
 end
 export tsirelson_bound
@@ -46,56 +41,70 @@ export tsirelson_bound
     tsirelson_bound(FC::Array, level; verbose::Bool = false, dualize::Bool = false, solver = Hypatia.Optimizer{_solver_type(T)})
 
 Upper bounds the Tsirelson bound of a multipartite Bell funcional `FC`, written in correlation notation.
-`level` is an integer or a string like "1 + A B" determining the level of the NPA hierarchy.
+`level` is an integer or a string like "1 + A B +ABC" determining the level of the NPA hierarchy.
 `verbose` determines whether solver output is printed.
 `dualize` determines whether the dual problem is solved instead. WARNING: This is critical for performance, and the correct choice depends on the solver.
 """
 function tsirelson_bound(
     FC::Array{T,N},
-    level;
+    level::Union{Integer,String};
     verbose::Bool = false,
     dualize::Bool = false,
     solver = Hypatia.Optimizer{_solver_type(T)}
 ) where {T<:Number,N}
     FC = _solver_type(T).(FC)
-    if N == 2
-        if level == 1
+    level_int, additional = Moment.parse_level(Val(N), level)
+    if N == 2 && level_int == 1
+        if isempty(additional)
             return _tsirelson_bound_manual(FC, false; verbose, dualize = !dualize, solver)
-        elseif level == "1 + A B" || level == "1+ A B" || level == "1 +A B" || level == "1+A B"
+        elseif additional == [[1, 1]]
             return _tsirelson_bound_manual(FC, true; verbose, dualize = !dualize, solver)
         end
     end
+    outs = ntuple(_ -> 2, Val(N))
     ins = size(FC) .- 1
-    O = [[QuantumNPA.Id; QuantumNPA.dichotomic(n, 1:ins[n])] for n ∈ 1:N]
 
-    behaviour_operator = Array{QuantumNPA.Monomial,N}(undef, size(FC))
-    for x ∈ CartesianIndices(ins .+ 1)
-        behaviour_operator[x] = prod(O[n][x[n]] for n ∈ 1:N)
-    end
-
-    Q, behaviour = _npa(FC, behaviour_operator, level; verbose, solver, dualize)
+    max_length = 2 * max(level_int, maximum(length.(additional); init = 0))
+    Q, behaviour =
+        _npa(FC, Moment.Observable, Val(max_length), outs, ins, level_int, additional; verbose, solver, dualize)
     return Q, behaviour
 end
 
-function _npa(functional::Array{T,N}, behaviour_operator, level; verbose, solver, dualize) where {T<:AbstractFloat,N}
+function _npa(
+    functional::Array{T,N},
+    ::Type{O},
+    ::Val{M},
+    outs::NTuple{N,<:Integer},
+    ins::NTuple{N,<:Integer},
+    level_int::Int,
+    additional::Vector{Vector{Int}};
+    verbose,
+    solver,
+    dualize
+) where {T<:AbstractFloat,N,M,O<:Moment.Operator}
     model = JuMP.GenericModel{T}()
-    Γ_basis = QuantumNPA.npa_moment(behaviour_operator, level)
-    monomials = setdiff(QuantumNPA.monomials(Γ_basis), [QuantumNPA.Id])
-    JuMP.@variable(model, var[monomials])
-    dΓ = size(Γ_basis)[1]
+    MonomialType = Moment.Monomial{N,Moment.OperatorSequence{M,O}}
+    S = Moment.generate_sequences(MonomialType, outs, ins, level_int, additional)
+    monomial_dict, Γ_basis = Moment.moment_matrix(S)
+    number_monomials = length(monomial_dict)
+    JuMP.@variable(model, var[1:number_monomials-1])
+    dΓ = size(Γ_basis[1], 1)
     Γ = Matrix{typeof(1 * first(var))}(undef, dΓ, dΓ)
     for i ∈ eachindex(Γ)
         Γ[i] = 0
     end
-    Γ .+= Γ_basis[QuantumNPA.Id]
-    for m ∈ monomials
-        _jump_muladd!(Γ, Γ_basis[m], var[m])
+    Id = one(eltype(S))
+    Γ .+= Γ_basis[1]
+    for i ∈ 2:number_monomials
+        _jump_muladd!(Γ, Γ_basis[i], var[i-1])
     end
-    JuMP.@constraint(model, Γ ∈ JuMP.PSDCone())
-    behaviour = Array{typeof(1 * first(var)),N}(undef, size(behaviour_operator))
+    JuMP.@constraint(model, Symmetric(Γ) ∈ JuMP.PSDCone())
+
+    behaviour_op = Moment.behaviour_operator(eltype(S), outs, ins)
+    behaviour = Array{typeof(1 * first(var)),N}(undef, size(behaviour_op))
     behaviour[1] = 1
     for i ∈ 2:length(behaviour)
-        behaviour[i] = var[behaviour_operator[i]]
+        behaviour[i] = var[monomial_dict[behaviour_op[i]]-1]
     end
     objective = dot(functional, behaviour)
     JuMP.@objective(model, Max, objective)
