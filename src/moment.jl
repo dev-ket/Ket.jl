@@ -1,9 +1,9 @@
 module Moment
 
-#for efficiency the code assumes that the representation of each monomial or operator sequence is unique
-#the functions all produce and preserve the canonical representations
-#you can manually construct an ill-formed object like OperatorSequence{2,Observable}((Observable(1),Observable(1)),1)
-#and get some fascinating bugs
+# for efficiency the code assumes that the representation of each monomial or operator sequence is unique
+# the functions all produce and preserve the canonical representations
+# you can manually construct an ill-formed object like OperatorSequence{2,Observable}((Observable(1),Observable(1)),1)
+# and get some fascinating bugs
 
 import SparseArrays as SA
 
@@ -64,8 +64,6 @@ function Base.:(==)(v::AdjointOperatorSequence, w::OperatorSequence)
 end
 Base.:(==)(v::OperatorSequence, w::AdjointOperatorSequence) = w == v
 
-#OperatorSequence(v::AbstractVector{O}) where {O} =
-#    OperatorSequence{O}(FVector(v))
 Base.collect(os::OperatorSequence) = os
 function Base.collect(os::AdjointOperatorSequence{M,O}) where {M,O}
     f(i) = i ≤ length(os) ? os[i] : zero(O)
@@ -161,9 +159,6 @@ end
 struct Monomial{N,OS<:AbstractOperatorSequence}
     word::NTuple{N,OS}
 end
-#LinearAlgebra.symmetric_type(::Type{T}) where {T<:Monomial} = T
-#LinearAlgebra.symmetric(m::Monomial, ::Symbol=:U) = m
-#LinearAlgebra.transpose(m::Monomial) = m
 Base.getindex(m::Monomial, i::Int) = getindex(m.word, i)
 
 function Base.:*(
@@ -294,7 +289,7 @@ function parse_level(::Val{N}, level::Union{String,Integer}) where {N}
         for i ∈ 2:length(splitstr)
             intparties = Int.(collect(splitstr[i])) .- 64
             maximum(intparties) ≤ N || error("Too many parties")
-            additional[i-1] = [count(==(party), intparties) for party in 1:N]
+            additional[i-1] = [count(==(party), intparties) for party ∈ 1:N]
         end
         if !isempty(additional)
             all(sum.(additional) .> levelint) || error("String of additional moments already contained in level")
@@ -363,7 +358,7 @@ function generate_sequences(
         end
         for add ∈ additional
             new_monomials = [one(MonomialType)]
-            for party in 1:N
+            for party ∈ 1:N
                 while add[party] > 0
                     tempvec = MonomialType[]
                     for m ∈ new_monomials
@@ -378,19 +373,12 @@ function generate_sequences(
                     add[party] -= 1
                 end
             end
-            for m in new_monomials
+            for m ∈ new_monomials
                 if m ∉ mvec
                     push!(mvec, m)
                 end
             end
         end
-            #for parties ∈ CartesianIndices(Tuple(partyrange[add]))
-            #    new_monomial = prod(mvec[i] for i ∈ parties.I)
-            #    if !iszero(new_monomial) && new_monomial ∉ mvec
-            #        push!(mvec, new_monomial)
-            #    end
-            #end
-        #end
         return mvec
     end
 end
@@ -446,7 +434,11 @@ function explicit_moment_matrix(monomial_dict, basis_list)
     return Γ
 end
 
-function behaviour_operator(MonomialType::Type{Monomial{N,OperatorSequence{M,Observable}}}, outs, ins) where {N,M}
+function behaviour_operator(
+    MonomialType::Type{Monomial{N,OperatorSequence{M,Observable}}},
+    outs::NTuple{N,<:Integer},
+    ins::NTuple{N,<:Integer}
+) where {N,M}
     O = [[one(MonomialType); party_monomials(MonomialType, party, outs, ins)] for party ∈ 1:N]
     size_op = ins .+ 1
     behaviour_op = Array{MonomialType}(undef, size_op)
@@ -456,7 +448,11 @@ function behaviour_operator(MonomialType::Type{Monomial{N,OperatorSequence{M,Obs
     return behaviour_op
 end
 
-function behaviour_operator(MonomialType::Type{Monomial{N,OperatorSequence{M,Projector}}}, outs, ins) where {N,M}
+function behaviour_operator(
+    MonomialType::Type{Monomial{N,OperatorSequence{M,Projector}}},
+    outs::NTuple{N,<:Integer},
+    ins::NTuple{N,<:Integer}
+) where {N,M}
     Π = [[one(MonomialType); party_monomials(MonomialType, party, outs, ins)] for party ∈ 1:N]
     cgindex(a, x) = (x .!= 1) .* (a .+ (x .- 2) .* (outs .- 1)) .+ 1
     behaviour_op = Array{MonomialType,N}(undef, (outs .- 1) .* ins .+ 1)
@@ -468,14 +464,5 @@ function behaviour_operator(MonomialType::Type{Monomial{N,OperatorSequence{M,Pro
     end
     return behaviour_op
 end
-
-function _benchmark(::Val{M}, n) where {M}
-    MonomialType = Monomial{2,OperatorSequence{M,Observable}}
-    mvec = generate_sequences(MonomialType, (2, 2), (3, 3), n)
-    ml, bl = moment_matrix(mvec)
-    return 0
-end
-
-bench(n) = _benchmark(Val(2n), n)
 
 end #module
