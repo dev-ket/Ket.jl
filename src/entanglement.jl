@@ -460,8 +460,8 @@ function ppt_mixture(
     _minimize_dotprod!(model, ρ, W, solver, verbose)
 
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
-    JuMP.objective_value(model) ≤ 0 ? W = JuMP.value(W) : W = zeros(T, size(W))
-    return 1 / (1 - dim * JuMP.value.(model[:λ])), Hermitian(W)
+    Wout = JuMP.objective_value(model) ≤ 0 ? JuMP.value(W) : Hermitian(zeros(_solver_type(T), size(W)))
+    return 1 / (1 - dim * JuMP.value(model[:λ])), Wout
 end
 
 """
@@ -506,7 +506,7 @@ function ppt_mixture(
     _minimize_dotprod!(model, ρ, W, solver, verbose)
 
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
-    JuMP.objective_value(model) ≤ 0 ? w_coeffs = JuMP.value.(w_coeffs) : w_coeffs = zeros(T, size(w_coeffs))
-    return 1 / (1 - dim * JuMP.value.(model[:λ])), w_coeffs
+    w_coeffs_out = JuMP.objective_value(model) ≤ 0 ? JuMP.value(w_coeffs) : zeros(_solver_type(T), size(w_coeffs))
+    return 1 / (1 - dim * JuMP.value(model[:λ])), w_coeffs_out
 end
 export ppt_mixture

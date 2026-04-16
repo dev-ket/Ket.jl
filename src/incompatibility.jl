@@ -94,7 +94,7 @@ function incompatibility_robustness(
         end
         return IR, G
     else
-        # [[JuMP.value.(X[x][a]) for a ∈ 1:o[x]] for x ∈ 1:m]
+        # [[JuMP.value(X[x][a]) for a ∈ 1:o[x]] for x ∈ 1:m]
         return IR
     end
 end
