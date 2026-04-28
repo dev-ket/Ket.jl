@@ -218,6 +218,26 @@ end
 export choi
 
 """
+    choi(Λ::Function, din::Integer)
+
+Constructs the Choi-Jamiołkowski representation of the CP map given by the function `Λ` with input dimension `din`.
+The convention used is that choi(Λ) = ∑ᵢⱼ |i⟩⟨j|⊗Λ(|i⟩⟨j|).
+"""
+function choi(Λ::Function, din::Integer)
+    sample = Λ(ket(1, din) * ket(1, din)')
+    dout = isa(sample, Number) ? 1 : checksquare(sample)
+    T = eltype(sample)
+    result = Matrix{T}(undef, din * dout, din * dout)
+    for j ∈ 1:din
+        for i ∈ 1:din
+            Eij = ket(T, i, din) * ket(T, j, din)'
+            @views result[(i-1) * dout + 1:i * dout, (j-1) * dout + 1:j * dout] .= Λ(Eij)
+        end
+    end
+    return Hermitian(result)
+end
+
+"""
     diamond_norm(
         J::AbstractMatrix,
         dims::AbstractVector;

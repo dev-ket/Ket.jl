@@ -23,7 +23,11 @@
         Φ = choi(K)
         @test applymap(K, ρ) ≈ applymap(Φ, ρ)
         @test diamond_norm(K) ≈ diamond_norm(Φ, [din, dout]) atol = 1.0e-8 rtol = sqrt(_rtol(T))
+        Λ(x) = sum(Ki * x * Ki' for Ki ∈ K)
+        @test Φ ≈ choi(Λ, din)
     end
+    @test choi(tr, 2) == I(2)
+    @test choi(transpose, 2) == [1 0 0 0; 0 0 1 0; 0 1 0 0; 0 0 0 1]
     model = JuMP.Model()
     JuMP.@variable(model, ρ[1:2, 1:2], Hermitian)
     JuMP.@variable(model, ρreal[1:2, 1:2], Symmetric)
