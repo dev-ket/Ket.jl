@@ -283,11 +283,11 @@ function tensor_collinsgisin(p::AbstractArray, behaviour::Bool = false; correlat
     end
 end
 # accepts directly the arguments of tensor_probability
-function tensor_collinsgisin(rho::Hermitian, all_Aax::Vector{<:Measurement}...)
+function tensor_collinsgisin(rho::AbstractMatrix, all_Aax::Vector{<:Measurement}...)
     return tensor_collinsgisin(tensor_probability(rho, all_Aax...), true)
 end
 # shorthand syntax for identical measurements on all parties
-function tensor_collinsgisin(rho::Hermitian, Aax::Vector{<:Measurement}, N::Integer)
+function tensor_collinsgisin(rho::AbstractMatrix, Aax::Vector{<:Measurement}, N::Integer)
     return tensor_collinsgisin(rho, fill(Aax, N)...)
 end
 export tensor_collinsgisin
@@ -422,14 +422,16 @@ function tensor_probability(FC::AbstractArray{T,N}, behaviour::Bool = false) whe
 end
 
 """
-    tensor_probability(rho::Hermitian, all_Aax::Vector{Measurement}...)
-    tensor_probability(rho::Hermitian, Aax::Vector{Measurement}, N::Integer)
+    tensor_probability(rho::AbstractMatrix, all_Aax::Vector{Measurement}...)
+    tensor_probability(rho::AbstractMatrix, Aax::Vector{Measurement}, N::Integer)
 
 Applies N sets of measurements onto a state `rho` to form a probability array.
 If all parties apply the same measurements, use the shorthand notation.
+
+For efficiency, `rho` is not checked to be hermitian.
 """
 function tensor_probability(
-    rho::Hermitian{T1,Matrix{T1}},
+    rho::AbstractMatrix{T1},
     first_Aax::Vector{Measurement{T2}}, # needed so that T2 is not unbounded
     other_Aax::Vector{Measurement{T2}}...
 ) where {T1,T2}
@@ -443,13 +445,13 @@ function tensor_probability(
     cix = CartesianIndices(m)
     for a ∈ cia, x ∈ cix
         if all([a[n] ≤ length(all_Aax[n][x[n]]) for n ∈ 1:N])
-            FP[a, x] = real(dot(Hermitian(kron([all_Aax[n][x[n]][a[n]] for n ∈ 1:N]...)), rho))
+            FP[a, x] = real(dot(Hermitian(kron([all_Aax[n][x[n]][a[n]] for n ∈ 1:N]...)), Hermitian(rho)))
         end
     end
     return FP
 end
 # shorthand syntax for identical measurements on all parties
-function tensor_probability(rho::Hermitian, Aax::Vector{<:Measurement}, N::Integer)
+function tensor_probability(rho::AbstractMatrix, Aax::Vector{<:Measurement}, N::Integer)
     return tensor_probability(rho, fill(Aax, N)...)
 end
 export tensor_probability
@@ -475,7 +477,7 @@ end
 # accepts directly the arguments of tensor_probability
 # avoids creating the full probability tensor for performance
 function tensor_correlation(
-    rho::Hermitian{T1,Matrix{T1}},
+    rho::AbstractMatrix{T1},
     first_Aax::Vector{Measurement{T2}}, # needed so that T2 is not unbounded
     other_Aax::Vector{Measurement{T2}}...;
     marg::Bool = true
@@ -493,12 +495,12 @@ function tensor_correlation(
     cix = CartesianIndices(size_FC)
     for a ∈ cia, x ∈ cix
         obs = [x[n] > marg ? all_Aax[n][x[n]-marg][1] - all_Aax[n][x[n]-marg][2] : one(all_Aax[n][1][1]) for n ∈ 1:N]
-        FC[x] = real(dot(Hermitian(kron(obs...)), rho))
+        FC[x] = real(dot(Hermitian(kron(obs...)), Hermitian(rho)))
     end
     return FC
 end
 # shorthand syntax for identical measurements on all parties
-function tensor_correlation(rho::Hermitian, Aax::Vector{<:Measurement}, N::Integer; marg::Bool = true)
+function tensor_correlation(rho::AbstractMatrix, Aax::Vector{<:Measurement}, N::Integer; marg::Bool = true)
     return tensor_correlation(rho, fill(Aax, N)...; marg)
 end
 export tensor_correlation
