@@ -64,9 +64,9 @@ function entanglement_entropy(
     _dps_constraints!(model, σ, dims, n; is_complex)
     JuMP.@constraint(model, tr(σ) == 1)
 
-    vec_dim = Hypatia.Cones.svec_length(Ts, d)
     ρvec = _svec(ρ)
     σvec = _svec(σ)
+    vec_dim = length(ρvec)
 
     JuMP.@variable(model, h)
     JuMP.@objective(model, Min, h / log(Rs(base)))
