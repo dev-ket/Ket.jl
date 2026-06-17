@@ -48,6 +48,8 @@
         @test gellmann(1, 1) ≈ Matrix{ComplexF64}(I, 3, 3)
         @test gellmann(3, 3) ≈ Diagonal([1, 1, -2] / sqrt(2))
         @test gellmann(1, 1, 4) ≈ Matrix{Float64}(I, 4, 4)
+        @test length(gellmann(Float64)) == 6
+        @test length(gellmann()) == 9
     end
     @testset "Bloch vector" begin
         for R ∈ (Int, Float64, Float64x2)

@@ -156,11 +156,13 @@ Constructs the set `G` of generalized `d`-dimensional Gell-Mann matrices
 normalized such that `G₁ = I` and `Tr(GᵢGⱼ) = d δᵢⱼ`.
 Set `coeff = 1` to obtain the generalized Gell-Mann matrices
 normalized such that `G₁ = √(2/d) I` and `Tr(GᵢGⱼ) = 2 δᵢⱼ`.
+There are `d^2` such matrices if `T` is complex and `½d(d-1)` otherwise.
 
 Reference: [Generalizations of Pauli matrices](https://en.wikipedia.org/wiki/Generalizations_of_Pauli_matrices)
 """
 function gellmann(::Type{T}, d::Integer = 3; coeff = d == 2 ? T(1) : _sqrt(T, d) / _sqrt(T, 2)) where {T<:Number}
-    return [gellmann(T, i, j, d; coeff) for j ∈ 1:d, i ∈ 1:d][:]
+    is_complex = complex(T) == T
+    return [gellmann(T, i, j, d; coeff) for j ∈ 1:d, i ∈ 1:d if is_complex || i ≤ j]
 end
 gellmann(d::Integer = 3; coeff = sqrt(d / 2)) = gellmann(ComplexF64, d; coeff)
 export gellmann
