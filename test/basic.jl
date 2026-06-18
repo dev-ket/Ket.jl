@@ -86,6 +86,18 @@
             A = randn(T, 4, 4)
             A .+= A'
             @test bloch_operator(bloch_vector(A)) ≈ A
+            basis = pauli(R)
+            @test bloch_operator(zeros(R, 2), basis) == I / R(2)
+            @test bloch_operator(zeros(R, 3), basis) == zeros(R, 2, 2)
+            A = randn(R, 2, 2)
+            A .+= A'
+            @test bloch_operator(bloch_vector(A, basis), basis) ≈ A
+            basis = gellmann(R)
+            @test bloch_operator(zeros(R, 5), basis) == I / R(3)
+            @test bloch_operator(zeros(R, 6), basis) == zeros(R, 3, 3)
+            A = randn(R, 3, 3)
+            A .+= A'
+            @test bloch_operator(bloch_vector(A, basis), basis) ≈ A
         end
     end
     @testset "Cleanup" begin

@@ -246,9 +246,9 @@ For qubits with the default `basis` (Pauli operators):
  - if `v` has length `3`, the output is `½(I + v₁σ₁ + v₂σ₂ + v₃σ₃)`,
  - if `v` has length `4`, the output is `½(v₁I + v₂σ₁ + v₃σ₂ + v₄σ₃)`.
 
-In general:
- - if `v` has length `d²-1`, the output is `(I+v⋅basis[2:end])/d`,
- - if `v` has lengh `d²`, the output is `v⋅basis/d`.
+In general, for a `basis` with length `n`:
+ - if `v` has length `n-1`, the output is `(I+v⋅basis[2:n])/d`,
+ - if `v` has lengh `n`, the output is `v⋅basis/d`.
 
 No checks are performed on the result.
 
@@ -259,11 +259,13 @@ function bloch_operator(
     basis::Array{<:AbstractMatrix{T2}} = gellmann(complex(T1), isqrt(length(v) + 1))
 ) where {T1<:Number,T2<:Number}
     d = size(basis[1], 1)
-    length(v) ∈ (d^2 - 1, d^2) || throw(ArgumentError("The Bloch vector must have length d²-1 or d²."))
-    flag = length(v) == d^2 - 1
+    n = length(basis)
+    complex(T2) == T2 ? n == d^2 : n == d * (d + 1) ÷ 2 || throw(ArgumentError("The basis has incorrect length."))
+    length(v) ∈ (n - 1, n) || throw(ArgumentError("The Bloch vector has incorrect length."))
+    flag = length(v) == n - 1
     # SD: we do not assume that basis[1] == I
     ρ = flag ? Matrix{T2}(I, d, d) : Matrix{T2}(v[1] * basis[1])
-    for i ∈ 2:d^2
+    for i ∈ 2:n
         ρ .+= v[i-flag] .* basis[i]
     end
     ρ ./= d
