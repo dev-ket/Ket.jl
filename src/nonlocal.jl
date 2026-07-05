@@ -682,3 +682,22 @@ function nonlocality_robustness(
     return JuMP.objective_value(model)::T
 end
 export nonlocality_robustness
+
+function signalling_bound(M::Array{T,N2}) where {T<:Real,N2}
+    @assert iseven(N2)
+    N = N2 ÷ 2
+    scenario = size(M)
+    outs = scenario[1:N]
+    ins = scenario[N+1:2N]
+
+    res = zero(T)
+    for x ∈ CartesianIndices(ins)
+        tempmax = typemin(T)
+        for a ∈ CartesianIndices(outs)
+            tempmax = max(M[a, x], tempmax)
+        end
+        res += tempmax
+    end
+    return res
+end
+export signalling_bound

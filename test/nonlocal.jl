@@ -88,6 +88,16 @@ end
     @test tsirelson_bound(Śliwa18, 2)[1] ≈ 2 * (7 - sqrt(17)) rtol = 1e-7
 end
 
+@testset "signalling_bound      " begin
+    M = randn(2,3,4,5)
+    res = 0.0
+    for x ∈ CartesianIndices(size(M)[3:4])
+        res += maximum(M[:, :, x])
+    end
+    @test res == signalling_bound(M)
+    @test signalling_bound(game_chsh(Int)) === 4
+end
+
 @testset "tensor_probability    " begin
     X = pauli(1)
     Z = pauli(3)

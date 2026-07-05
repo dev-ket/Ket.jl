@@ -106,6 +106,7 @@ game_mermin
 game_grandjean
 local_bound
 tsirelson_bound
+signalling_bound
 seesaw
 tensor_probability
 tensor_collinsgisin
