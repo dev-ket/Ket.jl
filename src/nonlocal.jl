@@ -739,7 +739,7 @@ function nosignalling_bound(
         outsafter = outs[n+1:N]
         for xafter ∈ CartesianIndices(insafter), xbefore ∈ CartesianIndices(insbefore)
             for aafter ∈ CartesianIndices(outsafter), abefore ∈ CartesianIndices(outsbefore)
-                if !(isone(aafter) && isone(abefore)) #excludes redundant constraints, works with empty indices
+                if !((aafter == oneunit(aafter)) && (abefore == oneunit(abefore))) #excludes redundant constraints, works with empty indices
                     Pcond1 = sum(P[abefore, an, aafter, xbefore, 1, xafter] for an ∈ 1:outs[n])
                     for xn ∈ 2:ins[n]
                         Pcondn = sum(P[abefore, an, aafter, xbefore, xn, xafter] for an ∈ 1:outs[n])
