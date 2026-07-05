@@ -583,7 +583,7 @@ Reference: Baek, Ryu, Lee, [arxiv:2311.07077](https://arxiv.org/abs/2311.07077)
 function nonlocality_robustness(
     FP::Array{T,N2};
     noise::Symbol = :white,
-    verbose = false,
+    verbose::Bool = false,
     solver = Hypatia.Optimizer{_solver_type(T)}
 ) where {T<:Real,N2}
     @assert noise ∈ (:white, :local, :general)
@@ -679,10 +679,15 @@ function nonlocality_robustness(
     !verbose && JuMP.set_silent(model)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
-    return JuMP.objective_value(model)::T
+    return JuMP.objective_value(model)::stT
 end
 export nonlocality_robustness
 
+"""
+    signalling_bound(M::Array{T,N})
+
+Computes the signalling bound of a multipartite Bell functional `M` given as an `N`-dimensional array in probability notation.
+"""
 function signalling_bound(M::Array{T,N2}) where {T<:Real,N2}
     @assert iseven(N2)
     N = N2 ÷ 2
@@ -701,3 +706,54 @@ function signalling_bound(M::Array{T,N2}) where {T<:Real,N2}
     return res
 end
 export signalling_bound
+
+"""
+    nosignalling_bound(M::Array{T,N}; verbose::Bool = false, solver = Hypatia.Optimizer{_solver_type(T)})
+
+Computes the no-signalling bound of a multipartite Bell functional `M` given as an `N`-dimensional array in probability notation.
+
+Reference: Barrett et al., [arXiv:quant-ph/0404097](http://arXiv.org/abs/quant-ph/0404097)
+"""
+function nosignalling_bound(
+    M::Array{T,N2};
+    verbose::Bool = false,
+    solver = Hypatia.Optimizer{_solver_type(T)}
+) where {T<:Real,N2}
+    @assert iseven(N2)
+    N = N2 ÷ 2
+    scenario = size(M)
+    outs = scenario[1:N]
+    ins = scenario[N+1:2N]
+
+    stT = _solver_type(T)
+    model = JuMP.GenericModel{stT}()
+    JuMP.@variable(model, p[1:prod(scenario)] ≥ 0)
+    P = reshape(p, scenario)
+    for x ∈ CartesianIndices(ins)
+        JuMP.@constraint(model, sum(P[a, x] for a ∈ CartesianIndices(outs)) == 1)
+    end
+    for n ∈ 1:N
+        insbefore = ins[1:n-1]
+        insafter = ins[n+1:N]
+        outsbefore = outs[1:n-1]
+        outsafter = outs[n+1:N]
+        for xafter ∈ CartesianIndices(insafter), xbefore ∈ CartesianIndices(insbefore)
+            for aafter ∈ CartesianIndices(outsafter), abefore ∈ CartesianIndices(outsbefore)
+                if !(isone(aafter) && isone(abefore)) #excludes redundant constraints, works with empty indices
+                    Pcond1 = sum(P[abefore, an, aafter, xbefore, 1, xafter] for an ∈ 1:outs[n])
+                    for xn ∈ 2:ins[n]
+                        Pcondn = sum(P[abefore, an, aafter, xbefore, xn, xafter] for an ∈ 1:outs[n])
+                        JuMP.@constraint(model, Pcond1 == Pcondn)
+                    end
+                end
+            end
+        end
+    end
+    JuMP.@objective(model, Max, dot(M, P))
+    JuMP.set_optimizer(model, solver)
+    !verbose && JuMP.set_silent(model)
+    JuMP.optimize!(model)
+    JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
+    return JuMP.objective_value(model)::stT
+end
+export nosignalling_bound

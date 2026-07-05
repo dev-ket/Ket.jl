@@ -7,7 +7,6 @@ CG - In _dps_constraints! bypass new variables when n = 1, as then only PPT is n
 CG - GME detection with DPS
 CG - Basic state discrimination stuff
 LP - seesaw with fixed state
-MA - signalling and non-signalling bounds for Bell inequalities
 MA - canonical representation of Bell inequalities
 MA - state purification
 MA - optimal cloning

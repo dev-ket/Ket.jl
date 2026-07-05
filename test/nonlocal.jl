@@ -98,6 +98,14 @@ end
     @test signalling_bound(game_chsh(Int)) === 4
 end
 
+@testset "nosignalling_bound    " begin
+    for T ∈ (Float64, Float64x2)
+        @test nosignalling_bound(game_gyni(T, 3)) ≈ 1/3 atol = 1e-8
+        @test nosignalling_bound(game_gyni(T, 4)) ≈ 1/6 atol = 1e-8
+        @test nosignalling_bound(game_gyni(T, 5)) ≈ 1/11 atol = 1e-8
+    end
+end
+
 @testset "tensor_probability    " begin
     X = pauli(1)
     Z = pauli(3)
