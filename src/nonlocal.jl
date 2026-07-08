@@ -299,7 +299,7 @@ function _tensor_collinsgisin_probability(p::AbstractArray{T,N2}, behaviour::Boo
     outs = scenario[1:N]
     ins = scenario[N+1:2N]
     cgindex(a, x) = (a .!= outs) .* (a .+ (x .- 1) .* (outs .- 1)) .+ 1
-    CG = zeros(typeof(one(T) / one(T)), ins .* (outs .- 1) .+ 1)
+    CG = zeros(typeof(one(T) / 1), ins .* (outs .- 1) .+ 1)
 
     if !behaviour
         for x ∈ CartesianIndices(ins)
@@ -326,7 +326,7 @@ end
 
 function _tensor_collinsgisin_correlation(FC::AbstractArray{T}, behaviour::Bool = false) where {T}
     dims = size(FC)
-    CG = zeros(typeof(one(T) / one(T)), dims)
+    CG = zeros(typeof(one(T) / 1), dims)
     if !behaviour
         for x ∈ CartesianIndices(dims)
             n = sum(x.I .!= 1)
@@ -364,7 +364,10 @@ Takes a multipartite Bell functional `CG` in Collins-Gisin notation and transfor
 If `behaviour` is `true` do instead the transformation for behaviours. Doesn't assume normalization.
 """
 function tensor_probability(CG::AbstractArray{T,N}, scenario::Tuple, behaviour::Bool = false) where {T,N}
-    p = zeros(typeof(one(T) / one(T)), scenario)
+    p = Array{typeof(one(T) / 1), 2N}(undef, scenario) # zeros for JuMP types
+    for i in eachindex(p)
+        p[i] = 0
+    end
     outs = scenario[1:N]
     ins = scenario[N+1:2N]
     cgindex(a, x) = (a .!= outs) .* (a .+ (x .- 1) .* (outs .- 1)) .+ 1
@@ -516,7 +519,7 @@ function _tensor_correlation_probability(
     @assert all(o .== 2)
     m = size(p)[N+1:end] # numbers of inputs per party
     size_FC = marg ? m .+ 1 : m
-    FC = zeros(typeof(one(T) / one(T)), size_FC)
+    FC = zeros(typeof(one(T) / 1), size_FC)
     cia = CartesianIndices(o)
     cix = CartesianIndices(size_FC)
     for x ∈ cix
@@ -547,7 +550,7 @@ function _tensor_correlation_collinsgisin(
 ) where {T,N}
     m = size(CG) .- 1
     size_FC = marg ? m .+ 1 : m
-    FC = zeros(typeof(one(T) / one(T)), size_FC)
+    FC = zeros(typeof(one(T) / 1), size_FC)
     if !behaviour
         if !marg
             for x ∈ CartesianIndices(size_FC)
@@ -708,48 +711,30 @@ end
 export signalling_bound
 
 """
-    nosignalling_bound(M::Array{T,N}; verbose::Bool = false, solver = Hypatia.Optimizer{_solver_type(T)})
+    nosignalling_bound(CG::Array{T,N}, scenario::Tuple; verbose::Bool = false, solver = Hypatia.Optimizer{_solver_type(T)})
 
-Computes the no-signalling bound of a multipartite Bell functional `M` given as an `N`-dimensional array in probability notation.
+Computes the no-signalling bound of a multipartite Bell functional `CG` written in Collins-Gisin notation.
+`scenario` is a tuple detailing the number of inputs and outputs, in the order (oa, ob, ..., ia, ib, ...).
 
 Reference: Barrett et al., [arXiv:quant-ph/0404097](http://arXiv.org/abs/quant-ph/0404097)
 """
 function nosignalling_bound(
-    M::Array{T,N2};
+    CG::Array{T,N},
+    scenario::Tuple;
     verbose::Bool = false,
     solver = Hypatia.Optimizer{_solver_type(T)}
-) where {T<:Real,N2}
-    @assert iseven(N2)
-    N = N2 ÷ 2
-    scenario = size(M)
+) where {T<:Real,N}
     outs = scenario[1:N]
     ins = scenario[N+1:2N]
 
     stT = _solver_type(T)
     model = JuMP.GenericModel{stT}()
-    JuMP.@variable(model, p[1:prod(scenario)] ≥ 0)
-    P = reshape(p, scenario)
-    for x ∈ CartesianIndices(ins)
-        JuMP.@constraint(model, sum(P[a, x] for a ∈ CartesianIndices(outs)) == 1)
-    end
-    for n ∈ 1:N
-        insbefore = ins[1:n-1]
-        insafter = ins[n+1:N]
-        outsbefore = outs[1:n-1]
-        outsafter = outs[n+1:N]
-        for xafter ∈ CartesianIndices(insafter), xbefore ∈ CartesianIndices(insbefore)
-            for aafter ∈ CartesianIndices(outsafter), abefore ∈ CartesianIndices(outsbefore)
-                if !((aafter == oneunit(aafter)) && (abefore == oneunit(abefore))) #excludes redundant constraints, works with empty indices
-                    Pcond1 = sum(P[abefore, an, aafter, xbefore, 1, xafter] for an ∈ 1:outs[n])
-                    for xn ∈ 2:ins[n]
-                        Pcondn = sum(P[abefore, an, aafter, xbefore, xn, xafter] for an ∈ 1:outs[n])
-                        JuMP.@constraint(model, Pcond1 == Pcondn)
-                    end
-                end
-            end
-        end
-    end
-    JuMP.@objective(model, Max, dot(M, P))
+    JuMP.@variable(model, pcg[1:length(CG)])
+    Pcg = reshape(pcg, size(CG))
+    JuMP.@constraint(model, Pcg[1] == 1)
+    P = tensor_probability(Pcg, scenario, true)
+    JuMP.@constraint(model, P ≥ 0)
+    JuMP.@objective(model, Max, dot(CG, Pcg))
     JuMP.set_optimizer(model, solver)
     !verbose && JuMP.set_silent(model)
     JuMP.optimize!(model)
