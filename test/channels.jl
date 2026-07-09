@@ -18,6 +18,8 @@
         @test applymap(channel_phase_damping(γ), ρ) ≈ applymap(channel_phase_flip((1 + sqrt(1 − γ)) / 2), ρ)
         ρ3 = random_state(T, 3)
         @test applymap(channel_depolarizing(p, 3), ρ3) ≈ white_noise(ρ3, p)
+          K = channel_loss(p, 3)
+        @test applymap(K, ρ3) ≈ Hermitian(cat(p .* ρ3,(1 - p) * tr(ρ3),dims=[1,2]))
         din, dout = 2, 3
         K = [randn(T, dout, din) for _ ∈ 1:3]
         Φ = choi(K)

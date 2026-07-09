@@ -147,6 +147,29 @@ end
 export channel_depolarizing
 
 """
+    channel_loss(η::Real, d::Integer = 2)
+
+Returns kraus representation of a `d`-dimensional erasure/loss channel of the form
+
+ ρ ↦ η ρ ⊕ (1 - η) tr(ρ) |⊥⟩⟨⊥|. 
+ 
+The output has dimension `d + 1`, with the final basis state representing vacuum.
+"""
+function channel_loss(η::Real, d::Integer = 2)
+    0 ≤ η ≤ 1 || throw(ArgumentError("η must lie in [0, 1]"))
+    d > 0 || throw(ArgumentError("d must be positive"))
+
+    K = [zeros(typeof(η), d + 1, d) for _ ∈ 1:(d + 1)]
+
+    for i ∈ 1:d
+        K[1][i, i] = sqrt(η)
+        K[i + 1][d + 1, i] = sqrt(1 - η)
+    end
+    return K
+end
+export channel_loss
+
+"""
     channel_amplitude_damping(γ::Real)
 
 Return the Kraus operator representation of the amplitude damping channel.

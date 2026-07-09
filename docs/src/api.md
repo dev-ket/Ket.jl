@@ -50,6 +50,7 @@ channel_amplitude_damping
 channel_amplitude_damping_generalized
 channel_bit_phase_flip
 channel_depolarizing
+channel_loss
 ```
 
 ## Entanglement
