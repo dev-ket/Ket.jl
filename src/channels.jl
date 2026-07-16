@@ -147,6 +147,52 @@ end
 export channel_depolarizing
 
 """
+    applymap_depolarizing(M::AbstractMatrix, v::Real)
+
+Applies the depolarizing channel directly to the matrix `M`, without constructing its Kraus representation.
+The channel acts as `M ↦ v M + (1 - v) tr(M) I / d`, where `d == size(M, 1)`. Preserves sparsity.
+"""
+function applymap_depolarizing(M::AbstractMatrix{T}, v::Real) where {T}
+    d = checksquare(M)
+    d > 0 || throw(ArgumentError("Input dimension must be positive"))
+    0 ≤ v ≤ 1 || throw(ArgumentError("v must lie in [0, 1]"))
+
+    TS = typeof(v * M[1] + (1 - v) * M[1] / d)
+    if SA.issparse(M)
+        result = SA.spzeros(TS, d, d)
+    else
+        result = Matrix{TS}(undef, d, d)
+    end
+    applymap_depolarizing!(result, M, v)
+    return _wrapper_applymap(M, TS)(result)
+end
+export applymap_depolarizing
+
+"""
+    applymap_depolarizing!(result::AbstractMatrix, M::AbstractMatrix, v::Real)
+    applymap_depolarizing!(M::AbstractMatrix, v::Real)
+
+Applies the depolarizing channel directly to the matrix `M` without allocating or wrapping.
+`result` must have the same size as `M`. The two-argument method modifies `M` in place.
+"""
+function applymap_depolarizing!(result::AbstractMatrix, M::AbstractMatrix, v::Real)
+    d = checksquare(M)
+    d > 0 || throw(ArgumentError("Input dimension must be positive"))
+    size(result) == (d, d) || throw(DimensionMismatch("result and input must have the same size"))
+    0 ≤ v ≤ 1 || throw(ArgumentError("v must lie in [0, 1]"))
+
+    traceM = tr(M)
+    result .= v .* M
+    shift = (1 - v) * traceM / d
+    @inbounds for i ∈ 1:d
+        result[i, i] += shift
+    end
+    return result
+end
+applymap_depolarizing!(M::AbstractMatrix, v::Real) = applymap_depolarizing!(M, M, v)
+export applymap_depolarizing!
+
+"""
     channel_loss(η::Real, d::Integer = 2)
 
 Returns kraus representation of a `d`-dimensional erasure/loss channel of the form
@@ -168,6 +214,47 @@ function channel_loss(η::Real, d::Integer = 2)
     return K
 end
 export channel_loss
+
+"""
+    applymap_loss(M::AbstractMatrix, η::Real)
+
+Applies the loss channel directly to the matrix `M`, without constructing its Kraus representation.
+The channel acts as `M ↦ η M ⊕ (1 - η) tr(M) |⊥⟩⟨⊥|`. Preserves sparsity.
+"""
+function applymap_loss(M::AbstractMatrix{T}, η::Real) where {T}
+    d = checksquare(M)
+    d > 0 || throw(ArgumentError("Input dimension must be positive"))
+    0 ≤ η ≤ 1 || throw(ArgumentError("η must lie in [0, 1]"))
+
+    TS = typeof(η * M[1] + (1 - η) * M[1])
+    if SA.issparse(M)
+        result = SA.spzeros(TS, d + 1, d + 1)
+    else
+        result = Matrix{TS}(undef, d + 1, d + 1)
+    end
+    applymap_loss!(result, M, η)
+    return _wrapper_applymap(M, TS)(result)
+end
+export applymap_loss
+
+"""
+    applymap_loss!(result::AbstractMatrix, M::AbstractMatrix, η::Real)
+
+Applies the loss channel directly to the matrix `M` without allocating or wrapping.
+`result` must be a matrix of size `(d + 1) × (d + 1)`, where `d == size(M, 1)`.
+"""
+function applymap_loss!(result::AbstractMatrix, M::AbstractMatrix, η::Real)
+    d = checksquare(M)
+    d > 0 || throw(ArgumentError("Input dimension must be positive"))
+    size(result) == (d + 1, d + 1) || throw(DimensionMismatch("result must have size (d + 1) × (d + 1)"))
+    0 ≤ η ≤ 1 || throw(ArgumentError("η must lie in [0, 1]"))
+
+    fill!(result, zero(eltype(result)))
+    @views result[1:d, 1:d] .= η .* M
+    result[d + 1, d + 1] = (1 - η) * tr(M)
+    return result
+end
+export applymap_loss!
 
 """
     channel_amplitude_damping(γ::Real)

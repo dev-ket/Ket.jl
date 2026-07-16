@@ -17,9 +17,30 @@
         @test ρ_st ≈ p * applymap(K, ρ) + (1 - p) * X * applymap(K, X * ρ * X) * X
         @test applymap(channel_phase_damping(γ), ρ) ≈ applymap(channel_phase_flip((1 + sqrt(1 − γ)) / 2), ρ)
         ρ3 = random_state(T, 3)
-        @test applymap(channel_depolarizing(p, 3), ρ3) ≈ white_noise(ρ3, p)
-          K = channel_loss(p, 3)
-        @test applymap(K, ρ3) ≈ Hermitian(cat(p .* ρ3,(1 - p) * tr(ρ3),dims=[1,2]))
+        K = channel_depolarizing(p, 3)
+        ρ3_depolarized = applymap(K, ρ3)
+        @test ρ3_depolarized ≈ white_noise(ρ3, p)
+        @test applymap_depolarizing(ρ3, p) ≈ ρ3_depolarized
+        @test isa(applymap_depolarizing(ρ3, p), Hermitian)
+        result = zeros(T, 3, 3)
+        @test applymap_depolarizing!(result, ρ3, p) === result
+        @test result ≈ ρ3_depolarized
+        ρ3_inplace = Matrix(ρ3)
+        @test applymap_depolarizing!(ρ3_inplace, p) === ρ3_inplace
+        @test ρ3_inplace ≈ ρ3_depolarized
+
+        M3 = randn(T, 3, 3)
+        @test applymap_depolarizing(M3, p) ≈ applymap(K, M3)
+
+        K = channel_loss(p, 3)
+        ρ3_loss = applymap(K, ρ3)
+        @test ρ3_loss ≈ Hermitian(cat(p .* ρ3, (1 - p) * tr(ρ3), dims=[1, 2]))
+        @test applymap_loss(ρ3, p) ≈ ρ3_loss
+        @test isa(applymap_loss(ρ3, p), Hermitian)
+        result = zeros(T, 4, 4)
+        @test applymap_loss!(result, ρ3, p) === result
+        @test result ≈ ρ3_loss
+        @test applymap_loss(M3, p) ≈ applymap(K, M3)
         din, dout = 2, 3
         K = [randn(T, dout, din) for _ ∈ 1:3]
         Φ = choi(K)
@@ -45,6 +66,10 @@
     @test isa(applymap(Φreal, ρ), Hermitian)
     @test isa(applymap(Kreal, ρreal), Symmetric)
     @test isa(applymap(Φreal, ρreal), Symmetric)
+    @test isa(applymap_depolarizing(ρ, 0.7), Hermitian)
+    @test isa(applymap_loss(ρ, 0.7), Hermitian)
+    @test isa(applymap_depolarizing(ρreal, 0.7), Symmetric)
+    @test isa(applymap_loss(ρreal, 0.7), Symmetric)
     JuMP.@variable(model, Φ[1:6, 1:6], Hermitian)
     JuMP.@variable(model, Φreal[1:6, 1:6], Symmetric)
     ρ = Hermitian(randn(ComplexF64, 2, 2))
@@ -55,8 +80,15 @@
     @test isa(applymap(Φreal, ρreal), Symmetric)
     sK = [sprandn(ComplexF64, 3, 2, 0.5) for _ ∈ 1:2]
     sΦ = choi(sK)
-    sρ = Hermitian(sprandn(ComplexF64, 2, 2, 0.5))
+    sρ = sprandn(ComplexF64, 2, 2, 0.8)
+    sρ += sρ'
+    sρ = Hermitian(sρ)
     @test applymap(sK, sρ) ≈ applymap(sΦ, sρ)
     @test issparse(applymap(sK, sρ))
     @test issparse(applymap(sΦ, sρ))
+    p = 0.7
+    @test applymap_depolarizing(sρ, p) ≈ applymap(channel_depolarizing(p, 2), sρ)
+    @test applymap_loss(sρ, p) ≈ applymap(channel_loss(p, 2), sρ)
+    @test issparse(applymap_depolarizing(sρ, p))
+    @test issparse(applymap_loss(sρ, p))
 end
