@@ -19,7 +19,7 @@
         ρ3 = random_state(T, 3)
         K = channel_depolarizing(p, 3)
         ρ3_depolarized = applymap(K, ρ3)
-        @test ρ3_depolarized ≈ white_noise(ρ3, p)
+        @test ρ3_depolarized ≈ applymap_depolarizing(ρ3, p)
         @test applymap_depolarizing(ρ3, p) ≈ ρ3_depolarized
         @test isa(applymap_depolarizing(ρ3, p), Hermitian)
         result = zeros(T, 3, 3)

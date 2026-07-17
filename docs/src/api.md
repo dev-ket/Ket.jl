@@ -169,8 +169,6 @@ state_grid
 state_crosshatch
 state_sindici_piani_ket
 state_sindici_piani
-white_noise
-white_noise!
 ```
 
 ## Internal functions

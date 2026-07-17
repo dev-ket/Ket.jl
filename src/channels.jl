@@ -182,14 +182,14 @@ function applymap_depolarizing!(result::AbstractMatrix, M::AbstractMatrix, v::Re
     0 ≤ v ≤ 1 || throw(ArgumentError("v must lie in [0, 1]"))
 
     traceM = tr(M)
-    result .= v .* M
+    parent(result) .= v .* M
     shift = (1 - v) * traceM / d
     @inbounds for i ∈ 1:d
         result[i, i] += shift
     end
     return result
 end
-applymap_depolarizing!(M::AbstractMatrix, v::Real) = applymap_depolarizing!(M, M, v)
+applymap_depolarizing!(M::AbstractMatrix, v::Real) = v == 1 ? M : applymap_depolarizing!(M, M, v)
 export applymap_depolarizing!
 
 """

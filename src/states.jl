@@ -1,32 +1,4 @@
 """
-    white_noise(ρ::AbstractMatrix, v::Real)
-
-Returns `v * ρ + (1 - v) * id`, where `id` is the maximally mixed state.
-"""
-function white_noise(ρ::AbstractMatrix, v::Real)
-    return white_noise!(copy(ρ), v)
-end
-export white_noise
-
-"""
-    white_noise!(ρ::AbstractMatrix, v::Real)
-
-Modifies `ρ` in place to tranform it into `v * rho + (1 - v) * id`
-where `id` is the maximally mixed state.
-"""
-function white_noise!(ρ::AbstractMatrix, v::Real)
-    v == 1 && return ρ
-    parent(ρ) .*= v
-    tmp = (1 - v) / size(ρ, 1)
-    # https://discourse.julialang.org/t/change-the-diagonal-of-an-abstractmatrix-in-place/67294/2
-    for i ∈ axes(ρ, 1)
-        @inbounds ρ[i, i] += tmp
-    end
-    return ρ
-end
-export white_noise!
-
-"""
     state_bell_ket([T=ComplexF64,] a::Integer, b::Integer, d::Integer = 2)
 
 Produces the ket of the generalized Bell state ψ_`ab` of local dimension `d`.
@@ -51,7 +23,7 @@ Produces the generalized Bell state ψ_`ab` of local dimension `d` with visibili
 function state_bell(::Type{T}, a::Integer, b::Integer, d::Integer = 2, v::Real = 1) where {T<:Number}
     ρ = ketbra(state_bell_ket(T, a, b, d; coeff = one(T)))
     parent(ρ) ./= d
-    return white_noise!(ρ, v)
+    return applymap_depolarizing!(ρ, v)
 end
 state_bell(a, b, d::Integer = 2) = state_bell(ComplexF64, a, b, d)
 export state_bell
@@ -75,7 +47,7 @@ Produces the maximally entangled state ϕ⁺ of local dimension `d` with visibil
 function state_phiplus(::Type{T}, d::Integer = 2; v::Real = 1) where {T<:Number}
     rho = ketbra(state_phiplus_ket(T, d; coeff = one(T)))
     parent(rho) ./= d
-    return white_noise!(rho, v)
+    return applymap_depolarizing!(rho, v)
 end
 state_phiplus(d::Integer = 2; v::Real = 1) = state_phiplus(ComplexF64, d; v)
 export state_phiplus
@@ -101,7 +73,7 @@ Produces the maximally entangled state ψ⁻ of local dimension `d` with visibil
 function state_psiminus(::Type{T}, d::Integer = 2; v::Real = 1) where {T<:Number}
     rho = ketbra(state_psiminus_ket(T, d; coeff = one(T)))
     parent(rho) ./= d
-    return white_noise!(rho, v)
+    return applymap_depolarizing!(rho, v)
 end
 state_psiminus(d::Integer = 2; v::Real = 1) = state_psiminus(ComplexF64, d; v)
 export state_psiminus
@@ -126,7 +98,7 @@ export state_ghz_ket
 Produces the GHZ state with `N` parties, local dimension `d`, and visibility `v`.
 """
 function state_ghz(::Type{T}, N::Integer = 3, d::Integer = 2; v::Real = 1, kwargs...) where {T<:Number}
-    return white_noise!(ketbra(state_ghz_ket(T, N, d; kwargs...)), v)
+    return applymap_depolarizing!(ketbra(state_ghz_ket(T, N, d; kwargs...)), v)
 end
 state_ghz(N::Integer = 3, d::Integer = 2; kwargs...) = state_ghz(ComplexF64, N, d; kwargs...)
 export state_ghz
@@ -150,7 +122,7 @@ export state_w_ket
 Produces the `N`-partite W state with visibility `v`.
 """
 function state_w(::Type{T}, N::Integer = 3; v::Real = 1, kwargs...) where {T<:Number}
-    return white_noise!(ketbra(state_w_ket(T, N; kwargs...)), v)
+    return applymap_depolarizing!(ketbra(state_w_ket(T, N; kwargs...)), v)
 end
 state_w(N::Integer = 3; kwargs...) = state_w(ComplexF64, N; kwargs...)
 export state_w
@@ -192,7 +164,7 @@ Reference: Adán Cabello, [arXiv:quant-ph/0203119](https://arxiv.org/abs/quant-p
 function state_supersinglet(::Type{T}, N::Integer = 3; v::Real = 1) where {T<:Number}
     rho = ketbra(state_supersinglet_ket(T, N; coeff = one(T)))
     parent(rho) ./= factorial(N)
-    return white_noise!(rho, v)
+    return applymap_depolarizing!(rho, v)
 end
 state_supersinglet(N::Integer = 3; kwargs...) = state_supersinglet(ComplexF64, N; kwargs...)
 export state_supersinglet
@@ -229,7 +201,7 @@ Reference: Robert H. Dicke [doi:10.1103/PhysRev.93.99](https://doi.org/10.1103/P
 function state_dicke(::Type{T}, N::Integer, k::Integer; v::Real = 1) where {T<:Number}
     rho = ketbra(state_dicke_ket(T, N, k; coeff = one(T)))
     parent(rho) ./= binomial(N, k)
-    return white_noise!(rho, v)
+    return applymap_depolarizing!(rho, v)
 end
 state_dicke(N::Integer, k::Integer; kwargs...) = state_dicke(ComplexF64, N, k; kwargs...)
 export state_dicke
@@ -257,7 +229,7 @@ function state_horodecki33(::Type{T}, a::Real; v::Real = 1) where {T<:Number}
         a 0 0 0 a 0 y 0 x
     ]
     rho ./= 8a + 1
-    return white_noise!(Hermitian(rho), v)
+    return applymap_depolarizing!(Hermitian(rho), v)
 end
 state_horodecki33(a::Real) = state_horodecki33(ComplexF64, a)
 export state_horodecki33
@@ -284,7 +256,7 @@ function state_horodecki24(::Type{T}, b::Real; v::Real = 1) where {T<:Number}
         0 0 b 0 y 0 0 x
     ]
     rho ./= 7b + 1
-    return white_noise!(Hermitian(rho), v)
+    return applymap_depolarizing!(Hermitian(rho), v)
 end
 state_horodecki24(b::Real) = state_horodecki24(ComplexF64, b)
 export state_horodecki24
@@ -308,7 +280,7 @@ function state_grid(::Type{T}, edges::Vector{Vector{NTuple{2, Int}}}, dA::Intege
         rho .+= weights[i] * ketbra(edge_ket)
     end
     rho ./= tr(rho)
-    return white_noise!(Hermitian(rho), v)
+    return applymap_depolarizing!(Hermitian(rho), v)
 end
 state_grid(edges::Vector{Vector{NTuple{2, Int}}}, dA::Integer = maximum(x -> x[1], Iterators.flatten(edges)), dB::Integer = maximum(x -> x[2], Iterators.flatten(edges)); kwargs...) = state_grid(ComplexF64, edges, dA, dB; kwargs...)
 export state_grid
@@ -361,7 +333,7 @@ Reference: Sindici and Piani, [arXiv:1708.06595](http://arxiv.org/abs/1708.06595
 function state_sindici_piani(::Type{T}, d::Integer; v::Real = 1) where {T<:Number}
     ρ = ketbra(state_sindici_piani_ket(T, d; coeffs = ones(T, d ÷ 2)))
     parent(ρ) ./= d / 2
-    return white_noise!(ρ, v)
+    return applymap_depolarizing!(ρ, v)
 end
 state_sindici_piani(d::Integer) = state_sindici_piani(ComplexF64, d)
 export state_sindici_piani

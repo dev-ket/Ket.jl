@@ -14,7 +14,7 @@
         for R ∈ (Float64, Float64x2), T ∈ (R, Complex{R})
             Random.seed!(8) #makes all states entangled
             ψ = random_state_ket(T, 6)
-            @test entanglement_entropy(ψ, [2, 3]) ≈ entanglement_entropy(white_noise!(ketbra(ψ),0.9999), [2, 3])[1] atol = 1e-3 rtol = 1e-3
+            @test entanglement_entropy(ψ, [2, 3]) ≈ entanglement_entropy(applymap_depolarizing!(ketbra(ψ), 0.9999), [2, 3])[1] atol = 1e-3 rtol = 1e-3
             ρ = random_state(T, 4)
             h, σ = entanglement_entropy(ρ)
             @test Ket._test_entanglement_entropy_qubit(h, ρ, σ)
