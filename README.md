@@ -20,9 +20,9 @@ For the full list of functions see the [documentation](https://dev-ket.github.io
 
 ## Installation
 
-Ket is a registered Julia package, so it can be installed by typing the following command in the Julia REPL:
-```
-]add Ket
+First you need to install [Julia](https://docs.julialang.org/en/v1/manual/getting-started/). From within Julia, enter the package manager by typing `]`. Then install Ket:
+```julia
+add Ket
 ```
 
 ## Contributing
