@@ -1,5 +1,5 @@
 """
-    local_bound(G::Array{T,N}; correlation = N < 4, marg = true)
+    bound_local(G::Array{T,N}; correlation = N < 4, marg = true)
 
 Computes the local bound of a multipartite Bell functional `G` given as an `N`-dimensional array.
 If `correlation` is `false`, `G` is assumed to be written in probability notation.
@@ -7,16 +7,16 @@ If `correlation` is `true`, `G` is assumed to be written in correlation notation
 
 Reference: Araújo, Hirsch, Quintino, [arXiv:2005.13418](https://arxiv.org/abs/2005.13418)
 """
-function local_bound(G::Array{T,N}; correlation::Bool = N < 4, marg::Bool = true) where {T<:Real,N}
+function bound_local(G::Array{T,N}; correlation::Bool = N < 4, marg::Bool = true) where {T<:Real,N}
     if correlation
-        return _local_bound_correlation(G; marg)
+        return _bound_local_correlation(G; marg)
     else
-        return _local_bound_probability(G)
+        return _bound_local_probability(G)
     end
 end
-export local_bound
+export bound_local
 
-function _local_bound_correlation(G::Array{T,N}; marg::Bool = true) where {T<:Real,N}
+function _bound_local_correlation(G::Array{T,N}; marg::Bool = true) where {T<:Real,N}
     ins = size(G) .- marg
 
     num_strategies = 2 .^ BigInt.(ins)
@@ -30,7 +30,7 @@ function _local_bound_correlation(G::Array{T,N}; marg::Bool = true) where {T<:Re
     chunks = _partition(new_num_strategies[end], Threads.nthreads())
     G2 = G #workaround for https://github.com/JuliaLang/julia/issues/15276
     tasks = map(chunks) do chunk
-        Threads.@spawn _local_bound_correlation_recursive!(copy(G2), chunk, marg)
+        Threads.@spawn _bound_local_correlation_recursive!(copy(G2), chunk, marg)
     end
     scores = fetch.(tasks)::Vector{T}
     score = maximum(scores)
@@ -39,7 +39,7 @@ end
 
 _scratch_type(::Array{T,N}) where {T,N} = N == 2 ? Vector{Vector{T}} : Vector{Array{T}}
 
-function _local_bound_correlation_recursive!(
+function _bound_local_correlation_recursive!(
     A::Array{T,N},
     chunk,
     marg = true,
@@ -59,7 +59,7 @@ function _local_bound_correlation_recursive!(
     for _ ∈ chunk[1]:chunk[2]
         tmp_end .= offset_end
         _tensor_contraction!(tmp_end, A, ind[N-1], marg)
-        temp_score = _local_bound_correlation_recursive!(
+        temp_score = _bound_local_correlation_recursive!(
             tmp_end,
             (0, 2^(m[N-1] - marg) - 1),
             marg,
@@ -76,7 +76,7 @@ function _local_bound_correlation_recursive!(
     return score
 end
 
-function _local_bound_correlation_recursive!(A::Vector, chunk, marg, m, tmp, offset, ind)
+function _bound_local_correlation_recursive!(A::Vector, chunk, marg, m, tmp, offset, ind)
     score = marg ? A[1] : abs(A[1])
     for x ∈ 2:m[1]
         score += abs(A[x])
@@ -94,7 +94,7 @@ function _tensor_contraction!(tmp, A, ind, marg)
     end
 end
 
-function _local_bound_probability(G::Array{T,N2}) where {T<:Real,N2}
+function _bound_local_probability(G::Array{T,N2}) where {T<:Real,N2}
     @assert iseven(N2)
     N = N2 ÷ 2
     scenario = size(G)
@@ -117,14 +117,14 @@ function _local_bound_probability(G::Array{T,N2}) where {T<:Real,N2}
     outs2 = outs
     ins2 = ins #workaround for https://github.com/JuliaLang/julia/issues/15276
     tasks = map(chunks) do chunk
-        Threads.@spawn _local_bound_probability_core(chunk, outs2, ins2, squareG)
+        Threads.@spawn _bound_local_probability_core(chunk, outs2, ins2, squareG)
     end
     scores = fetch.(tasks)::Vector{T}
     score = maximum(scores)
     return score
 end
 
-function _local_bound_probability_core(chunk, outs::NTuple{2,Int}, ins::NTuple{2,Int}, squareG::Array{T,2}) where {T}
+function _bound_local_probability_core(chunk, outs::NTuple{2,Int}, ins::NTuple{2,Int}, squareG::Array{T,2}) where {T}
     oa, ob = outs
     ia, ib = ins
     score = typemin(T)
@@ -142,7 +142,7 @@ function _local_bound_probability_core(chunk, outs::NTuple{2,Int}, ins::NTuple{2
     return score
 end
 
-function _local_bound_probability_core(chunk, outs::NTuple{N,Int}, ins::NTuple{N,Int}, squareG::Array{T,2}) where {T,N}
+function _bound_local_probability_core(chunk, outs::NTuple{N,Int}, ins::NTuple{N,Int}, squareG::Array{T,2}) where {T,N}
     score = typemin(T)
     base = reduce(vcat, [fill(outs[i], ins[i]) for i ∈ 2:N])
     ind = _digits(chunk[1] - 1; base)
@@ -687,11 +687,11 @@ end
 export nonlocality_robustness
 
 """
-    signalling_bound(M::Array{T,N})
+    bound_signalling(M::Array{T,N})
 
 Computes the signalling bound of a multipartite Bell functional `M` given as an `N`-dimensional array in probability notation.
 """
-function signalling_bound(M::Array{T,N2}) where {T<:Real,N2}
+function bound_signalling(M::Array{T,N2}) where {T<:Real,N2}
     @assert iseven(N2)
     N = N2 ÷ 2
     scenario = size(M)
@@ -708,17 +708,17 @@ function signalling_bound(M::Array{T,N2}) where {T<:Real,N2}
     end
     return res
 end
-export signalling_bound
+export bound_signalling
 
 """
-    nosignalling_bound(CG::Array{T,N}, scenario::Tuple; verbose::Bool = false, solver = Hypatia.Optimizer{_solver_type(T)})
+    bound_nosignalling(CG::Array{T,N}, scenario::Tuple; verbose::Bool = false, solver = Hypatia.Optimizer{_solver_type(T)})
 
 Computes the no-signalling bound of a multipartite Bell functional `CG` written in Collins-Gisin notation.
 `scenario` is a tuple detailing the number of inputs and outputs, in the order (oa, ob, ..., ia, ib, ...).
 
 Reference: Barrett et al., [arXiv:quant-ph/0404097](http://arXiv.org/abs/quant-ph/0404097)
 """
-function nosignalling_bound(
+function bound_nosignalling(
     CG::Array{T,N},
     scenario::Tuple;
     verbose::Bool = false,
@@ -741,4 +741,4 @@ function nosignalling_bound(
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     return JuMP.objective_value(model)::stT
 end
-export nosignalling_bound
+export bound_nosignalling

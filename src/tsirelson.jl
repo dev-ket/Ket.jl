@@ -1,7 +1,7 @@
 import .Moment
 
 """
-    tsirelson_bound(CG::Array, scenario::Tuple, level; verbose::Bool = false, dualize::Bool = false, solver = Hypatia.Optimizer{_solver_type(T)})
+    bound_tsirelson(CG::Array, scenario::Tuple, level; verbose::Bool = false, dualize::Bool = false, solver = Hypatia.Optimizer{_solver_type(T)})
 
 Upper bounds the Tsirelson bound of a multipartite Bell funcional `CG`, written in Collins-Gisin notation.
 `scenario` is a tuple detailing the number of inputs and outputs, in the order (oa, ob, ..., ia, ib, ...).
@@ -9,7 +9,7 @@ Upper bounds the Tsirelson bound of a multipartite Bell funcional `CG`, written 
 `verbose` determines whether solver output is printed.
 `dualize` determines whether the dual problem is solved instead. WARNING: This is critical for performance, and the correct choice depends on the solver.
 """
-function tsirelson_bound(
+function bound_tsirelson(
     CG::Array{T,N},
     scenario::Tuple,
     level::Union{Integer,String};
@@ -23,9 +23,9 @@ function tsirelson_bound(
     level_int, additional = Moment.parse_level(Val(N), level)
     if N == 2 && level_int == 1
         if isempty(additional)
-            return _tsirelson_bound_manual(CG, scenario, false; verbose, dualize = !dualize, solver)
+            return _bound_tsirelson_manual(CG, scenario, false; verbose, dualize = !dualize, solver)
         elseif additional == [[1, 1]] && max(scenario[3], scenario[4]) ≥ 3 #heuristic for when it's faster
-            return _tsirelson_bound_manual(CG, scenario, true; verbose, dualize = !dualize, solver)
+            return _bound_tsirelson_manual(CG, scenario, true; verbose, dualize = !dualize, solver)
         end
     end
     outs = scenario[1:N]
@@ -35,17 +35,17 @@ function tsirelson_bound(
         _npa(CG, Moment.Projector, Val(max_length), outs, ins, level_int, additional; verbose, solver, dualize)
     return Q, behaviour
 end
-export tsirelson_bound
+export bound_tsirelson
 
 """
-    tsirelson_bound(FC::Array, level; verbose::Bool = false, dualize::Bool = false, solver = Hypatia.Optimizer{_solver_type(T)})
+    bound_tsirelson(FC::Array, level; verbose::Bool = false, dualize::Bool = false, solver = Hypatia.Optimizer{_solver_type(T)})
 
 Upper bounds the Tsirelson bound of a multipartite Bell funcional `FC`, written in correlation notation.
 `level` is an integer or a string like "1 + A B +ABC" determining the level of the NPA hierarchy.
 `verbose` determines whether solver output is printed.
 `dualize` determines whether the dual problem is solved instead. WARNING: This is critical for performance, and the correct choice depends on the solver.
 """
-function tsirelson_bound(
+function bound_tsirelson(
     FC::Array{T,N},
     level::Union{Integer,String};
     verbose::Bool = false,
@@ -56,9 +56,9 @@ function tsirelson_bound(
     level_int, additional = Moment.parse_level(Val(N), level)
     if N == 2 && level_int == 1
         if isempty(additional)
-            return _tsirelson_bound_manual(FC, false; verbose, dualize = !dualize, solver)
+            return _bound_tsirelson_manual(FC, false; verbose, dualize = !dualize, solver)
         elseif additional == [[1, 1]]
-            return _tsirelson_bound_manual(FC, true; verbose, dualize = !dualize, solver)
+            return _bound_tsirelson_manual(FC, true; verbose, dualize = !dualize, solver)
         end
     end
     outs = ntuple(_ -> 2, Val(N))
@@ -128,7 +128,7 @@ function _jump_muladd!(G, A::SA.SparseMatrixCSC, jumpvar)
     return G
 end
 
-function _tsirelson_bound_manual(
+function _bound_tsirelson_manual(
     CG::Matrix{T},
     scenario::Tuple,
     include_ab::Bool;
@@ -257,7 +257,7 @@ function _tsirelson_bound_manual(
     return JuMP.objective_value(model)::T, JuMP.value(behaviour)::Matrix{T}
 end
 
-function _tsirelson_bound_manual(FC::Matrix{T}, include_ab::Bool; verbose, dualize, solver) where {T<:AbstractFloat}
+function _bound_tsirelson_manual(FC::Matrix{T}, include_ab::Bool; verbose, dualize, solver) where {T<:AbstractFloat}
     ia, ib = size(FC) .- 1
     dq1 = 1 + ia + ib
     dq1ab = dq1 + ia * ib

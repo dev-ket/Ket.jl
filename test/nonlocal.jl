@@ -10,99 +10,99 @@
 end
 
 @testset "Local bound           " begin
-    @test local_bound(game_chsh()) ≈ 0.75
-    @test local_bound(game_chsh(Int, 3)) == 6
-    @test local_bound(game_cglmp(Int, 4)) == 9
-    @test local_bound(game_gyni(Int, 3)) == 1
-    @test local_bound(game_gyni(Int, 4)) == 1
-    @test local_bound(game_braunsteincaves(Int)) == 5
-    @test local_bound(game_mermin(Int, 3)) == 3
-    @test local_bound(game_mermin(Int, 4)) == 6
-    @test local_bound(game_grandjean(Int, 3)) == -2
-    @test local_bound(game_grandjean(Int, 4)) == -3
-    @test_throws OverflowError local_bound(game_chsh(Int, 16))
-    @test_throws OverflowError local_bound(game_inn22(Int, 63))
-    @test local_bound([1 2; 2 -2]; marg = false) == 5
+    @test bound_local(game_chsh()) ≈ 0.75
+    @test bound_local(game_chsh(Int, 3)) == 6
+    @test bound_local(game_cglmp(Int, 4)) == 9
+    @test bound_local(game_gyni(Int, 3)) == 1
+    @test bound_local(game_gyni(Int, 4)) == 1
+    @test bound_local(game_braunsteincaves(Int)) == 5
+    @test bound_local(game_mermin(Int, 3)) == 3
+    @test bound_local(game_mermin(Int, 4)) == 6
+    @test bound_local(game_grandjean(Int, 3)) == -2
+    @test bound_local(game_grandjean(Int, 4)) == -3
+    @test_throws OverflowError bound_local(game_chsh(Int, 16))
+    @test_throws OverflowError bound_local(game_inn22(Int, 63))
+    @test bound_local([1 2; 2 -2]; marg = false) == 5
     Random.seed!(0)
     fp1 = rand(0:1, 2, 2, 2, 2, 2, 2, 2, 2)
     fc1 = tensor_correlation(fp1)
-    @test local_bound(fc1; correlation = true) ≈ local_bound(fp1)
-    @test local_bound(fp1) == 12
+    @test bound_local(fc1; correlation = true) ≈ bound_local(fp1)
+    @test bound_local(fp1) == 12
     for T ∈ [Float64, Float64x2]
         fp1 = randn(T, 2, 2, 3, 4)
         fp2 = permutedims(fp1, (2, 1, 4, 3))
         fc1 = tensor_correlation(fp1)
         fc2 = tensor_correlation(fp2)
-        @test local_bound(fp1) ≈ local_bound(fp2)
-        @test local_bound(fc1) ≈ local_bound(fc2)
-        @test local_bound(fc1) ≈ local_bound(fp1)
+        @test bound_local(fp1) ≈ bound_local(fp2)
+        @test bound_local(fc1) ≈ bound_local(fc2)
+        @test bound_local(fc1) ≈ bound_local(fp1)
         bigfc1 = zeros(T, 5, 6)
         @views bigfc1[2:5, 2:6] .= fc1
-        @test local_bound(fc1; marg = false) ≈ local_bound(bigfc1; marg = true)
+        @test bound_local(fc1; marg = false) ≈ bound_local(bigfc1; marg = true)
         fp1 = rand(T, 2, 2, 2, 3, 4, 5)
         fp2 = permutedims(fp1, (3, 2, 1, 6, 5, 4))
         fc1 = tensor_correlation(fp1)
         fc2 = tensor_correlation(fp2)
-        @test local_bound(fp1) ≈ local_bound(fp2)
-        @test local_bound(fc1) ≈ local_bound(fc2)
-        @test local_bound(fc1) ≈ local_bound(fp1)
+        @test bound_local(fp1) ≈ bound_local(fp2)
+        @test bound_local(fc1) ≈ bound_local(fc2)
+        @test bound_local(fc1) ≈ bound_local(fp1)
         bigfc1 = zeros(T, 5, 6, 7)
         @views bigfc1[2:5, 2:6, 2:7] .= fc1
-        @test local_bound(fc1; marg = false) ≈ local_bound(bigfc1; marg = true)
+        @test bound_local(fc1; marg = false) ≈ bound_local(bigfc1; marg = true)
     end
 end
 
 @testset "Tsirelson bound       " begin
-    @test tsirelson_bound(game_inn22(), (2, 2, 3, 3), 1)[1] ≈ 11 / 8
+    @test bound_tsirelson(game_inn22(), (2, 2, 3, 3), 1)[1] ≈ 11 / 8
     chsh_fc = [
         0 0 0
         0 1 1
         0 1 -1
     ]
-    @test all(tsirelson_bound(chsh_fc, 1) .≈ (2√2, [1 0 0; 0 1/√2 1/√2; 0 1/√2 -1/√2]))
-    @test all(tsirelson_bound(chsh_fc, "1 + A B") .≈ (2√2, [1 0 0; 0 1/√2 1/√2; 0 1/√2 -1/√2]))
-    @test all(tsirelson_bound(chsh_fc, 2) .≈ (2√2, [1 0 0; 0 1/√2 1/√2; 0 1/√2 -1/√2]))
+    @test all(bound_tsirelson(chsh_fc, 1) .≈ (2√2, [1 0 0; 0 1/√2 1/√2; 0 1/√2 -1/√2]))
+    @test all(bound_tsirelson(chsh_fc, "1 + A B") .≈ (2√2, [1 0 0; 0 1/√2 1/√2; 0 1/√2 -1/√2]))
+    @test all(bound_tsirelson(chsh_fc, 2) .≈ (2√2, [1 0 0; 0 1/√2 1/√2; 0 1/√2 -1/√2]))
     τ = Float64x2(9) / 10
     tilted_chsh_fc = [
         0 τ 0
         τ 1 1
         0 1 -1
     ]
-    @test tsirelson_bound(tilted_chsh_fc, 3)[1] ≈ 3.80128907501837942169727948014219026
+    @test bound_tsirelson(tilted_chsh_fc, 3)[1] ≈ 3.80128907501837942169727948014219026
     bc_cg = tensor_collinsgisin(game_braunsteincaves())
-    @test tsirelson_bound(bc_cg, (2, 2, 3, 3), 1)[1] ≈ cos(π / 12)^2 rtol = 1e-7
-    @test tsirelson_bound(bc_cg, (2, 2, 3, 3), "1 + A B")[1] ≈ cos(π / 12)^2 rtol = 1e-7
+    @test bound_tsirelson(bc_cg, (2, 2, 3, 3), 1)[1] ≈ cos(π / 12)^2 rtol = 1e-7
+    @test bound_tsirelson(bc_cg, (2, 2, 3, 3), "1 + A B")[1] ≈ cos(π / 12)^2 rtol = 1e-7
     scenario = (2, 3, 3, 2)
     rand_cg = tensor_collinsgisin(randn(scenario))
-    q, behaviour = tsirelson_bound(rand_cg, scenario, "1 + A B")
+    q, behaviour = bound_tsirelson(rand_cg, scenario, "1 + A B")
     @test q ≈ dot(rand_cg, behaviour)
     cglmp_cg = tensor_collinsgisin(game_cglmp())
-    @test tsirelson_bound(cglmp_cg, (3, 3, 2, 2), "1 + A B")[1] ≈ (15 + sqrt(33)) / 24 rtol = 1.0e-7
+    @test bound_tsirelson(cglmp_cg, (3, 3, 2, 2), "1 + A B")[1] ≈ (15 + sqrt(33)) / 24 rtol = 1.0e-7
     gyni_cg = tensor_collinsgisin(game_gyni())
-    @test tsirelson_bound(gyni_cg, (2, 2, 2, 2, 2, 2), 3)[1] ≈ 0.25 rtol = 1e-6
+    @test bound_tsirelson(gyni_cg, (2, 2, 2, 2, 2, 2), 3)[1] ≈ 0.25 rtol = 1e-6
     Śliwa18 = [
         0 0 0; 1 1 0; 1 1 0;;;
         0 -2 0; 1 0 1; 1 0 -1;;;
         0 0 2; 0 1 -1; 0 -1 -1
     ]
-    @test tsirelson_bound(Śliwa18, 2)[1] ≈ 2 * (7 - sqrt(17)) rtol = 1e-7
+    @test bound_tsirelson(Śliwa18, 2)[1] ≈ 2 * (7 - sqrt(17)) rtol = 1e-7
 end
 
-@testset "signalling_bound      " begin
+@testset "bound_signalling      " begin
     M = randn(2,3,4,5)
     res = 0.0
     for x ∈ CartesianIndices(size(M)[3:4])
         res += maximum(M[:, :, x])
     end
-    @test res == signalling_bound(M)
-    @test signalling_bound(game_chsh(Int)) === 4
+    @test res == bound_signalling(M)
+    @test bound_signalling(game_chsh(Int)) === 4
 end
 
-@testset "nosignalling_bound    " begin
+@testset "bound_nosignalling    " begin
     for T ∈ (Float64, Float64x2)
-        @test nosignalling_bound(tensor_collinsgisin(game_gyni(T, 3)), ntuple(_ -> 2, 6)) ≈ 1/3 atol = 1e-8
-        @test nosignalling_bound(tensor_collinsgisin(game_gyni(T, 4)), ntuple(_ -> 2, 8))  ≈ 1/6 atol = 1e-8
-        @test nosignalling_bound(tensor_collinsgisin(game_gyni(T, 5)), ntuple(_ -> 2, 10))  ≈ 1/11 atol = 1e-8
+        @test bound_nosignalling(tensor_collinsgisin(game_gyni(T, 3)), ntuple(_ -> 2, 6)) ≈ 1/3 atol = 1e-8
+        @test bound_nosignalling(tensor_collinsgisin(game_gyni(T, 4)), ntuple(_ -> 2, 8))  ≈ 1/6 atol = 1e-8
+        @test bound_nosignalling(tensor_collinsgisin(game_gyni(T, 5)), ntuple(_ -> 2, 10))  ≈ 1/11 atol = 1e-8
     end
 end
 

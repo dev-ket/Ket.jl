@@ -109,10 +109,10 @@ game_inn22
 game_gyni
 game_mermin
 game_grandjean
-local_bound
-tsirelson_bound
-nosignalling_bound
-signalling_bound
+bound_local
+bound_tsirelson
+bound_nosignalling
+bound_signalling
 seesaw
 tensor_probability
 tensor_collinsgisin
