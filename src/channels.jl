@@ -24,10 +24,10 @@ function applymap(K::Vector{<:AbstractMatrix{T}}, M::AbstractMatrix{S}; dual::Bo
     end
     TS = typeof(K[1][1] * M[1])
     if all(SA.issparse.(K)) && SA.issparse(M)
-        temp = SA.spzeros(TS, dout, din)
+        temp = dual ? SA.spzeros(TS, din, dout) : SA.spzeros(TS, dout, din)
         result = SA.spzeros(TS, dout, dout)
     else
-        temp = Matrix{TS}(undef, dout, din)
+        temp = dual ? Matrix{TS}(undef, din, dout) : Matrix{TS}(undef, dout, din)
         result = Matrix{TS}(undef, dout, dout)
     end
     applymap!(result, K, M, temp; dual)
@@ -41,6 +41,7 @@ export applymap
 Applies the CP map given by the Kraus operators `K` to the matrix `M` without allocating or wrapping.
 If `dual` == true applies instead the dual map.
 `result` and `temp` must be matrices of size `dout × dout` and `dout × din`, where `dout, din == size(K[1])`.
+If `dual` == true `temp` must have size `din × dout` instead.
 """
 function applymap!(result::AbstractMatrix, K::Vector{<:AbstractMatrix}, M::AbstractMatrix, temp::AbstractMatrix; dual::Bool=false)
     if !dual
@@ -51,11 +52,11 @@ function applymap!(result::AbstractMatrix, K::Vector{<:AbstractMatrix}, M::Abstr
             mul!(result, temp, K[i]', true, true)
         end
     else
-        mul!(temp, K[1]', M)
-        mul!(result, temp, K[1])
+        mul!(temp, M, K[1])
+        mul!(result, K[1]', temp)
         for i ∈ 2:length(K)
-            mul!(temp, K[i]', M)
-            mul!(result, temp, K[i], true, true)
+            mul!(temp, M, K[i])
+            mul!(result, K[i]', temp, true, true)
         end
     end
     return result
