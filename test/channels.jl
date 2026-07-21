@@ -43,7 +43,11 @@
         @test applymap_loss(M3, p) ≈ applymap(K, M3)
         din, dout = 2, 3
         K = [randn(T, dout, din) for _ ∈ 1:3]
+        Kd = [Ki' for Ki ∈ K]
+        @test applymap(K, ρ) ≈ applymap(Kd, ρ; dual=true)
         Φ = choi(K)
+        Φd = choi(Kd)
+        @test applymap(Φ, ρ) ≈ applymap(Φd, ρ; dual=true)
         @test applymap(K, ρ) ≈ applymap(Φ, ρ)
         @test diamond_norm(K) ≈ diamond_norm(Φ, [din, dout]) atol = 1.0e-8 rtol = sqrt(_rtol(T))
         Λ(x) = sum(Ki * x * Ki' for Ki ∈ K)

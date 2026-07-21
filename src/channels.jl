@@ -11,12 +11,17 @@ function _wrapper_applymap(M::AbstractMatrix{T}, ::Type{mapT}) where {T,mapT}
 end
 
 """
-    applymap(K::Vector{<:AbstractMatrix}, M::AbstractMatrix)
+    applymap(K::Vector{<:AbstractMatrix}, M::AbstractMatrix; dual::Bool=false)
 
-Applies the CP map given by the Kraus operators `K` to the matrix `M`. Preserves sparsity.
+Applies the CP map given by the Kraus operators `K` to the matrix `M`.
+If `dual` == true applies instead the dual map. Preserves sparsity.
 """
-function applymap(K::Vector{<:AbstractMatrix{T}}, M::AbstractMatrix{S}) where {T,S}
-    dout, din = size(K[1])
+function applymap(K::Vector{<:AbstractMatrix{T}}, M::AbstractMatrix{S}; dual::Bool=false) where {T,S}
+    if !dual
+        dout, din = size(K[1])
+    else
+        din, dout = size(K[1])
+    end
     TS = typeof(K[1][1] * M[1])
     if all(SA.issparse.(K)) && SA.issparse(M)
         temp = SA.spzeros(TS, dout, din)
@@ -25,23 +30,33 @@ function applymap(K::Vector{<:AbstractMatrix{T}}, M::AbstractMatrix{S}) where {T
         temp = Matrix{TS}(undef, dout, din)
         result = Matrix{TS}(undef, dout, dout)
     end
-    applymap!(result, K, M, temp)
+    applymap!(result, K, M, temp; dual)
     return _wrapper_applymap(M, T)(result)
 end
 export applymap
 
 """
-    applymap!(result::AbstractMatrix, K::Vector{<:AbstractMatrix}, M::AbstractMatrix, temp::AbstractMatrix)
+    applymap!(result::AbstractMatrix, K::Vector{<:AbstractMatrix}, M::AbstractMatrix, temp::AbstractMatrix; dual::Bool=false)
 
-Applies the CP map given by the Kraus operators `K` to the matrix `M` without allocating or wrapping. `result` and `temp` must be
-matrices of size `dout × dout` and `dout × din`, where `dout, din == size(K[1])`.
+Applies the CP map given by the Kraus operators `K` to the matrix `M` without allocating or wrapping.
+If `dual` == true applies instead the dual map.
+`result` and `temp` must be matrices of size `dout × dout` and `dout × din`, where `dout, din == size(K[1])`.
 """
-function applymap!(result::AbstractMatrix, K::Vector{<:AbstractMatrix}, M::AbstractMatrix, temp::AbstractMatrix)
-    mul!(temp, K[1], M)
-    mul!(result, temp, K[1]')
-    for i ∈ 2:length(K)
-        mul!(temp, K[i], M)
-        mul!(result, temp, K[i]', true, true)
+function applymap!(result::AbstractMatrix, K::Vector{<:AbstractMatrix}, M::AbstractMatrix, temp::AbstractMatrix; dual::Bool=false)
+    if !dual
+        mul!(temp, K[1], M)
+        mul!(result, temp, K[1]')
+        for i ∈ 2:length(K)
+            mul!(temp, K[i], M)
+            mul!(result, temp, K[i]', true, true)
+        end
+    else
+        mul!(temp, K[1]', M)
+        mul!(result, temp, K[1])
+        for i ∈ 2:length(K)
+            mul!(temp, K[i]', M)
+            mul!(result, temp, K[i], true, true)
+        end
     end
     return result
 end
@@ -50,9 +65,9 @@ export applymap!
 """
     applymap(Φ::AbstractMatrix, M::AbstractMatrix)
 
-Applies the CP map given by the Choi-Jamiołkowski operator `Φ` to the matrix `M`. Preserves sparsity.
+Applies the CP map given by the Choi-Jamiołkowski operator `Φ` to the matrix `M`. If `dual` == true applies instead the dual map. Preserves sparsity.
 """
-function applymap(Φ::AbstractMatrix{T}, M::AbstractMatrix{S}) where {T,S}
+function applymap(Φ::AbstractMatrix{T}, M::AbstractMatrix{S}; dual::Bool=false) where {T,S}
     din = checksquare(M)
     dtotal = checksquare(Φ)
     dout = dtotal ÷ din
@@ -63,27 +78,36 @@ function applymap(Φ::AbstractMatrix{T}, M::AbstractMatrix{S}) where {T,S}
     else
         result = Matrix{TS}(undef, dout, dout)
     end
-    applymap!(result, Φ, M)
+    applymap!(result, Φ, M; dual)
     return _wrapper_applymap(M, T)(result)
 end
 
 @doc """
      applymap!(result::AbstractMatrix, Φ::AbstractMatrix, M::AbstractMatrix)
 
-Applies the CP map given by the Choi-Jamiołkowski operator `Φ` to the matrix `M` without allocating or wrapping. In the symmetric or Hermitian cases only the upper triangular is computed. `result` must be a matrix of size `dout × dout`,  where `size(M, 1) * dout == size(Φ, 1)`.
-""" applymap!(result::AbstractMatrix, Φ::AbstractMatrix, M::AbstractMatrix)
+Applies the CP map given by the Choi-Jamiołkowski operator `Φ` to the matrix `M` without allocating or wrapping. If `dual` == true applies instead the dual map. In the symmetric or Hermitian cases only the upper triangular is computed. `result` must be a matrix of size `dout × dout`,  where `size(M, 1) * dout == size(Φ, 1)`.
+""" applymap!(result::AbstractMatrix, Φ::AbstractMatrix, M::AbstractMatrix; dual::Bool=false)
 
 for (matrixtype, limit) ∈ ((:AbstractMatrix, :dout), (:Symmetric, :j), (:Hermitian, :j))
     @eval begin
-        function applymap!(result::AbstractMatrix, Φ::AbstractMatrix, M::$matrixtype)
+        function applymap!(result::AbstractMatrix, Φ::AbstractMatrix, M::$matrixtype; dual::Bool=false)
             din = checksquare(M)
             dtotal = checksquare(Φ)
             dout = dtotal ÷ din
             @assert dtotal == din * dout
-            @inbounds for j ∈ 1:dout, i ∈ 1:$limit
-                result[i, j] = 0
-                for l ∈ 1:din, k ∈ 1:din
-                    result[i, j] += M[k, l] * Φ[(k-1)*dout+i, (l-1)*dout+j]
+            if !dual
+                @inbounds for j ∈ 1:dout, i ∈ 1:$limit
+                    result[i, j] = 0
+                    for l ∈ 1:din, k ∈ 1:din
+                        result[i, j] += M[k, l] * Φ[(k-1)*dout+i, (l-1)*dout+j]
+                    end
+                end
+            else
+                @inbounds for j ∈ 1:dout, i ∈ 1:$limit
+                    result[i, j] = 0
+                    for l ∈ 1:din, k ∈ 1:din
+                        result[i, j] += M[k, l] * Φ[(j-1)*din+l, (i-1)*din+k]
+                    end
                 end
             end
             return result
