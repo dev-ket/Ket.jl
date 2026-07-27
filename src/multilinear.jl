@@ -348,14 +348,14 @@ end
 export trace_replace
 
 """
-    applymap_subsystem(op::AbstractMatrix, ψ::AbstractVector, subsystems::Union{Integer, AbstractVector{<:Integer}}, dims::AbstractVector = _equal_sizes(ρ))
+    applymap_subsystem(ψ::AbstractVector, op::AbstractMatrix, subsystems::Union{Integer, AbstractVector{<:Integer}}, dims::AbstractVector = _equal_sizes(ρ))
 
-Applies the operator `op` to the subsytem of `ρ` identified by `subsystems`, resulting in (op ⊗ I) * ψ.
+Applies the operator `op` to the subsytem of `ψ` identified by `subsystems`, resulting in (op ⊗ I) * ψ.
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """
 function applymap_subsystem(
-    op::AbstractMatrix,
     ψ::AbstractVector,
+    op::AbstractMatrix,
     subsystems::Union{Integer,AbstractVector{<:Integer}},
     dims::AbstractVector{<:Integer} = _equal_sizes(ψ)
 )
@@ -406,20 +406,20 @@ end
 export applymap_subsystem
 
 """
-    applymap_subsystem(K::AbstractVector{<:AbstractMatrix}, ρ::AbstractMatrix, subsystems::Union{Integer, AbstractVector{<:Integer}}, dims::AbstractVector = _equal_sizes(ρ))
+    applymap_subsystem(ρ::AbstractMatrix, K::AbstractVector{<:AbstractMatrix}, subsystems::Union{Integer, AbstractVector{<:Integer}}, dims::AbstractVector = _equal_sizes(ρ))
 
 Applies the Kraus operators in `K` to the subsytems of `ρ` identified by `subsystems`, resulting in ∑ᵢ(K[i] ⊗ I) * ρ * (K[i]' ⊗ I).
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """
 function applymap_subsystem(
-    K::AbstractVector{<:AbstractMatrix},
     ρ::AbstractMatrix,
+    K::AbstractVector{<:AbstractMatrix},
     subsystems::Union{Integer,AbstractVector{<:Integer}},
     dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
 )
     isa(subsystems, Integer) && (subsystems = [subsystems])
     isempty(subsystems) && throw(ArgumentError("Subsystems vector must not be empty"))
-    subsystems == 1:length(dims) && return applymap(K, ρ)
+    subsystems == 1:length(dims) && return applymap(ρ, K)
     square_kraus_ops = all([size(Ki, 1) == size(Ki, 2) for Ki ∈ K])
     contiguous_subsystems = subsystems == subsystems[1]:subsystems[end]
     if (!contiguous_subsystems && !square_kraus_ops)
@@ -482,18 +482,18 @@ function applymap_subsystem(
     return _wrapper_applymap(ρ, Y_type)(result)
 end
 """
-    applymap_subsystem(K::AbstractVector{<:AbstractSparseArray}, ρ::AbstractSparseArray, subsystems::Union{Integer, AbstractVector{<:Integer}}, dims::AbstractVector = _equal_sizes(ρ))
+    applymap_subsystem(ρ::AbstractSparseArray, K::AbstractVector{<:AbstractSparseArray}, subsystems::Union{Integer, AbstractVector{<:Integer}}, dims::AbstractVector = _equal_sizes(ρ))
 
 Applies the sparse Kraus operators in `K` to the subsytems of a sparse matrix `ρ` identified by `subsystems`, resulting in ∑ᵢ(K[i] ⊗ I) * ρ * (K[i]' ⊗ I).
 If the argument `dims` is omitted two equally-sized subsystems are assumed.
 """
 function applymap_subsystem(
-    K::AbstractVector{<:SA.AbstractSparseArray},
     ρ::Union{
         SA.AbstractSparseArray,
         Hermitian{<:Any,<:SA.AbstractSparseArray},
         Symmetric{<:Any,<:SA.AbstractSparseArray}
     },
+    K::AbstractVector{<:SA.AbstractSparseArray},
     subsystems::Union{Integer,AbstractVector{<:Integer}},
     dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
 )
