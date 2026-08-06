@@ -321,6 +321,7 @@ function party_monomials(MonomialType::Type{Monomial{N,OperatorSequence{M,Projec
     return monomials
 end
 
+# WARNING: vectors in `additional` are set to 0 in the process
 function generate_sequences(
     MonomialType::Type{Monomial{N,OperatorSequence{M,O}}},
     outs::NTuple{N,<:Integer},
@@ -333,6 +334,7 @@ function generate_sequences(
     for party ∈ 1:N
         push!(mvec, party_monomials(MonomialType, party, outs, ins)...)
     end
+    len1 = length(mvec)
     ## higher
     levelrange = [2:length(mvec)]
     for k ∈ 1:level-1
@@ -378,6 +380,9 @@ function generate_sequences(
                     push!(mvec, m)
                 end
             end
+        end
+        if level == 0
+            deleteat!(mvec, 2:len1)
         end
         return mvec
     end
