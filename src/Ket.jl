@@ -23,7 +23,6 @@ const MOI = JuMP.MOI
 Alias for `Vector{Hermitian{T,Matrix{T}}}`
 """
 const Measurement{T} = Vector{Hermitian{T,Matrix{T}}}
-export Measurement
 
 #extract from T the kind of float to be used in conic solvers
 _solver_type(::Type{T}) where {T<:Number} = float(real(T))
