@@ -86,7 +86,6 @@ incompatibility_robustness
 ## Measurements
 
 ```@docs
-Measurement
 sic_povm
 issic
 ispovm
