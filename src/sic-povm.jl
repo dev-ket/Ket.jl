@@ -22,11 +22,11 @@ sic_povm(d::Integer) = sic_povm(ComplexF64, d)
 export sic_povm
 
 """
-    test_sic(vecs)
+    issic(vecs)
 
 Checks if `vecs` is a vector of `d²` vectors |vᵢ⟩ such that |vᵢ⟩⟨vᵢ| forms a SIC-POVM of dimension `d`.
 """
-function test_sic(vecs::Vector{Vector{T}}) where {T<:Number}
+function issic(vecs::Vector{Vector{T}}) where {T<:Number}
     d = length(vecs[1])
     length(vecs) == d^2 || throw(ArgumentError("Number of vectors must be d² = $(d^2), got $(length(vecs))."))
     normalization = inv(T(d^2))
@@ -44,7 +44,7 @@ function test_sic(vecs::Vector{Vector{T}}) where {T<:Number}
     end
     return true
 end
-export test_sic
+export issic
 
 """
     _fiducial_WH([T=ComplexF64,] d::Integer)

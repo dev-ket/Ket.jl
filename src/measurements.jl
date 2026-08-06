@@ -108,11 +108,11 @@ end
 mub(d::Integer, k::Integer, s::Integer = 1) = mub(ComplexF64, d, k, s)
 
 """
-    test_mub(B::Vector{Matrix{<:Number}})
+    ismub(B::Vector{Matrix{<:Number}})
 
 Checks if the input bases are mutually unbiased.
 """
-function test_mub(B::Vector{Matrix{T}}) where {T<:Number}
+function ismub(B::Vector{Matrix{T}}) where {T<:Number}
     d = checksquare(B[1])
     k = length(B)
     inv_d = inv(T(d))
@@ -130,7 +130,7 @@ function test_mub(B::Vector{Matrix{T}}) where {T<:Number}
     end
     return true
 end
-export test_mub
+export ismub
 
 """
     povm(B::Vector{<:AbstractMatrix{T}})
@@ -167,11 +167,11 @@ end
 _measurements_parameters(Aa::Measurement) = _measurements_parameters([Aa])
 
 """
-    test_povm(A::Vector{<:AbstractMatrix{T}})
+    ispovm(A::Vector{<:AbstractMatrix{T}})
 
 Checks if the measurement defined by A is valid (hermitian, semi-definite positive, and normalized).
 """
-function test_povm(E::Vector{<:AbstractMatrix{T}}) where {T<:Number}
+function ispovm(E::Vector{<:AbstractMatrix{T}}) where {T<:Number}
     d = checksquare(E[1])
     !all(ishermitian.(E)) && return false
     !(sum(E) ≈ I(d)) && return false
@@ -180,7 +180,7 @@ function test_povm(E::Vector{<:AbstractMatrix{T}}) where {T<:Number}
     end
     return true
 end
-export test_povm
+export ispovm
 
 """
     dilate_povm(vecs::Vector{Vector{T}})

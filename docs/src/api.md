@@ -88,13 +88,13 @@ incompatibility_robustness
 ```@docs
 Measurement
 sic_povm
-test_sic
-test_povm
+issic
+ispovm
 dilate_povm
 povm
 povm_dichotomic
 mub
-test_mub
+ismub
 discrimination_min_error
 pretty_good_measurement
 ```
