@@ -36,7 +36,7 @@ function seesaw(
     n_trials::Integer = 1;
     verbose = false,
     solver = Hypatia.Optimizer{_solver_type(T)},
-    optimizer_attributes = [],
+    solver_attributes = Pair[],
     method::Symbol = :standard
 ) where {T<:Real,N}
     @assert length(scenario) == 2N
@@ -51,11 +51,11 @@ function seesaw(
 
     for _ ∈ 1:n_trials
         if method == :assemblage
-            ω, ψ, temp_measurements = _seesaw_assemblage(CG, scenario, d, minimumincrease, maxiter; verbose, solver, optimizer_attributes)
+            ω, ψ, temp_measurements = _seesaw_assemblage(CG, scenario, d, minimumincrease, maxiter; verbose, solver, solver_attributes)
         elseif binary_outputs
             ω, ψ, temp_measurements = _seesaw_eigenvalue(CG, d, minimumincrease, maxiter)
         else
-            ω, ψ, temp_measurements = _seesaw_standard(CG, scenario, d, minimumincrease, maxiter; verbose, solver, optimizer_attributes)
+            ω, ψ, temp_measurements = _seesaw_standard(CG, scenario, d, minimumincrease, maxiter; verbose, solver, solver_attributes)
         end
         if ω > ω0
             ω0, ψ0, all_measurements = ω, ψ, temp_measurements
@@ -130,7 +130,7 @@ function _optimize_assemblage(
     all_povms;
     verbose = false,
     solver = Hypatia.Optimizer{R},
-    optimizer_attributes = []
+    solver_attributes = Pair[]
 ) where {R<:AbstractFloat,N}
     outs = scenario[1:N]
     ins = scenario[N+1:2N]
@@ -149,7 +149,7 @@ function _optimize_assemblage(
     ω = _compute_value_assemblage(CG, scenario, ρxa, ρ_rest, all_povms)
     JuMP.@objective(model, Max, ω)
 
-    _set_optimizer(model, solver, optimizer_attributes, verbose)
+    _set_optimizer(model, solver, solver_attributes, verbose)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     value_ρxa = [[JuMP.value(ρxa[x][a]) for a ∈ 1:outs[1]-1] for x ∈ 1:ins[1]]
@@ -201,7 +201,7 @@ function _solve_povm_sdp(
     d;
     verbose = false,
     solver = Hypatia.Optimizer{R},
-    optimizer_attributes = []
+    solver_attributes = Pair[]
 ) where {R<:AbstractFloat}
     model = JuMP.GenericModel{R}()
     Mk = [[JuMP.@variable(model, [1:d, 1:d] ∈ JuMP.HermitianPSDCone()) for _ ∈ 1:ok-1] for _ ∈ 1:ik]
@@ -213,7 +213,7 @@ function _solve_povm_sdp(
         JuMP.add_to_expression!(ω, 1, real(dot(Γ[xk][ak], Mk[xk][ak])))
     end
     JuMP.@objective(model, Max, ω)
-    _set_optimizer(model, solver, optimizer_attributes, verbose)
+    _set_optimizer(model, solver, solver_attributes, verbose)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     value_Mk = [[JuMP.value(Mk[xk][ak]) for ak ∈ 1:ok-1] for xk ∈ 1:ik]

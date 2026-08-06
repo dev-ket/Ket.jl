@@ -55,7 +55,7 @@ function entanglement_entropy(
     base = 2,
     verbose = false,
     solver = Hypatia.Optimizer{_solver_type(T)},
-    optimizer_attributes = []
+    solver_attributes = Pair[]
 ) where {T}
     ishermitian(ρ) || throw(ArgumentError("State needs to be Hermitian"))
     length(dims) != 2 && throw(ArgumentError("Two subsystem sizes must be specified."))
@@ -79,7 +79,7 @@ function entanglement_entropy(
     JuMP.@variable(model, h)
     JuMP.@objective(model, Min, h / log(Rs(base)))
     JuMP.@constraint(model, [h; σvec; ρvec] ∈ Hypatia.EpiTrRelEntropyTriCone{Rs,Ts}(1 + 2 * vec_dim))
-    _set_optimizer(model, solver, optimizer_attributes, verbose)
+    _set_optimizer(model, solver, solver_attributes, verbose)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     return JuMP.objective_value(model), JuMP.value(σ)
@@ -169,7 +169,7 @@ function schmidt_number(
     ppt::Bool = true,
     verbose::Bool = false,
     solver = Hypatia.Optimizer{_solver_type(T)},
-    optimizer_attributes = []
+    solver_attributes = Pair[]
 ) where {T<:Number}
     ishermitian(ρ) || throw(ArgumentError("State must be Hermitian"))
     s ≥ 1 || throw(ArgumentError("Schmidt number must be ≥ 1"))
@@ -193,7 +193,7 @@ function schmidt_number(
     _dps_constraints!(model, noisy_state, lifted_dims, n; schmidt = true, ppt, is_complex, isometry = V)
     JuMP.@constraint(model, tr(model[:symmetric_meat]) == s * (tr(ρ) + λ * dρ))
 
-    _set_optimizer(model, solver, optimizer_attributes, verbose)
+    _set_optimizer(model, solver, solver_attributes, verbose)
     JuMP.optimize!(model)
 
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
@@ -226,7 +226,8 @@ function entanglement_robustness(
     inner::Bool = false,
     verbose::Bool = false,
     dualize::Bool = false,
-    solver = Hypatia.Optimizer{_solver_type(T)}
+    solver = Hypatia.Optimizer{_solver_type(T)},
+    solver_attributes = Pair[]
 ) where {T<:Number}
     ishermitian(ρ) || throw(ArgumentError("State must be Hermitian"))
     @assert noise ∈ (:white, :separable, :general)
@@ -252,8 +253,8 @@ function entanglement_robustness(
     end
     _sep!(model, noisy_state, dims, n; witness = true, ppt, is_complex)
 
-    dualize && solver = Dualization.dual_optimizer(solver; coefficient_type = _solver_type(T))
-    _set_optimizer(model, solver, optimizer_attributes, verbose)
+    dualize && (solver = Dualization.dual_optimizer(solver; coefficient_type = _solver_type(T)))
+    _set_optimizer(model, solver, solver_attributes, verbose)
     JuMP.optimize!(model)
 
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
@@ -422,12 +423,12 @@ function _fully_decomposable_witness_constraints!(model, dims, W)
     end
 end
 
-function _minimize_dotprod!(model, ρ, W, solver, optimizer_attributes, verbose)
+function _minimize_dotprod!(model, ρ, W, solver, solver_attributes, verbose)
     JuMP.@variable(model, λ)
     JuMP.@constraint(model, real(dot(ρ, W)) ≤ λ)
     JuMP.@objective(model, Min, λ)
 
-    _set_optimizer(model, solver, optimizer_attributes, verbose)
+    _set_optimizer(model, solver, solver_attributes, verbose)
     JuMP.optimize!(model)
 end
 
@@ -450,7 +451,7 @@ function ppt_mixture(
     dims::AbstractVector;
     verbose::Bool = false,
     solver = Hypatia.Optimizer{_solver_type(T)},
-    optimizer_attributes = []
+    solver_attributes = Pair[]
 ) where {T<:Number}
     dim = checksquare(ρ)
     prod(dims) == dim || throw(ArgumentError("State dimension does not agree with local dimensions."))
@@ -460,7 +461,7 @@ function ppt_mixture(
     JuMP.@variable(model, W[1:dim, 1:dim], Hermitian)
 
     _fully_decomposable_witness_constraints!(model, dims, W)
-    _minimize_dotprod!(model, ρ, W, solver, optimizer_attributes, verbose)
+    _minimize_dotprod!(model, ρ, W, solver, solver_attributes, verbose)
 
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     Wout = JuMP.objective_value(model) ≤ 0 ? JuMP.value(W) : Hermitian(zeros(_solver_type(T), size(W)))
@@ -496,7 +497,7 @@ function ppt_mixture(
     obs::AbstractVector{<:AbstractMatrix};
     verbose::Bool = false,
     solver = Hypatia.Optimizer{_solver_type(T)},
-    optimizer_attributes = []
+    solver_attributes = Pair[]
 ) where {T<:Number}
     dim = checksquare(ρ)
     prod(dims) == dim || throw(ArgumentError("State dimension does not agree with local dimensions."))
@@ -507,7 +508,7 @@ function ppt_mixture(
     W = sum(w_coeffs[i] * obs[i] for i ∈ eachindex(w_coeffs))
 
     _fully_decomposable_witness_constraints!(model, dims, W)
-    _minimize_dotprod!(model, ρ, W, solver, optimizer_attributes, verbose)
+    _minimize_dotprod!(model, ρ, W, solver, solver_attributes, verbose)
 
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     w_coeffs_out = JuMP.objective_value(model) ≤ 0 ? JuMP.value(w_coeffs) : zeros(_solver_type(T), size(w_coeffs))

@@ -28,11 +28,9 @@ const Measurement{T} = Vector{Hermitian{T,Matrix{T}}}
 _solver_type(::Type{T}) where {T<:Number} = float(real(T))
 
 # unified function for solver choice
-function _set_optimizer(model, solver, optimizer_attributes, verbose)
+function _set_optimizer(model, solver, solver_attributes, verbose)
     JuMP.set_optimizer(model, solver)
-    for (name, value) in pairs(optimizer_attributes)
-        JuMP.set_optimizer_attribute(model, name, value)
-    end
+    JuMP.set_attributes(model, solver_attributes...)
     verbose || JuMP.set_silent(model)
 end
 

@@ -388,7 +388,7 @@ function diamond_norm(
     dims::AbstractVector;
     verbose = false,
     solver = Hypatia.Optimizer{_solver_type(T)},
-    optimizer_attributes = [],
+    solver_attributes = Pair[],
 ) where {T}
     ishermitian(J) || throw(ArgumentError("Supermap needs to be Hermitian"))
 
@@ -405,7 +405,7 @@ function diamond_norm(
     JuMP.@constraint(model, tr(σ) == 1)
     JuMP.@objective(model, Max, real(dot(J, Y)))
 
-    _set_optimizer(model, solver, optimizer_attributes, verbose)
+    _set_optimizer(model, solver, solver_attributes, verbose)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     return JuMP.objective_value(model)

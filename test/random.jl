@@ -47,12 +47,12 @@
     @testset "POVM" begin
         for R ∈ (Float64, Float64x2), T ∈ (R, Complex{R})
             E = random_povm(T, 2, 3)
-            @test test_povm(E)
+            @test ispovm(E)
             for i ∈ 1:length(E)
                 @test rank(E[i]; rtol = _rtol(T)) == 2
             end
             E = random_povm(T, 2, 3, 1)
-            @test test_povm(E)
+            @test ispovm(E)
             for i ∈ 1:length(E)
                 @test rank(E[i]; rtol = _rtol(T)) == 1
             end

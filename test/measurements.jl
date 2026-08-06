@@ -12,26 +12,26 @@
     end
     @testset "SIC POVMs" begin
         for T ∈ (Float64, Float64x2), d ∈ 1:9
-            @test test_sic(sic_povm(Complex{T}, d))
+            @test issic(sic_povm(Complex{T}, d))
         end
     end
     @testset "MUBs" begin
         for T ∈ (Int8, Int64, BigInt)
-            @test test_mub(mub(T(6)))
+            @test ismub(mub(T(6)))
         end
         for R ∈ (Float64, Float64x2)
             T = Complex{R}
-            @test test_mub(mub(T, 2))
-            @test test_mub(mub(T, 3))
-            @test test_mub(mub(T, 4))
-            @test test_mub(mub(T, 6))
-            @test test_mub(mub(T, 9))
+            @test ismub(mub(T, 2))
+            @test ismub(mub(T, 3))
+            @test ismub(mub(T, 4))
+            @test ismub(mub(T, 6))
+            @test ismub(mub(T, 9))
         end
         for T ∈ (Int64, Int128, BigInt)
-            @test test_mub(broadcast.(Rational{T}, mub(Cyc{Rational{T}}, 4, 2)))
-            @test test_mub(broadcast.(Complex{Rational{T}}, mub(Cyc{Rational{T}}, 4)))
+            @test ismub(broadcast.(Rational{T}, mub(Cyc{Rational{T}}, 4, 2)))
+            @test ismub(broadcast.(Complex{Rational{T}}, mub(Cyc{Rational{T}}, 4)))
         end
-        @test test_mub(mub(Cyc{Rational{BigInt}}, 5, 5, 7)) # can access beyond the number of combinations
+        @test ismub(mub(Cyc{Rational{BigInt}}, 5, 5, 7)) # can access beyond the number of combinations
     end
 
     @testset "State Discrimination" begin
@@ -55,7 +55,7 @@
             N = 3
             ρ = [random_state(T,N) for i in 1:N]
             E = pretty_good_measurement(ρ)
-            @test test_povm(E)
+            @test ispovm(E)
         end
     end
 end

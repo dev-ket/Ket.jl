@@ -16,7 +16,7 @@ function bound_tsirelson(
     verbose::Bool = false,
     dualize::Bool = false,
     solver = Hypatia.Optimizer{_solver_type(T)},
-    optimizer_attributes = []
+    solver_attributes = Pair[]
 ) where {T<:Number,N}
     @assert length(scenario) == 2N
     CG = convert(AbstractArray{_solver_type(T)}, CG)
@@ -24,16 +24,16 @@ function bound_tsirelson(
     level_int, additional = Moment.parse_level(Val(N), level)
     if N == 2 && level_int == 1
         if isempty(additional)
-            return _bound_tsirelson_manual(CG, scenario, false; verbose, dualize = !dualize, solver)
+            return _bound_tsirelson_manual(CG, scenario, false; verbose, dualize = !dualize, solver, solver_attributes)
         elseif additional == [[1, 1]] && max(scenario[3], scenario[4]) ≥ 3 #heuristic for when it's faster
-            return _bound_tsirelson_manual(CG, scenario, true; verbose, dualize = !dualize, solver)
+            return _bound_tsirelson_manual(CG, scenario, true; verbose, dualize = !dualize, solver, solver_attributes)
         end
     end
     outs = scenario[1:N]
     ins = scenario[N+1:2N]
     max_length = 2 * max(level_int, maximum(length.(additional); init = 0))
     Q, behaviour =
-        _npa(CG, Moment.Projector, Val(max_length), outs, ins, level_int, additional; verbose, solver, dualize)
+        _npa(CG, Moment.Projector, Val(max_length), outs, ins, level_int, additional; verbose, solver, solver_attributes, dualize)
     return Q, behaviour
 end
 export bound_tsirelson
@@ -52,15 +52,15 @@ function bound_tsirelson(
     verbose::Bool = false,
     dualize::Bool = false,
     solver = Hypatia.Optimizer{_solver_type(T)},
-    optimizer_attributes = []
+    solver_attributes = Pair[]
 ) where {T<:Number,N}
     FC = _solver_type(T).(FC)
     level_int, additional = Moment.parse_level(Val(N), level)
     if N == 2 && level_int == 1
         if isempty(additional)
-            return _bound_tsirelson_manual(FC, false; verbose, dualize = !dualize, solver)
+            return _bound_tsirelson_manual(FC, false; verbose, dualize = !dualize, solver, solver_attributes)
         elseif additional == [[1, 1]]
-            return _bound_tsirelson_manual(FC, true; verbose, dualize = !dualize, solver)
+            return _bound_tsirelson_manual(FC, true; verbose, dualize = !dualize, solver, solver_attributes)
         end
     end
     outs = ntuple(_ -> 2, Val(N))
@@ -68,7 +68,7 @@ function bound_tsirelson(
 
     max_length = 2 * max(level_int, maximum(length.(additional); init = 0))
     Q, behaviour =
-        _npa(FC, Moment.Observable, Val(max_length), outs, ins, level_int, additional; verbose, solver, dualize)
+        _npa(FC, Moment.Observable, Val(max_length), outs, ins, level_int, additional; verbose, solver, solver_attributes, dualize)
     return Q, behaviour
 end
 
@@ -82,6 +82,7 @@ function _npa(
     additional::Vector{Vector{Int}};
     verbose,
     solver,
+    solver_attributes,
     dualize
 ) where {T<:AbstractFloat,N,M,O<:Moment.Operator}
     model = JuMP.GenericModel{T}()
@@ -110,8 +111,8 @@ function _npa(
     end
     objective = dot(functional, behaviour)
     JuMP.@objective(model, Max, objective)
-    dualize && solver = Dualization.dual_optimizer(solver; coefficient_type = _solver_type(T))
-    _set_optimizer(model, solver, optimizer_attributes, verbose)
+    dualize && (solver = Dualization.dual_optimizer(solver; coefficient_type = _solver_type(T)))
+    _set_optimizer(model, solver, solver_attributes, verbose)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     return JuMP.objective_value(model)::T, JuMP.value(behaviour)::Array{T,N}
@@ -132,7 +133,8 @@ function _bound_tsirelson_manual(
     include_ab::Bool;
     verbose,
     dualize,
-    solver
+    solver,
+    solver_attributes
 ) where {T<:AbstractFloat}
     oa, ob, ia, ib = scenario
     alice_ops = ia * (oa - 1)
@@ -244,14 +246,21 @@ function _bound_tsirelson_manual(
 
     objective = dot(CG, behaviour)
     JuMP.@objective(model, Max, objective)
-    dualize && solver = Dualization.dual_optimizer(solver; coefficient_type = _solver_type(T))
-    _set_optimizer(model, solver, optimizer_attributes, verbose)
+    dualize && (solver = Dualization.dual_optimizer(solver; coefficient_type = _solver_type(T)))
+    _set_optimizer(model, solver, solver_attributes, verbose)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     return JuMP.objective_value(model)::T, JuMP.value(behaviour)::Matrix{T}
 end
 
-function _bound_tsirelson_manual(FC::Matrix{T}, include_ab::Bool; verbose, dualize, solver) where {T<:AbstractFloat}
+function _bound_tsirelson_manual(
+    FC::Matrix{T},
+    include_ab::Bool;
+    verbose,
+    dualize,
+    solver,
+    solver_attributes
+) where {T<:AbstractFloat}
     ia, ib = size(FC) .- 1
     dq1 = 1 + ia + ib
     dq1ab = dq1 + ia * ib
@@ -309,8 +318,8 @@ function _bound_tsirelson_manual(FC::Matrix{T}, include_ab::Bool; verbose, duali
 
     objective = dot(FC, behaviour)
     JuMP.@objective(model, Max, objective)
-    dualize && solver = Dualization.dual_optimizer(solver; coefficient_type = _solver_type(T))
-    _set_optimizer(model, solver, optimizer_attributes, verbose)
+    dualize && (solver = Dualization.dual_optimizer(solver; coefficient_type = _solver_type(T)))
+    _set_optimizer(model, solver, solver_attributes, verbose)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     return JuMP.objective_value(model)::T, JuMP.value(behaviour)::Matrix{T}

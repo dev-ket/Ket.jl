@@ -229,7 +229,7 @@ function discrimination_min_error(
     verbose = false,
     dualize = false,
     solver = Hypatia.Optimizer{_solver_type(T)},
-    optimizer_attributes = []
+    solver_attributes = Pair[]
 ) where {T}
     is_complex = T <: Complex
     psd_cone, wrapper, hermitian_space = _sdp_parameters(is_complex)
@@ -246,8 +246,8 @@ function discrimination_min_error(
 
     JuMP.@objective(model, Max, sum(q[i] * real(dot(ρ[i], E[i])) for i ∈ 1:N))
 
-    dualize && solver = Dualization.dual_optimizer(solver; coefficient_type = _solver_type(T))
-    _set_optimizer(model, solver, optimizer_attributes, verbose)
+    dualize && (solver = Dualization.dual_optimizer(solver; coefficient_type = _solver_type(T)))
+    _set_optimizer(model, solver, solver_attributes, verbose)
     JuMP.optimize!(model)
 
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)

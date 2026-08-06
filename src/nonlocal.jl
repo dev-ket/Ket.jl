@@ -588,7 +588,7 @@ function nonlocality_robustness(
     noise::Symbol = :white,
     verbose::Bool = false,
     solver = Hypatia.Optimizer{_solver_type(T)},
-    optimizer_attributes = []
+    solver_attributes = Pair[]
 ) where {T<:Real,N2}
     @assert noise ∈ (:white, :local, :general)
 
@@ -679,7 +679,7 @@ function nonlocality_robustness(
 
     JuMP.@objective(model, Min, t)
 
-    _set_optimizer(model, solver, optimizer_attributes, verbose)
+    _set_optimizer(model, solver, solver_attributes, verbose)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     return JuMP.objective_value(model)::stT
@@ -723,7 +723,7 @@ function bound_nosignalling(
     scenario::Tuple;
     verbose::Bool = false,
     solver = Hypatia.Optimizer{_solver_type(T)},
-    optimizer_attributes = []
+    solver_attributes = Pair[]
 ) where {T<:Real,N}
     outs = scenario[1:N]
     ins = scenario[N+1:2N]
@@ -736,7 +736,7 @@ function bound_nosignalling(
     P = tensor_probability(Pcg, scenario, true)
     JuMP.@constraint(model, P ≥ 0)
     JuMP.@objective(model, Max, dot(CG, Pcg))
-    _set_optimizer(model, solver, optimizer_attributes, verbose)
+    _set_optimizer(model, solver, solver_attributes, verbose)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     return JuMP.objective_value(model)::stT
