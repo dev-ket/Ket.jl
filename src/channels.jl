@@ -377,7 +377,7 @@ end
         J::AbstractMatrix,
         dims::AbstractVector;
         verbose::Bool = false,
-        solver = Hypatia.Optimizer{_solver_type(T)})
+        solver = Hypatia.Optimizer)
 
 Computes the diamond norm of the supermap `J` given in the Choi-Jamiołkowski representation, with subsystem dimensions `dims`.
 
@@ -387,7 +387,8 @@ function diamond_norm(
     J::AbstractMatrix{T},
     dims::AbstractVector;
     verbose = false,
-    solver = Hypatia.Optimizer{_solver_type(T)}
+    solver = Hypatia.Optimizer{_solver_type(T)},
+    optimizer_attributes = [],
 ) where {T}
     ishermitian(J) || throw(ArgumentError("Supermap needs to be Hermitian"))
 
@@ -404,8 +405,7 @@ function diamond_norm(
     JuMP.@constraint(model, tr(σ) == 1)
     JuMP.@objective(model, Max, real(dot(J, Y)))
 
-    JuMP.set_optimizer(model, solver)
-    !verbose && JuMP.set_silent(model)
+    _set_optimizer(model, solver, optimizer_attributes, verbose)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     return JuMP.objective_value(model)

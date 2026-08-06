@@ -228,7 +228,8 @@ function discrimination_min_error(
     q::Vector{<:Real} = fill(real(T)(1) / length(ρ), length(ρ));
     verbose = false,
     dualize = false,
-    solver = Hypatia.Optimizer{_solver_type(T)}
+    solver = Hypatia.Optimizer{_solver_type(T)},
+    optimizer_attributes = []
 ) where {T}
     is_complex = T <: Complex
     psd_cone, wrapper, hermitian_space = _sdp_parameters(is_complex)
@@ -245,12 +246,8 @@ function discrimination_min_error(
 
     JuMP.@objective(model, Max, sum(q[i] * real(dot(ρ[i], E[i])) for i ∈ 1:N))
 
-    if dualize
-        JuMP.set_optimizer(model, Dualization.dual_optimizer(solver; coefficient_type = _solver_type(T)))
-    else
-        JuMP.set_optimizer(model, solver)
-    end
-    !verbose && JuMP.set_silent(model)
+    dualize && solver = Dualization.dual_optimizer(solver; coefficient_type = _solver_type(T))
+    _set_optimizer(model, solver, optimizer_attributes, verbose)
     JuMP.optimize!(model)
 
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)

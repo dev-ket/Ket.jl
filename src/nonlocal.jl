@@ -577,7 +577,7 @@ function _tensor_correlation_collinsgisin(
 end
 
 """
-    nonlocality_robustness(FP::Array; noise::Symbol = :white, verbose::Bool = false, solver = Hypatia.Optimizer{_solver_type(T)})
+    nonlocality_robustness(FP::Array; noise::Symbol = :white, verbose::Bool = false, solver = Hypatia.Optimizer)
 
 Computes the nonlocality robustness of the behaviour `FP`. Argument `noise` indicates the kind of noise to be used: `:white` (default), `:local`, or `:general`.
 
@@ -587,7 +587,8 @@ function nonlocality_robustness(
     FP::Array{T,N2};
     noise::Symbol = :white,
     verbose::Bool = false,
-    solver = Hypatia.Optimizer{_solver_type(T)}
+    solver = Hypatia.Optimizer{_solver_type(T)},
+    optimizer_attributes = []
 ) where {T<:Real,N2}
     @assert noise ∈ (:white, :local, :general)
 
@@ -678,8 +679,7 @@ function nonlocality_robustness(
 
     JuMP.@objective(model, Min, t)
 
-    JuMP.set_optimizer(model, solver)
-    !verbose && JuMP.set_silent(model)
+    _set_optimizer(model, solver, optimizer_attributes, verbose)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     return JuMP.objective_value(model)::stT
@@ -711,7 +711,7 @@ end
 export bound_signalling
 
 """
-    bound_nosignalling(CG::Array{T,N}, scenario::Tuple; verbose::Bool = false, solver = Hypatia.Optimizer{_solver_type(T)})
+    bound_nosignalling(CG::Array{T,N}, scenario::Tuple; verbose::Bool = false, solver = Hypatia.Optimizer)
 
 Computes the no-signalling bound of a multipartite Bell functional `CG` written in Collins-Gisin notation.
 `scenario` is a tuple detailing the number of inputs and outputs, in the order (oa, ob, ..., ia, ib, ...).
@@ -722,7 +722,8 @@ function bound_nosignalling(
     CG::Array{T,N},
     scenario::Tuple;
     verbose::Bool = false,
-    solver = Hypatia.Optimizer{_solver_type(T)}
+    solver = Hypatia.Optimizer{_solver_type(T)},
+    optimizer_attributes = []
 ) where {T<:Real,N}
     outs = scenario[1:N]
     ins = scenario[N+1:2N]
@@ -735,8 +736,7 @@ function bound_nosignalling(
     P = tensor_probability(Pcg, scenario, true)
     JuMP.@constraint(model, P ≥ 0)
     JuMP.@objective(model, Max, dot(CG, Pcg))
-    JuMP.set_optimizer(model, solver)
-    !verbose && JuMP.set_silent(model)
+    _set_optimizer(model, solver, optimizer_attributes, verbose)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     return JuMP.objective_value(model)::stT

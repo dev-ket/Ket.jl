@@ -1,7 +1,7 @@
 import .Moment
 
 """
-    bound_tsirelson(CG::Array, scenario::Tuple, level; verbose::Bool = false, dualize::Bool = false, solver = Hypatia.Optimizer{_solver_type(T)})
+    bound_tsirelson(CG::Array, scenario::Tuple, level; verbose::Bool = false, dualize::Bool = false, solver = Hypatia.Optimizer)
 
 Upper bounds the Tsirelson bound of a multipartite Bell funcional `CG`, written in Collins-Gisin notation.
 `scenario` is a tuple detailing the number of inputs and outputs, in the order (oa, ob, ..., ia, ib, ...).
@@ -15,7 +15,8 @@ function bound_tsirelson(
     level::Union{Integer,String};
     verbose::Bool = false,
     dualize::Bool = false,
-    solver = Hypatia.Optimizer{_solver_type(T)}
+    solver = Hypatia.Optimizer{_solver_type(T)},
+    optimizer_attributes = []
 ) where {T<:Number,N}
     @assert length(scenario) == 2N
     CG = convert(AbstractArray{_solver_type(T)}, CG)
@@ -38,7 +39,7 @@ end
 export bound_tsirelson
 
 """
-    bound_tsirelson(FC::Array, level; verbose::Bool = false, dualize::Bool = false, solver = Hypatia.Optimizer{_solver_type(T)})
+    bound_tsirelson(FC::Array, level; verbose::Bool = false, dualize::Bool = false, solver = Hypatia.Optimizer)
 
 Upper bounds the Tsirelson bound of a multipartite Bell funcional `FC`, written in correlation notation.
 `level` is an integer or a string like "1 + A B +ABC" determining the level of the NPA hierarchy.
@@ -50,7 +51,8 @@ function bound_tsirelson(
     level::Union{Integer,String};
     verbose::Bool = false,
     dualize::Bool = false,
-    solver = Hypatia.Optimizer{_solver_type(T)}
+    solver = Hypatia.Optimizer{_solver_type(T)},
+    optimizer_attributes = []
 ) where {T<:Number,N}
     FC = _solver_type(T).(FC)
     level_int, additional = Moment.parse_level(Val(N), level)
@@ -108,12 +110,8 @@ function _npa(
     end
     objective = dot(functional, behaviour)
     JuMP.@objective(model, Max, objective)
-    if dualize
-        JuMP.set_optimizer(model, Dualization.dual_optimizer(solver; coefficient_type = T))
-    else
-        JuMP.set_optimizer(model, solver)
-    end
-    !verbose && JuMP.set_silent(model)
+    dualize && solver = Dualization.dual_optimizer(solver; coefficient_type = _solver_type(T))
+    _set_optimizer(model, solver, optimizer_attributes, verbose)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     return JuMP.objective_value(model)::T, JuMP.value(behaviour)::Array{T,N}
@@ -246,12 +244,8 @@ function _bound_tsirelson_manual(
 
     objective = dot(CG, behaviour)
     JuMP.@objective(model, Max, objective)
-    if dualize
-        JuMP.set_optimizer(model, Dualization.dual_optimizer(solver; coefficient_type = T))
-    else
-        JuMP.set_optimizer(model, solver)
-    end
-    !verbose && JuMP.set_silent(model)
+    dualize && solver = Dualization.dual_optimizer(solver; coefficient_type = _solver_type(T))
+    _set_optimizer(model, solver, optimizer_attributes, verbose)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     return JuMP.objective_value(model)::T, JuMP.value(behaviour)::Matrix{T}
@@ -315,12 +309,8 @@ function _bound_tsirelson_manual(FC::Matrix{T}, include_ab::Bool; verbose, duali
 
     objective = dot(FC, behaviour)
     JuMP.@objective(model, Max, objective)
-    if dualize
-        JuMP.set_optimizer(model, Dualization.dual_optimizer(solver; coefficient_type = T))
-    else
-        JuMP.set_optimizer(model, solver)
-    end
-    !verbose && JuMP.set_silent(model)
+    dualize && solver = Dualization.dual_optimizer(solver; coefficient_type = _solver_type(T))
+    _set_optimizer(model, solver, optimizer_attributes, verbose)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     return JuMP.objective_value(model)::T, JuMP.value(behaviour)::Matrix{T}

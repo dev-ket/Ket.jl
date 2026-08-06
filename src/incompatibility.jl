@@ -19,7 +19,8 @@ function incompatibility_robustness(
     noise::Symbol = :general,
     return_parent::Bool = false,
     verbose::Bool = false,
-    solver = Hypatia.Optimizer{_solver_type(T)}
+    solver = Hypatia.Optimizer{_solver_type(T)},
+    optimizer_attributes = []
 ) where {T<:Number}
     @assert noise ∈ (:depolarizing, :random, :probabilistic, :jointly_measurable, :general)
     d, o, m = _measurements_parameters(A)
@@ -78,8 +79,7 @@ function incompatibility_robustness(
     end
 
     # call of the solver
-    JuMP.set_optimizer(model, solver)
-    !verbose && JuMP.set_silent(model)
+    _set_optimizer(model, solver, optimizer_attributes, verbose)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     η = JuMP.objective_value(model)

@@ -5,7 +5,7 @@
         d::Integer,
         n_trials::Integer = 1;
         verbose::Bool = false,
-        solver = Hypatia.Optimizer{_solver_type(T)},
+        solver = Hypatia.Optimizer,
         method::Symbol = :assemblage)
 
 
@@ -36,6 +36,7 @@ function seesaw(
     n_trials::Integer = 1;
     verbose = false,
     solver = Hypatia.Optimizer{_solver_type(T)},
+    optimizer_attributes = [],
     method::Symbol = :standard
 ) where {T<:Real,N}
     @assert length(scenario) == 2N
@@ -50,11 +51,11 @@ function seesaw(
 
     for _ ∈ 1:n_trials
         if method == :assemblage
-            ω, ψ, temp_measurements = _seesaw_assemblage(CG, scenario, d, minimumincrease, maxiter; verbose, solver)
+            ω, ψ, temp_measurements = _seesaw_assemblage(CG, scenario, d, minimumincrease, maxiter; verbose, solver, optimizer_attributes)
         elseif binary_outputs
             ω, ψ, temp_measurements = _seesaw_eigenvalue(CG, d, minimumincrease, maxiter)
         else
-            ω, ψ, temp_measurements = _seesaw_standard(CG, scenario, d, minimumincrease, maxiter; verbose, solver)
+            ω, ψ, temp_measurements = _seesaw_standard(CG, scenario, d, minimumincrease, maxiter; verbose, solver, optimizer_attributes)
         end
         if ω > ω0
             ω0, ψ0, all_measurements = ω, ψ, temp_measurements
@@ -96,7 +97,7 @@ end
 
 # === Assemblage path ===
 
-function _seesaw_assemblage(CG::Array{R,N}, scenario, d, minimumincrease, maxiter; verbose, solver) where {R<:AbstractFloat,N}
+function _seesaw_assemblage(CG::Array{R,N}, scenario, d, minimumincrease, maxiter; kwargs...) where {R<:AbstractFloat,N}
     outs = scenario[1:N]
     ins = scenario[N+1:2N]
     T2 = Complex{R}
@@ -108,9 +109,9 @@ function _seesaw_assemblage(CG::Array{R,N}, scenario, d, minimumincrease, maxite
     i = 0
     while true
         i += 1
-        ω, ρxa, ρ_rest = _optimize_assemblage(CG, scenario, all_povms; verbose, solver)
+        ω, ρxa, ρ_rest = _optimize_assemblage(CG, scenario, all_povms; kwargs...)
         for k ∈ 1:N-1
-            ω, all_povms[k] = _optimize_party_povm(CG, scenario, k + 1, ρxa, ρ_rest, all_povms; verbose, solver)
+            ω, all_povms[k] = _optimize_party_povm(CG, scenario, k + 1, ρxa, ρ_rest, all_povms; kwargs...)
         end
         if ω - ω0 ≤ minimumincrease || i > maxiter
             ω0 = ω
@@ -128,7 +129,8 @@ function _optimize_assemblage(
     scenario,
     all_povms;
     verbose = false,
-    solver = Hypatia.Optimizer{R}
+    solver = Hypatia.Optimizer{R},
+    optimizer_attributes = []
 ) where {R<:AbstractFloat,N}
     outs = scenario[1:N]
     ins = scenario[N+1:2N]
@@ -147,8 +149,7 @@ function _optimize_assemblage(
     ω = _compute_value_assemblage(CG, scenario, ρxa, ρ_rest, all_povms)
     JuMP.@objective(model, Max, ω)
 
-    JuMP.set_optimizer(model, solver)
-    !verbose && JuMP.set_silent(model)
+    _set_optimizer(model, solver, optimizer_attributes, verbose)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     value_ρxa = [[JuMP.value(ρxa[x][a]) for a ∈ 1:outs[1]-1] for x ∈ 1:ins[1]]
@@ -199,7 +200,8 @@ function _solve_povm_sdp(
     ik,
     d;
     verbose = false,
-    solver = Hypatia.Optimizer{R}
+    solver = Hypatia.Optimizer{R},
+    optimizer_attributes = []
 ) where {R<:AbstractFloat}
     model = JuMP.GenericModel{R}()
     Mk = [[JuMP.@variable(model, [1:d, 1:d] ∈ JuMP.HermitianPSDCone()) for _ ∈ 1:ok-1] for _ ∈ 1:ik]
@@ -211,8 +213,7 @@ function _solve_povm_sdp(
         JuMP.add_to_expression!(ω, 1, real(dot(Γ[xk][ak], Mk[xk][ak])))
     end
     JuMP.@objective(model, Max, ω)
-    JuMP.set_optimizer(model, solver)
-    !verbose && JuMP.set_silent(model)
+    _set_optimizer(model, solver, optimizer_attributes, verbose)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     value_Mk = [[JuMP.value(Mk[xk][ak]) for ak ∈ 1:ok-1] for xk ∈ 1:ik]
@@ -227,8 +228,7 @@ function _optimize_party_povm(
     ρxa,
     ρ_rest,
     all_povms;
-    verbose = false,
-    solver = Hypatia.Optimizer{R}
+    kwargs...
 ) where {R<:AbstractFloat,N}
     outs = scenario[1:N]
     ins = scenario[N+1:2N]
@@ -263,7 +263,7 @@ function _optimize_party_povm(
         end
     end
 
-    return _solve_povm_sdp(Γ, constant, ok, ik, d; verbose, solver)
+    return _solve_povm_sdp(Γ, constant, ok, ik, d; kwargs...)
 end
 
 # Extracts state ψ ∈ C^{Dp^2} and party 1's Dp×Dp POVMs from the assemblage.
@@ -292,8 +292,7 @@ function _seesaw_standard(
     d,
     minimumincrease,
     maxiter;
-    verbose,
-    solver
+    kwargs...
 ) where {R<:AbstractFloat,N}
     outs = scenario[1:N]
     ins = scenario[N+1:2N]
@@ -310,7 +309,7 @@ function _seesaw_standard(
         i += 1
         ρ = ketbra(ψ)
         for k ∈ 1:N
-            _, all_povms[k] = _optimize_party_povm_standard(CG, scenario, k, ρ, all_povms; verbose, solver)
+            _, all_povms[k] = _optimize_party_povm_standard(CG, scenario, k, ρ, all_povms; kwargs...)
         end
         ω, ψ = _optimize_state_standard(CG, scenario, all_povms, dims)
         if ω - ω0 ≤ minimumincrease || i > maxiter
@@ -328,8 +327,7 @@ function _optimize_party_povm_standard(
     party_k,
     ρ,
     all_povms;
-    verbose = false,
-    solver = Hypatia.Optimizer{R}
+    kwargs...
 ) where {R<:AbstractFloat,N}
     outs = scenario[1:N]
     ok = outs[party_k]
@@ -358,7 +356,7 @@ function _optimize_party_povm_standard(
         end
     end
 
-    return _solve_povm_sdp(Γ, constant, ok, ik, d; verbose, solver)
+    return _solve_povm_sdp(Γ, constant, ok, ik, d; kwargs...)
 end
 
 function _optimize_state_standard(CG::Array{R,N}, scenario, all_povms, dims) where {R<:AbstractFloat,N}

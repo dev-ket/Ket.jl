@@ -37,7 +37,13 @@ end
 export entanglement_entropy
 
 """
-    entanglement_entropy(ρ::AbstractMatrix, dims::AbstractVector = _equal_sizes(ρ), n::Integer = 1; verbose = false, base = 2)
+    entanglement_entropy(
+        ρ::AbstractMatrix,
+        dims::AbstractVector = _equal_sizes(ρ),
+        n::Integer = 1;
+        base = 2,
+        verbose = false,
+        solver = Hypatia.Optimizer)
 
 Lower bounds the relative entropy of entanglement of a bipartite state `ρ` with subsystem dimensions `dims` using level `n` of the DPS hierarchy.
 If the argument `dims` is omitted equally-sized subsystems are assumed.
@@ -46,8 +52,10 @@ function entanglement_entropy(
     ρ::AbstractMatrix{T},
     dims::AbstractVector = _equal_sizes(ρ),
     n::Integer = 1;
+    base = 2,
     verbose = false,
-    base = 2
+    solver = Hypatia.Optimizer{_solver_type(T)},
+    optimizer_attributes = []
 ) where {T}
     ishermitian(ρ) || throw(ArgumentError("State needs to be Hermitian"))
     length(dims) != 2 && throw(ArgumentError("Two subsystem sizes must be specified."))
@@ -71,8 +79,7 @@ function entanglement_entropy(
     JuMP.@variable(model, h)
     JuMP.@objective(model, Min, h / log(Rs(base)))
     JuMP.@constraint(model, [h; σvec; ρvec] ∈ Hypatia.EpiTrRelEntropyTriCone{Rs,Ts}(1 + 2 * vec_dim))
-    JuMP.set_optimizer(model, Hypatia.Optimizer{Rs})
-    !verbose && JuMP.set_silent(model)
+    _set_optimizer(model, solver, optimizer_attributes, verbose)
     JuMP.optimize!(model)
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     return JuMP.objective_value(model), JuMP.value(σ)
@@ -140,7 +147,7 @@ end
         n::Integer = 1;
         ppt::Bool = true,
         verbose::Bool = false,
-        solver = Hypatia.Optimizer{_solver_type(T)})
+        solver = Hypatia.Optimizer)
 
 Upper bound on the white noise robustness of `ρ` such that it has a Schmidt number `s`.
 
@@ -161,7 +168,8 @@ function schmidt_number(
     n::Integer = 1;
     ppt::Bool = true,
     verbose::Bool = false,
-    solver = Hypatia.Optimizer{_solver_type(T)}
+    solver = Hypatia.Optimizer{_solver_type(T)},
+    optimizer_attributes = []
 ) where {T<:Number}
     ishermitian(ρ) || throw(ArgumentError("State must be Hermitian"))
     s ≥ 1 || throw(ArgumentError("Schmidt number must be ≥ 1"))
@@ -185,8 +193,7 @@ function schmidt_number(
     _dps_constraints!(model, noisy_state, lifted_dims, n; schmidt = true, ppt, is_complex, isometry = V)
     JuMP.@constraint(model, tr(model[:symmetric_meat]) == s * (tr(ρ) + λ * dρ))
 
-    JuMP.set_optimizer(model, solver)
-    !verbose && JuMP.set_silent(model)
+    _set_optimizer(model, solver, optimizer_attributes, verbose)
     JuMP.optimize!(model)
 
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
@@ -204,7 +211,7 @@ export schmidt_number
         inner::Bool = false,
         verbose::Bool = false,
         dualize::Bool = false,
-        solver = Hypatia.Optimizer{_solver_type(T)})
+        solver = Hypatia.Optimizer)
 
 Lower (or upper) bounds the entanglement robustness of state `ρ` with subsystem dimensions `dims` using level `n` of the DPS hierarchy (or inner DPS, when `inner = true`). Argument `noise` indicates the kind of noise to be used: `:white` (default), `:separable`, or `:general`. Argument `ppt` indicates whether to include the partial transposition constraints. Argument `dualize` determines whether the dual problem is solved instead. WARNING: This is critical for performance, and the correct choice depends on the solver.
 
@@ -245,12 +252,8 @@ function entanglement_robustness(
     end
     _sep!(model, noisy_state, dims, n; witness = true, ppt, is_complex)
 
-    if dualize
-        JuMP.set_optimizer(model, Dualization.dual_optimizer(solver; coefficient_type = _solver_type(T)))
-    else
-        JuMP.set_optimizer(model, solver)
-    end
-    !verbose && JuMP.set_silent(model)
+    dualize && solver = Dualization.dual_optimizer(solver; coefficient_type = _solver_type(T))
+    _set_optimizer(model, solver, optimizer_attributes, verbose)
     JuMP.optimize!(model)
 
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
@@ -419,13 +422,12 @@ function _fully_decomposable_witness_constraints!(model, dims, W)
     end
 end
 
-function _minimize_dotprod!(model, ρ, W, solver, verbose)
+function _minimize_dotprod!(model, ρ, W, solver, optimizer_attributes, verbose)
     JuMP.@variable(model, λ)
     JuMP.@constraint(model, real(dot(ρ, W)) ≤ λ)
     JuMP.@objective(model, Min, λ)
 
-    JuMP.set_optimizer(model, solver)
-    !verbose && JuMP.set_silent(model)
+    _set_optimizer(model, solver, optimizer_attributes, verbose)
     JuMP.optimize!(model)
 end
 
@@ -434,7 +436,7 @@ end
         ρ::AbstractMatrix{T},
         dims::AbstractVector;
         verbose::Bool = false,
-        solver = Hypatia.Optimizer{_solver_type(T)})
+        solver = Hypatia.Optimizer)
 
 Lower bound on the white noise such that ρ is still a genuinely multipartite entangled state and a GME witness that detects ρ.
 
@@ -447,7 +449,8 @@ function ppt_mixture(
     ρ::AbstractMatrix{T},
     dims::AbstractVector;
     verbose::Bool = false,
-    solver = Hypatia.Optimizer{_solver_type(T)}
+    solver = Hypatia.Optimizer{_solver_type(T)},
+    optimizer_attributes = []
 ) where {T<:Number}
     dim = checksquare(ρ)
     prod(dims) == dim || throw(ArgumentError("State dimension does not agree with local dimensions."))
@@ -457,7 +460,7 @@ function ppt_mixture(
     JuMP.@variable(model, W[1:dim, 1:dim], Hermitian)
 
     _fully_decomposable_witness_constraints!(model, dims, W)
-    _minimize_dotprod!(model, ρ, W, solver, verbose)
+    _minimize_dotprod!(model, ρ, W, solver, optimizer_attributes, verbose)
 
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     Wout = JuMP.objective_value(model) ≤ 0 ? JuMP.value(W) : Hermitian(zeros(_solver_type(T), size(W)))
@@ -470,7 +473,7 @@ end
         dims::AbstractVector,
         obs::AbstractVector{<:AbstractMatrix} = Vector{Matrix}();
         verbose::Bool = false,
-        solver = Hypatia.Optimizer{_solver_type(T)})
+        solver = Hypatia.Optimizer)
 
 Lower bound on the white noise such that ρ is still a genuinely multipartite entangled state that
 can be detected with a witness using only the operators provided in `obs`, and the values of the coefficients
@@ -492,7 +495,8 @@ function ppt_mixture(
     dims::AbstractVector,
     obs::AbstractVector{<:AbstractMatrix};
     verbose::Bool = false,
-    solver = Hypatia.Optimizer{_solver_type(T)}
+    solver = Hypatia.Optimizer{_solver_type(T)},
+    optimizer_attributes = []
 ) where {T<:Number}
     dim = checksquare(ρ)
     prod(dims) == dim || throw(ArgumentError("State dimension does not agree with local dimensions."))
@@ -503,7 +507,7 @@ function ppt_mixture(
     W = sum(w_coeffs[i] * obs[i] for i ∈ eachindex(w_coeffs))
 
     _fully_decomposable_witness_constraints!(model, dims, W)
-    _minimize_dotprod!(model, ρ, W, solver, verbose)
+    _minimize_dotprod!(model, ρ, W, solver, optimizer_attributes, verbose)
 
     JuMP.is_solved_and_feasible(model) || @warn JuMP.raw_status(model)
     w_coeffs_out = JuMP.objective_value(model) ≤ 0 ? JuMP.value(w_coeffs) : zeros(_solver_type(T), size(w_coeffs))
