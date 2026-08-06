@@ -1,7 +1,14 @@
 import .Moment
 
 """
-    bound_tsirelson(CG::Array, scenario::Tuple, level; verbose::Bool = false, dualize::Bool = false, solver = Hypatia.Optimizer)
+    bound_tsirelson(
+        CG::Array,
+        scenario::Tuple,
+        level;
+        verbose::Bool = false,
+        dualize::Bool = false,
+        solver = Hypatia.Optimizer,
+        solver_attributes = Pair[])
 
 Upper bounds the Tsirelson bound of a multipartite Bell funcional `CG`, written in Collins-Gisin notation.
 `scenario` is a tuple detailing the number of inputs and outputs, in the order (oa, ob, ..., ia, ib, ...).
@@ -39,7 +46,7 @@ end
 export bound_tsirelson
 
 """
-    bound_tsirelson(FC::Array, level; verbose::Bool = false, dualize::Bool = false, solver = Hypatia.Optimizer)
+    bound_tsirelson(FC::Array, level; verbose::Bool = false, dualize::Bool = false, solver = Hypatia.Optimizer, solver_attributes = Pair[])
 
 Upper bounds the Tsirelson bound of a multipartite Bell funcional `FC`, written in correlation notation.
 `level` is an integer or a string like "1 + A B +ABC" determining the level of the NPA hierarchy.

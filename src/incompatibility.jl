@@ -4,7 +4,8 @@
         noise::Symbol = :general,
         return_parent::Bool = false,
         verbose::Bool = false,
-        solver = Hypatia.Optimizer{_solver_type(T)})
+        solver = Hypatia.Optimizer,
+        solver_attributes = Pair[])
 
 Computes the incompatibility robustness of the measurements in the vector `A`.
 Depending on the noise model chosen, the second argument can be `:depolarizing` (`{tr(Aₐ)I/d}ₐ`, where `d` is the dimension of the system), `:random` (`{I/n}ₐ`, where `n` is the number of outcomes), `:probabilistic` (`{pₐI}ₐ`, where `p` is a probability distribution), `:jointly\\_measurable`, or `:general` (default).

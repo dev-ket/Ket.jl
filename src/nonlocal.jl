@@ -577,7 +577,12 @@ function _tensor_correlation_collinsgisin(
 end
 
 """
-    nonlocality_robustness(FP::Array; noise::Symbol = :white, verbose::Bool = false, solver = Hypatia.Optimizer)
+    nonlocality_robustness(
+        FP::Array;
+        noise::Symbol = :white,
+        verbose::Bool = false,
+        solver = Hypatia.Optimizer,
+        solver_attributes = Pair[])
 
 Computes the nonlocality robustness of the behaviour `FP`. Argument `noise` indicates the kind of noise to be used: `:white` (default), `:local`, or `:general`.
 
@@ -711,7 +716,7 @@ end
 export bound_signalling
 
 """
-    bound_nosignalling(CG::Array{T,N}, scenario::Tuple; verbose::Bool = false, solver = Hypatia.Optimizer)
+    bound_nosignalling(CG::Array{T,N}, scenario::Tuple; verbose::Bool = false, solver = Hypatia.Optimizer, solver_attributes = Pair[])
 
 Computes the no-signalling bound of a multipartite Bell functional `CG` written in Collins-Gisin notation.
 `scenario` is a tuple detailing the number of inputs and outputs, in the order (oa, ob, ..., ia, ib, ...).

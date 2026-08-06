@@ -43,7 +43,8 @@ export entanglement_entropy
         n::Integer = 1;
         base = 2,
         verbose = false,
-        solver = Hypatia.Optimizer)
+        solver = Hypatia.Optimizer,
+        solver_attributes = Pair[])
 
 Lower bounds the relative entropy of entanglement of a bipartite state `ρ` with subsystem dimensions `dims` using level `n` of the DPS hierarchy.
 If the argument `dims` is omitted equally-sized subsystems are assumed.
@@ -147,7 +148,8 @@ end
         n::Integer = 1;
         ppt::Bool = true,
         verbose::Bool = false,
-        solver = Hypatia.Optimizer)
+        solver = Hypatia.Optimizer,
+        solver_attributes = Pair[])
 
 Upper bound on the white noise robustness of `ρ` such that it has a Schmidt number `s`.
 
@@ -211,7 +213,8 @@ export schmidt_number
         inner::Bool = false,
         verbose::Bool = false,
         dualize::Bool = false,
-        solver = Hypatia.Optimizer)
+        solver = Hypatia.Optimizer,
+        solver_attributes = Pair[])
 
 Lower (or upper) bounds the entanglement robustness of state `ρ` with subsystem dimensions `dims` using level `n` of the DPS hierarchy (or inner DPS, when `inner = true`). Argument `noise` indicates the kind of noise to be used: `:white` (default), `:separable`, or `:general`. Argument `ppt` indicates whether to include the partial transposition constraints. Argument `dualize` determines whether the dual problem is solved instead. WARNING: This is critical for performance, and the correct choice depends on the solver.
 
@@ -437,7 +440,8 @@ end
         ρ::AbstractMatrix{T},
         dims::AbstractVector;
         verbose::Bool = false,
-        solver = Hypatia.Optimizer)
+        solver = Hypatia.Optimizer,
+        solver_attributes = Pair[])
 
 Lower bound on the white noise such that ρ is still a genuinely multipartite entangled state and a GME witness that detects ρ.
 
@@ -474,7 +478,8 @@ end
         dims::AbstractVector,
         obs::AbstractVector{<:AbstractMatrix} = Vector{Matrix}();
         verbose::Bool = false,
-        solver = Hypatia.Optimizer)
+        solver = Hypatia.Optimizer,
+        solver_attributes = Pair[])
 
 Lower bound on the white noise such that ρ is still a genuinely multipartite entangled state that
 can be detected with a witness using only the operators provided in `obs`, and the values of the coefficients

@@ -6,6 +6,7 @@
         n_trials::Integer = 1;
         verbose::Bool = false,
         solver = Hypatia.Optimizer,
+        solver_attributes = Pair[],
         method::Symbol = :assemblage)
 
 

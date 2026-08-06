@@ -377,7 +377,8 @@ end
         J::AbstractMatrix,
         dims::AbstractVector;
         verbose::Bool = false,
-        solver = Hypatia.Optimizer)
+        solver = Hypatia.Optimizer,
+        solver_attributes = Pair[])
 
 Computes the diamond norm of the supermap `J` given in the Choi-Jamiołkowski representation, with subsystem dimensions `dims`.
 
