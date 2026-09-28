@@ -2,7 +2,7 @@
 # Tilted CHSH inequality
 
 Given a Bell expression we often want to compute its local bound and the maximum quantum violation.
-In Ket this can easily be done using the functions [`local_bound`](@ref), [`seesaw`](@ref) and [`tsirelson_bound`](@ref).
+In Ket this can easily be done using the functions [`bound_local`](@ref), [`seesaw`](@ref) and [`bound_tsirelson`](@ref).
 
 We will use the tilted CHSH inequality as an example
 (see [Acín et al.’s “Randomness versus nonlocality and entanglement”](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.108.100402)):
@@ -33,7 +33,7 @@ println() #hide
 
 #=
 Computing the local bound amounts to finding the maximum of the expression over all deterministic strategies.
-This can be done using the [`local_bound`](@ref) function, which can be called on any expression written in correlation
+This can be done using the [`bound_local`](@ref) function, which can be called on any expression written in correlation
 or full probability format.
 =#
 
@@ -42,7 +42,7 @@ using Ket
 ## we take 10 different values of α
 α = LinRange(0, 1, 10)
 ## the `.` operator applies the function to each element of the vector
-local_bounds = local_bound.(tilted_chsh.(α))
+local_bounds = bound_local.(tilted_chsh.(α))
 
 #=
 For the quantum value, we can:
@@ -52,7 +52,7 @@ For the quantum value, we can:
     Since the seesaw algorithm can get trapped in local maxima, it is recommended to run it multiple times and select the best shot.
     This is automated via the optional last argument `n_trials`.
 
-2. Obtain upper bounds using the [`tsirelson_bound`](@ref) function, which is based on the NPA hierarchy.
+2. Obtain upper bounds using the [`bound_tsirelson`](@ref) function, which is based on the NPA hierarchy.
     It takes an inequality in the Collins-Gisin or full probability representation, a vector specifying the scenario
     (the number of outcomes and inputs per party), and the level of the NPA hierarchy.
 =#
@@ -62,8 +62,8 @@ tilted_chsh_cg(α) = tensor_collinsgisin(tilted_chsh(α); correlation = true)
 ## the first output of seesaw is the bound
 quantum_bounds_seesaw = [seesaw(tilted_chsh_cg(αi), (2, 2, 2, 2), 2, 100)[1] for αi in α]
 
-quantum_bounds_npa1 = [tsirelson_bound(tilted_chsh_cg(αi), (2, 2, 2, 2), 1)[1] for αi in α]
-quantum_bounds_npa2 = [tsirelson_bound(tilted_chsh_cg(αi), (2, 2, 2, 2), 2)[1] for αi in α]
+quantum_bounds_npa1 = [bound_tsirelson(tilted_chsh_cg(αi), (2, 2, 2, 2), 1)[1] for αi in α]
+quantum_bounds_npa2 = [bound_tsirelson(tilted_chsh_cg(αi), (2, 2, 2, 2), 2)[1] for αi in α]
 println() #hide
 
 #=
