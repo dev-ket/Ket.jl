@@ -1,6 +1,6 @@
 """
     incompatibility_robustness(
-        A::Vector{Measurement{<:Number}};
+        A::Vector{<:Measurement{<:Number}};
         noise::Symbol = :general,
         return_parent::Bool = false,
         verbose::Bool = false,
@@ -16,7 +16,7 @@ References:
 - Gühne et al., [arXiv:2112.06784](https://arxiv.org/abs/2112.06784) (Section III.B.2)
 """
 function incompatibility_robustness(
-    A::Vector{Measurement{T}};
+    A::Vector{<:Measurement{T}};
     noise::Symbol = :general,
     return_parent::Bool = false,
     verbose::Bool = false,

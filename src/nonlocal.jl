@@ -425,8 +425,8 @@ function tensor_probability(FC::AbstractArray{T,N}, behaviour::Bool = false) whe
 end
 
 """
-    tensor_probability(rho::AbstractMatrix, all_Aax::Vector{Measurement}...)
-    tensor_probability(rho::AbstractMatrix, Aax::Vector{Measurement}, N::Integer)
+    tensor_probability(rho::AbstractMatrix, all_Aax::Vector{<:Measurement}...)
+    tensor_probability(rho::AbstractMatrix, Aax::Vector{<:Measurement}, N::Integer)
 
 Applies N sets of measurements onto a state `rho` to form a probability array.
 If all parties apply the same measurements, use the shorthand notation.
@@ -435,8 +435,8 @@ For efficiency, `rho` is not checked to be hermitian.
 """
 function tensor_probability(
     rho::AbstractMatrix{T1},
-    first_Aax::Vector{Measurement{T2}}, # needed so that T2 is not unbounded
-    other_Aax::Vector{Measurement{T2}}...
+    first_Aax::Vector{<:Measurement{T2}}, # needed so that T2 is not unbounded
+    other_Aax::Vector{<:Measurement{T2}}...
 ) where {T1,T2}
     T = real(promote_type(T1, T2))
     all_Aax = (first_Aax, other_Aax...)
@@ -481,8 +481,8 @@ end
 # avoids creating the full probability tensor for performance
 function tensor_correlation(
     rho::AbstractMatrix{T1},
-    first_Aax::Vector{Measurement{T2}}, # needed so that T2 is not unbounded
-    other_Aax::Vector{Measurement{T2}}...;
+    first_Aax::Vector{<:Measurement{T2}}, # needed so that T2 is not unbounded
+    other_Aax::Vector{<:Measurement{T2}}...;
     marg::Bool = true
 ) where {T1,T2}
     T = real(promote_type(T1, T2))

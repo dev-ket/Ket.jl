@@ -154,7 +154,7 @@ function povm_dichotomic(E::AbstractMatrix)
 end
 export povm_dichotomic
 
-function _measurements_parameters(Axa::Vector{Measurement{T}}) where {T<:Number}
+function _measurements_parameters(Axa::Vector{<:Measurement{T}}) where {T<:Number}
     @assert !isempty(Axa)
     # dimension on which the measurements act
     d = checksquare(Axa[1][1])
@@ -206,9 +206,10 @@ export dilate_povm
 Does the Naimark dilation of a POVM given as a vector of matrices.
 This always works, but is wasteful if the POVM elements are not full rank.
 """
-function dilate_povm(E::Measurement{T}) where {T}
+function dilate_povm(E::Measurement)
+    ispovm(E) || @warn("E is not a valid POVM.")
     n = length(E)
-    rtE = sqrt.(E)::Measurement{T} #implicit test of whether E is psd
+    rtE = sqrt.(E)
     return sum(kron(rtE[i], ket(i, n)) for i ∈ 1:n)
 end
 
