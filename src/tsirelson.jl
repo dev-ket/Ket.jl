@@ -103,7 +103,6 @@ function _npa(
     for i ∈ eachindex(Γ)
         Γ[i] = 0
     end
-    Id = one(eltype(S))
     Γ .+= Γ_basis[1]
     for i ∈ 2:number_monomials
         _jump_muladd!(Γ, Γ_basis[i], var[i-1])
