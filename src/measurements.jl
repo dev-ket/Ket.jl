@@ -147,9 +147,11 @@ export povm
 
 Creates the dichotomic measurement [`E`, I - `E`].
 """
-function povm_dichotomic(E::AbstractMatrix)
-    _ispossemidef(E) || @warn("E is not positive semidefinite.")
-    _ispossemidef(I - E) || @warn("I - E is not positive semidefinite.")
+function povm_dichotomic(E::AbstractMatrix; warn = true)
+    if warn
+        _ispossemidef(E) || @warn("E is not positive semidefinite.")
+        _ispossemidef(I - E) || @warn("I - E is not positive semidefinite.")
+    end
     return [E, I - E]
 end
 export povm_dichotomic
