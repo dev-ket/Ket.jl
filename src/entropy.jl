@@ -67,23 +67,23 @@ function relative_entropy(p::AbstractVector{T}, q::AbstractVector{T}, α::T = T(
     if length(p) != length(q)
         throw(ArgumentError("p and q must have the same length."))
     end
-    if any(p .< 0) || any(q .< 0)
-        throw(DomainError("p and q must be non-negative"))
+    for (pᵢ, qᵢ) ∈ zip(p, q)
+        if pᵢ < 0 || qᵢ < 0
+            throw(DomainError("p and q must be non-negative"))
+        elseif qᵢ == 0 && pᵢ > 0
+            throw(DomainError("the support of q must be contained in the support of q"))
+        end
     end
     if α == 1
-        h = zero(α)
-        for i ∈ 1:length(p)
-            if p[i] > 0
-                h += p[i] * log(base, p[i] / q[i])
-            end
+        h = zero(T)
+        for (pᵢ, qᵢ) ∈ zip(p, q)
+            h += ifelse(pᵢ > 0, pᵢ * log(base, pᵢ / qᵢ), zero(T))
         end
         return h
     else
-        ψ = zero(α)
-        for i ∈ 1:length(p)
-            if p[i] > 0
-                ψ += p[i]^α * q[i]^(1 - α)
-            end
+        ψ = zero(T)
+        for (pᵢ, qᵢ) ∈ zip(p, q)
+            ψ += ifelse(pᵢ > 0, qᵢ * (pᵢ / qpᵢ)^α, zero(T))
         end
         return log(base, ψ) / (α - 1)
     end
@@ -107,13 +107,19 @@ function binary_relative_entropy(p::T, q::T, α::T = T(1); base = 2) where {T<:R
     if p == q == 0 || p == q == 1
         return zero(float(p))
     end
-    if (p == 0 && q == 1) || (p == 1 && q == 0)
+    if q == 0 || q == 1
         throw(DomainError("the support of [p, 1-p] must be contained in the support of [q, 1-q]"))
     end
     if α == 1
-        return p * (_log(base, p) - _log(base, q)) + (1 - p) * (_log(base, 1 - p) - _log(base, 1 - q))
+        if p == 0
+            return -log(base, 1 - q)
+        elseif p == 1
+            return -log(base, q)
+        else
+            return p * log(base, p / q) + (1 - p) * log(base, (1 - p) / (1 - q))
+        end
     else
-        return log(base, p^α * q^(1 - α) + (1 - p)^α * (1 - q)^(1 - α)) / (α - 1)
+        return log(base, q * (p / q)^α + (1 - q) * ((1 - p) / (1 - q))^α) / (α - 1)
     end
 end
 export binary_relative_entropy
