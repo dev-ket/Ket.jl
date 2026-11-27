@@ -266,7 +266,7 @@ function _update_odometer!(ind::AbstractVector{<:Integer}, base::Integer)
 end
 
 """
-    tensor_collinsgisin(p::Array, behaviour::Bool = false; correlation::Bool = false)
+    tensor_collinsgisin(p::AbstractArray, behaviour::Bool = false; correlation::Bool = ndims(p) < 4)
 
 Converts a multipartite Bell functional `p` into Collins-Gisin notation, with marginals in the first index of each dimension.
 If `correlation` is `true`, `p` is assumed to be written in correlation notation.
@@ -275,7 +275,7 @@ If `behaviour` is `true` do instead the transformation for behaviours. Doesn't a
 
 Also accepts the arguments of `tensor_probability` (state and measurements) for convenience.
 """
-function tensor_collinsgisin(p::AbstractArray, behaviour::Bool = false; correlation::Bool = false)
+function tensor_collinsgisin(p::AbstractArray, behaviour::Bool = false; correlation::Bool = ndims(p) < 4)
     if correlation
         return _tensor_collinsgisin_correlation(p, behaviour)
     else
@@ -283,8 +283,12 @@ function tensor_collinsgisin(p::AbstractArray, behaviour::Bool = false; correlat
     end
 end
 # accepts directly the arguments of tensor_probability
-function tensor_collinsgisin(rho::AbstractMatrix, all_Aax::Vector{<:Measurement}...)
-    return tensor_collinsgisin(tensor_probability(rho, all_Aax...), true)
+function tensor_collinsgisin(
+    rho::AbstractMatrix,
+    first_Aax::Vector{<:Measurement}, # prevents empty arguments
+    other_Aax::Vector{<:Measurement}...
+)
+    return tensor_collinsgisin(tensor_probability(rho, first_Aax, other_Aax...), true)
 end
 # shorthand syntax for identical measurements on all parties
 function tensor_collinsgisin(rho::AbstractMatrix, Aax::Vector{<:Measurement}, N::Integer)
@@ -460,7 +464,7 @@ end
 export tensor_probability
 
 """
-    tensor_correlation(p::AbstractArray, behaviour::Bool = false; collinsgisin::Bool = false, marg::Bool = true)
+    tensor_correlation(p::AbstractArray, behaviour::Bool = false; collinsgisin::Bool = ndims(p) < 4, marg::Bool = true)
 
 Converts a multipartite Bell functional `p` into correlation notation, with marginals in the first index of each dimension.
 If `collinsgisin` is `true`, `p` is assumed to be written in Collins-Gisin notation.
@@ -470,7 +474,7 @@ If `behaviour` is `true` do the transformation for behaviours. Doesn't assume no
 
 Also accepts the arguments of `tensor_probability` (state and measurements) for convenience.
 """
-function tensor_correlation(p::AbstractArray, behaviour::Bool = false; collinsgisin::Bool = false, marg::Bool = true)
+function tensor_correlation(p::AbstractArray, behaviour::Bool = false; collinsgisin::Bool = ndims(p) < 4, marg::Bool = true)
     if collinsgisin
         return _tensor_correlation_collinsgisin(p, behaviour; marg)
     else
